@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{3e5d3469-8b48-4eb6-9b10-26da9c5f8591}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources">
+      <UniqueIdentifier>{2dd9b92b-cfe3-45f2-a24f-29eddc275782}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\directx.ico">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="..\media\shaders\bilateralblur.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\deferred.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\distance.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\gbuffer.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\pcf.fx">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\media\common.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\media\resource.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\13_DeferredShadow\main.cpp" />
+    <ClCompile Include="..\13_DeferredShadow\other.cpp" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="extern">
+      <UniqueIdentifier>{3e427c71-aefb-4a90-ac60-60aa94ddbe0f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\IntelTest\qgl2extensions.cpp">
+      <Filter>extern</Filter>
+    </ClCompile>
+    <ClCompile Include="..\17_Combiners\main.cpp" />
+    <ClCompile Include="..\17_Combiners\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\IntelTest\glext.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+    <ClInclude Include="..\IntelTest\qgl2extensions.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

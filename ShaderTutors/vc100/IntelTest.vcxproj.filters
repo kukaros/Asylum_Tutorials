@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\IntelTest\main.cpp" />
+    <ClCompile Include="..\IntelTest\other.cpp" />
+    <ClCompile Include="..\IntelTest\qgl2extensions.cpp">
+      <Filter>extern</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="resources">
+      <UniqueIdentifier>{6c8b5a6a-312c-4879-badf-f9ab3fa9be61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="extern">
+      <UniqueIdentifier>{039722a2-73b5-4412-b284-c55d554eb9b7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\media\resource.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\IntelTest\glext.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+    <ClInclude Include="..\IntelTest\qgl2extensions.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\directx.ico">
+      <Filter>resources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\media\common.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="programs">
+      <UniqueIdentifier>{2b2fb8b8-8832-4ec7-a6a5-cda01910d338}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\myinterpreter\bytestream.cpp" />
+    <ClCompile Include="..\myinterpreter\compiler.cpp" />
+    <ClCompile Include="..\myinterpreter\interpreter.cpp" />
+    <ClCompile Include="..\myinterpreter\main.cpp" />
+    <ClCompile Include="..\myinterpreter\special.cpp" />
+    <ClCompile Include="..\myinterpreter\variadic_pointer_set.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\myinterpreter\bytestream.h" />
+    <ClInclude Include="..\myinterpreter\interpreter.h" />
+    <ClInclude Include="..\myinterpreter\types.h" />
+    <ClInclude Include="..\myinterpreter\variadic_pointer_set.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\myinterpreter\lexer.l" />
+    <None Include="..\myinterpreter\parser.y" />
+    <None Include="..\myinterpreter\programs\arithmetics.p">
+      <Filter>programs</Filter>
+    </None>
+    <None Include="..\myinterpreter\programs\bigtest.p">
+      <Filter>programs</Filter>
+    </None>
+    <None Include="..\myinterpreter\programs\factorial.p">
+      <Filter>programs</Filter>
+    </None>
+    <None Include="..\myinterpreter\programs\helloworld.p">
+      <Filter>programs</Filter>
+    </None>
+    <None Include="..\myinterpreter\programs\lnko.p">
+      <Filter>programs</Filter>
+    </None>
+    <None Include="..\myinterpreter\programs\scopes.p">
+      <Filter>programs</Filter>
+    </None>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="resources">
+      <UniqueIdentifier>{b8829aa9-df4a-41bb-89f7-d267ddec9e70}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\winapi2\animatedgif.h" />
+    <ClInclude Include="..\winapi2\customcombo.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\winapi2\animatedgif.cpp" />
+    <ClCompile Include="..\winapi2\customcombo.cpp" />
+    <ClCompile Include="..\winapi2\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\winapi2\circle.gif">
+      <Filter>resources</Filter>
+    </Image>
+    <Image Include="..\winapi2\gear.gif">
+      <Filter>resources</Filter>
+    </Image>
+    <Image Include="..\winapi2\square.gif">
+      <Filter>resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\winapi2\Form1.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

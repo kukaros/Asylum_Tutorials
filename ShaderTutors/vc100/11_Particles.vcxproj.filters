@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="..\media\resource.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\11_Particles\audiostreamer.h" />
+    <ClInclude Include="..\11_Particles\orderedmultiarray.hpp" />
+    <ClInclude Include="..\11_Particles\particlesystem.h" />
+    <ClInclude Include="..\11_Particles\thread.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="resources">
+      <UniqueIdentifier>{67cff7b7-ef59-49ef-a437-e3aa71763b37}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\media\common.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\directx.ico">
+      <Filter>resources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\11_Particles\audiostreamer.cpp" />
+    <ClCompile Include="..\11_Particles\main.cpp" />
+    <ClCompile Include="..\11_Particles\particlesystem.cpp" />
+    <ClCompile Include="..\11_Particles\sound.cpp" />
+    <ClCompile Include="..\11_Particles\thread.cpp" />
+  </ItemGroup>
+</Project>
