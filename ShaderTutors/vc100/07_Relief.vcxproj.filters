@@ -34,5 +34,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\07_Relief\main.cpp" />
+    <ClCompile Include="..\07_Relief\other.cpp" />
   </ItemGroup>
 </Project>

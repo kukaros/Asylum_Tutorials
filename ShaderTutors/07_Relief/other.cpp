@@ -1,5 +1,5 @@
 //*************************************************************************************************************
-#define TITLE			"Shader tutorial 12: Variance shadow mapping"
+#define TITLE			"Shader tutorial 7: Relief mapping"
 #define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
@@ -13,17 +13,10 @@
 HWND							hwnd			= NULL;
 LPDIRECT3D9						direct3d		= NULL;
 LPDIRECT3DDEVICE9				device			= NULL;
-LPD3DXEFFECT					variance		= NULL;
-LPD3DXEFFECT					distance		= NULL;
-LPD3DXEFFECT					specular		= NULL;
-LPD3DXEFFECT					blur			= NULL;
-LPDIRECT3DVERTEXDECLARATION9	vertexdecl		= NULL;
-LPD3DXMESH						shadowreceiver	= NULL;
-LPD3DXMESH						shadowcaster	= NULL;
-LPDIRECT3DTEXTURE9				texture1		= NULL;
-LPDIRECT3DTEXTURE9				texture2		= NULL;
-LPDIRECT3DTEXTURE9				shadowmap		= NULL;
-LPDIRECT3DTEXTURE9				blurshadowmap	= NULL;
+LPD3DXMESH						mesh			= NULL;
+LPD3DXEFFECT					effect			= NULL;
+LPDIRECT3DTEXTURE9				texture			= NULL;
+LPDIRECT3DTEXTURE9				normalmap		= NULL;
 
 D3DPRESENT_PARAMETERS			d3dpp;
 RECT							workarea;
@@ -264,17 +257,10 @@ int main(int argc, char* argv[])
 	}
 
 _end:
-	SAFE_RELEASE(vertexdecl);
-	SAFE_RELEASE(shadowreceiver);
-	SAFE_RELEASE(shadowcaster);
-	SAFE_RELEASE(distance);
-	SAFE_RELEASE(variance);
-	SAFE_RELEASE(blur);
-	SAFE_RELEASE(specular);
-	SAFE_RELEASE(texture1);
-	SAFE_RELEASE(texture2);
-	SAFE_RELEASE(shadowmap);
-	SAFE_RELEASE(blurshadowmap);
+	SAFE_RELEASE(mesh);
+	SAFE_RELEASE(effect);
+	SAFE_RELEASE(texture);
+	SAFE_RELEASE(normalmap);
 
 	if( device )
 	{

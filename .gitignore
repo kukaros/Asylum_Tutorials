@@ -24,7 +24,3 @@
 *.psess
 *.unsuccessfulbuild
 *.nativecodeanalysis.xml
-
-projects/source/spacebang2/bison
-projects/source/spacebang2/flex
-
