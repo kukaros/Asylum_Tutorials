@@ -8,27 +8,11 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="resources">
-      <UniqueIdentifier>{df90ba68-20fb-4aa6-8d17-546ef8a41da7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="extern">
       <UniqueIdentifier>{eb89454d-5317-4f86-9751-e3151818e678}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\media\common.rc">
-      <Filter>resources</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\media\directx.ico">
-      <Filter>resources</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\media\resource.h">
-      <Filter>resources</Filter>
-    </ClInclude>
     <ClInclude Include="..\IntelTest\qgl2extensions.h">
       <Filter>extern</Filter>
     </ClInclude>

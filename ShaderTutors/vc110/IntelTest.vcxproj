@@ -16,15 +16,8 @@
     <ClCompile Include="..\IntelTest\qgl2extensions.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\media\common.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\media\directx.ico" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\IntelTest\glext.h" />
     <ClInclude Include="..\IntelTest\qgl2extensions.h" />
-    <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{65F3971B-2BE1-4F41-9C8B-435C39D790E7}</ProjectGuid>

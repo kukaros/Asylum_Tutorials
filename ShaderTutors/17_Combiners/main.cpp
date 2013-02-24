@@ -22,6 +22,7 @@ extern long screenheight;
 
 // external functions
 extern GLuint LoadTexture(const std::wstring& file);
+extern GLuint LoadCubeTexture(const std::wstring& file);
 extern GLuint CreateNormalizationCubemap();
 
 // tutorial variables
@@ -29,6 +30,8 @@ GLuint texture1 = 0;
 GLuint texture2 = 0;
 GLuint texture3 = 0;
 GLuint normcube = 0;
+GLuint spheremap = 0;
+GLuint cubemap = 0;
 
 float lightpos[] = { 6, 3, 10, 1 };
 float world[16];
@@ -117,6 +120,8 @@ void DrawCube1();
 void DrawCube2();
 void DrawCube3();
 void DrawCube4();
+void DrawCube5();
+void DrawCube6();
 
 void CalculateTangentFrame()
 {
@@ -213,8 +218,8 @@ bool InitScene()
 	Quadron::qGL2Extensions::QueryFeatures();
 
 	// setup opengl
-	glClearColor(0.4f, 0.58f, 0.93f, 1.0f);
-	//glClearColor(0.153f, 0.18f, 0.16f, 1.0f);
+	//glClearColor(0.4f, 0.58f, 0.93f, 1.0f);
+	glClearColor(0.153f, 0.18f, 0.16f, 1.0f);
 	glClearDepth(1.0);
 
 	glEnable(GL_CULL_FACE);
@@ -261,6 +266,22 @@ bool InitScene()
 		return false;
 	}
 
+	spheremap = LoadTexture(L"../media/textures/spheremap1.jpg");
+
+	if( 0 == spheremap )
+	{
+		MYERROR("InitScene(): Could not load sphere map");
+		return false;
+	}
+
+	cubemap = LoadCubeTexture(L"../media/textures/cubemap1.jpg");
+
+	if( 0 == cubemap )
+	{
+		MYERROR("InitScene(): Could not load cube map");
+		return false;
+	}
+
 	normcube = CreateNormalizationCubemap();
 	CalculateTangentFrame();
 
@@ -278,12 +299,19 @@ void UninitScene()
 	if( texture3 != 0 )
 		glDeleteTextures(1, &texture3);
 
+	if( spheremap != 0 )
+		glDeleteTextures(1, &spheremap);
+
+	if( cubemap != 0 )
+		glDeleteTextures(1, &cubemap);
+
 	if( normcube != 0 )
 		glDeleteTextures(1, &normcube);
 
 	texture1 = 0;
 	texture2 = 0;
 	texture3 = 0;
+	spheremap = 0;
 	normcube = 0;
 }
 //*************************************************************************************************************
@@ -317,28 +345,34 @@ void Render(float alpha, float elapsedtime)
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60, (float)screenwidth / (float)screenheight, 0.1, 100.0);
+	gluPerspective(60, (float)(screenwidth / 3) / (float)(screenheight / 2), 0.1, 100.0);
 
 	glEnable(GL_LIGHTING);
 
-	glViewport(0, 0, screenwidth / 2, screenheight / 2);
+	glViewport(0, 0, screenwidth / 3, screenheight / 2);
 	DrawCube1();
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glViewport(screenwidth / 2, 0, screenwidth / 2, screenheight / 2);
+	glViewport(screenwidth / 3, 0, screenwidth / 3, screenheight / 2);
 	DrawCube2();
 
 	glDisable(GL_BLEND);
 
-	glViewport(0, screenheight / 2, screenwidth / 2, screenheight / 2);
+	glViewport(0, screenheight / 2, screenwidth / 3, screenheight / 2);
 	DrawCube3();
 
 	glDisable(GL_LIGHTING);
 
-	glViewport(screenwidth / 2, screenheight / 2, screenwidth / 2, screenheight / 2);
+	glViewport(screenwidth / 3, screenheight / 2, screenwidth / 3, screenheight / 2);
 	DrawCube4();
+
+	glViewport(2 * screenwidth / 3, 0, screenwidth / 3, screenheight / 2);
+	DrawCube5();
+
+	glViewport(2 * screenwidth / 3, screenheight / 2, screenwidth / 3, screenheight / 2);
+	DrawCube6();
 
 	// present
 	SwapBuffers(hdc);
@@ -690,5 +724,172 @@ void DrawCube4()
 
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_VERTEX_ARRAY);
+}
+//*************************************************************************************************************
+void DrawCube5()
+{
+	float* vert = &vertices[0];
+
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
+	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+
+	// enable vertex attrib pointers
+	glVertexPointer(3, GL_FLOAT, sizeof(CustomVertex), vert);
+	glNormalPointer(GL_FLOAT, sizeof(CustomVertex), vert + 3);
+
+	glClientActiveTexture(GL_TEXTURE1);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glTexCoordPointer(2, GL_FLOAT, sizeof(CustomVertex), vert + 8);
+
+	glClientActiveTexture(GL_TEXTURE2);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glTexCoordPointer(2, GL_FLOAT, sizeof(CustomVertex), vert + 6);
+
+	// bind textures
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_TEXTURE_GEN_S);
+	glEnable(GL_TEXTURE_GEN_T);
+	glBindTexture(GL_TEXTURE_2D, spheremap);
+
+	glActiveTexture(GL_TEXTURE1);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texture2);
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+
+	glActiveTexture(GL_TEXTURE2);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texture1);
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+
+	// draw
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, indices);
+	
+	// unbind textures
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE1);
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE0);
+	glDisable(GL_TEXTURE_GEN_S);
+	glDisable(GL_TEXTURE_GEN_T);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	// disable attrib pointers
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glClientActiveTexture(GL_TEXTURE1);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glClientActiveTexture(GL_TEXTURE0);
+
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+}
+//*************************************************************************************************************
+void DrawCube6()
+{
+	float* vert = &vertices[0];
+
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP);
+	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP);
+	glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+
+	// enable vertex attrib pointers
+	glVertexPointer(3, GL_FLOAT, sizeof(CustomVertex), vert);
+	glNormalPointer(GL_FLOAT, sizeof(CustomVertex), vert + 3);
+
+	glClientActiveTexture(GL_TEXTURE1);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glTexCoordPointer(2, GL_FLOAT, sizeof(CustomVertex), vert + 8);
+
+	glClientActiveTexture(GL_TEXTURE2);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glTexCoordPointer(2, GL_FLOAT, sizeof(CustomVertex), vert + 6);
+
+	// bind textures
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_CUBE_MAP);
+	glEnable(GL_TEXTURE_GEN_S);
+	glEnable(GL_TEXTURE_GEN_T);
+	glEnable(GL_TEXTURE_GEN_R);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+
+	glActiveTexture(GL_TEXTURE1);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texture2);
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+
+	glActiveTexture(GL_TEXTURE2);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texture1);
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+
+	// draw
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, indices);
+	
+	// unbind textures
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE1);
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE0);
+	glDisable(GL_TEXTURE_GEN_S);
+	glDisable(GL_TEXTURE_GEN_T);
+	glDisable(GL_TEXTURE_GEN_R);
+	glDisable(GL_TEXTURE_CUBE_MAP);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+	// disable attrib pointers
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glClientActiveTexture(GL_TEXTURE1);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glClientActiveTexture(GL_TEXTURE0);
+
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+	glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
 }
 //*************************************************************************************************************

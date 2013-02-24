@@ -15,12 +15,13 @@
 
 #include "../extern/qgl2extensions.h"
 
-HWND	hwnd	= NULL;
-HDC		hdc		= NULL;
-HGLRC	hrc		= NULL;
+HWND		hwnd			= NULL;
+HDC			hdc				= NULL;
+HGLRC		hrc				= NULL;
+ULONG_PTR	gdiplusToken	= NULL;
 
 RECT	workarea;
-long	screenwidth		= 800;
+long	screenwidth		= 1200;
 long	screenheight	= 600;
 bool	active			= false;
 bool	minimized		= false;
@@ -230,10 +231,8 @@ GLuint CreateNormalizationCubemap()
 	return ret;
 }
 //*************************************************************************************************************
-GLuint LoadTexture(const std::wstring& file)
+Gdiplus::Bitmap* LoadPicture(const std::wstring& file)
 {
-	GLuint texid = 0;
-
 	HANDLE hFile = CreateFileW(
 		file.c_str(), 
 		FILE_READ_DATA,
@@ -247,7 +246,7 @@ GLuint LoadTexture(const std::wstring& file)
 		return 0;
 
 	DWORD len = GetFileSize(hFile, NULL);
-	HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE|GMEM_NODISCARD, len);
+	HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE|GMEM_NODISCARD, len); // leak
 
 	if ( !hGlobal )
 	{
@@ -279,13 +278,16 @@ GLuint LoadTexture(const std::wstring& file)
 		return 0;
 	}
 
-	ULONG_PTR gdiplusToken;
-
-	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-
 	Gdiplus::Bitmap* bitmap = Gdiplus::Bitmap::FromStream(pStream);
 	pStream->Release();
+
+	return bitmap;
+}
+//*************************************************************************************************************
+GLuint LoadTexture(const std::wstring& file)
+{
+	GLuint texid = 0;
+	Gdiplus::Bitmap* bitmap = LoadPicture(file);
 
 	if( bitmap )
 	{ 
@@ -347,9 +349,127 @@ GLuint LoadTexture(const std::wstring& file)
 	else
 		MYERROR("Could not create bitmap");
 
-	Gdiplus::GdiplusShutdown(gdiplusToken);
-	GlobalFree(hGlobal);
+	return texid;
+}
+//*************************************************************************************************************
+GLuint LoadCubeTexture(const std::wstring& file)
+{
+	GLuint texid = 0;
+	std::wstring path;
+	std::wstring ext;
 
+	size_t pos = file.find_last_of('.');
+
+	if( pos == std::wstring::npos )
+		return 0;
+
+	path = file.substr(0, pos);
+	ext = file.substr(pos + 1);
+
+	std::wstring files[6] =
+	{
+		path,
+		path,
+		path,
+		path,
+		path,
+		path
+	};
+
+	GLenum faces[] =
+	{
+		GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+		GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+		GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+		GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+		GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+		GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
+	};
+
+	// no operator + (ya, rly...)
+	files[0].append(L"_posx.");
+	files[0].append(ext);
+
+	files[1].append(L"_negx.");
+	files[1].append(ext);
+
+	files[2].append(L"_posy.");
+	files[2].append(ext);
+
+	files[3].append(L"_negy.");
+	files[3].append(ext);
+
+	files[4].append(L"_posz.");
+	files[4].append(ext);
+
+	files[5].append(L"_negz.");
+	files[5].append(ext);
+	
+	glGenTextures(1, &texid);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texid);
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_GENERATE_MIPMAP, GL_TRUE);
+
+	for( int k = 0; k < 6; ++k )
+	{
+		Gdiplus::Bitmap* bitmap = LoadPicture(files[k]);
+
+		if( bitmap )
+		{ 
+			if( bitmap->GetLastStatus() == Gdiplus::Ok )
+			{
+				Gdiplus::BitmapData data;
+				unsigned char* tmpbuff;
+
+				bitmap->LockBits(0, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data);
+
+				tmpbuff = new unsigned char[data.Width * data.Height * 4];
+				memcpy(tmpbuff, data.Scan0, data.Width * data.Height * 4);
+
+				for( UINT i = 0; i < data.Height; ++i )
+				{
+					// swap red and blue
+					for( UINT j = 0; j < data.Width; ++j )
+					{
+						UINT index = (i * data.Width + j) * 4;
+						std::swap<unsigned char>(tmpbuff[index + 0], tmpbuff[index + 2]);
+					}
+
+					// flip on X
+					for( UINT j = 0; j < data.Width / 2; ++j )
+					{
+						UINT index1 = (i * data.Width + j) * 4;
+						UINT index2 = (i * data.Width + (data.Width - j - 1)) * 4;
+
+						std::swap<unsigned int>(*((unsigned int*)(tmpbuff + index1)), *((unsigned int*)(tmpbuff + index2)));
+					}
+				}
+
+				glTexImage2D(faces[k], 0, GL_RGBA, data.Width, data.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpbuff);
+
+				GLenum err = glGetError();
+
+				if( err != GL_NO_ERROR )
+					MYERROR("Could not create texture")
+				else
+					std::cout << "Created texture " << data.Width << "x" << data.Height << "\n";
+
+				bitmap->UnlockBits(&data);
+				delete[] tmpbuff;
+			}
+
+			delete bitmap;
+		}
+		else
+			MYERROR("Could not create bitmap");
+	}
+
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 	return texid;
 }
 //*************************************************************************************************************
@@ -481,6 +601,9 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 //*************************************************************************************************************
 int main(int argc, char* argv[])
 {
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
 	LARGE_INTEGER qwTicksPerSec = { 0, 0 };
 	LARGE_INTEGER qwTime;
 	LONGLONG tickspersec;
@@ -576,6 +699,8 @@ int main(int argc, char* argv[])
 	}
 
 _end:
+	Gdiplus::GdiplusShutdown(gdiplusToken);
+
 	std::cout << "Exiting...\n";
 
 	UnregisterClass("TestClass", wc.hInstance);
