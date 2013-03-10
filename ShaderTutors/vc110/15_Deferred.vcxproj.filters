@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="resources">
+      <UniqueIdentifier>{5debcaef-3d82-4f0e-baef-aa872f386253}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{ae226a9f-855a-4b77-a9d9-ad4efbc348f3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\media\resource.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\media\common.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\media\directx.ico">
+      <Filter>resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\15_Deferred\main.cpp" />
+    <ClCompile Include="..\15_Deferred\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\deferred.fx">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\media\shaders\gbuffer.fx">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\media\shaders\forward.fx">
+      <Filter>shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

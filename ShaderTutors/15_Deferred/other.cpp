@@ -1,10 +1,11 @@
 //*************************************************************************************************************
-#define TITLE			"Shader tutorial 13: Deferred shadow mapping"
+#define TITLE			"Shader tutorial 15: Deferred shading"
 #define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-#include <d3dx9.h>
 #include <iostream>
+#include <d3dx9.h>
+#include <GdiPlus.h>
 
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
@@ -13,38 +14,38 @@
 HWND							hwnd			= NULL;
 LPDIRECT3D9						direct3d		= NULL;
 LPDIRECT3DDEVICE9				device			= NULL;
-LPD3DXEFFECT					distance		= NULL;
 LPD3DXEFFECT					rendergbuffer	= NULL;
 LPD3DXEFFECT					deferred		= NULL;
-LPD3DXEFFECT					pcf				= NULL;
-LPD3DXEFFECT					blur			= NULL;
+LPD3DXEFFECT					forward			= NULL;
 LPDIRECT3DVERTEXDECLARATION9	vertexdecl		= NULL;
 
-LPD3DXMESH						shadowreceiver	= NULL;
-LPD3DXMESH						shadowcaster	= NULL;
+LPD3DXMESH						mesh2			= NULL;
+LPD3DXMESH						mesh1			= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
-LPDIRECT3DTEXTURE9				shadowmap		= NULL;
-LPDIRECT3DTEXTURE9				shadowscene		= NULL;
-LPDIRECT3DTEXTURE9				shadowblur		= NULL;
+LPDIRECT3DTEXTURE9				texture3		= NULL;
 
 LPDIRECT3DTEXTURE9				albedo			= NULL;
 LPDIRECT3DTEXTURE9				normaldepth		= NULL;
+LPDIRECT3DTEXTURE9				scene			= NULL;
+LPDIRECT3DTEXTURE9				text			= NULL;
+
 LPDIRECT3DSURFACE9				albedosurf		= NULL;
 LPDIRECT3DSURFACE9				normaldepthsurf	= NULL;
-LPDIRECT3DSURFACE9				shadowsurf		= NULL;
-LPDIRECT3DSURFACE9				shadowscenesurf	= NULL;
-LPDIRECT3DSURFACE9				shadowblursurf	= NULL;
+LPDIRECT3DSURFACE9				scenesurf		= NULL;
 
 D3DPRESENT_PARAMETERS			d3dpp;
 RECT							workarea;
-long							screenwidth		= 800;
-long							screenheight	= 600;
+ULONG_PTR						gdiplustoken;
+long							screenwidth		= 1360;
+long							screenheight	= 768;
 
 HRESULT InitScene();
 
+void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
+void KeyPress(WPARAM wparam);
 
 HRESULT DXCreateEffect(const char* file, LPD3DXEFFECT* out)
 {
@@ -64,6 +65,58 @@ HRESULT DXCreateEffect(const char* file, LPD3DXEFFECT* out)
 		errors->Release();
 
 	return hr;
+}
+//*************************************************************************************************************
+void PreRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height)
+{
+	if( tex == 0 )
+		return;
+
+	Gdiplus::Color				outline(0xff000000);
+	Gdiplus::Color				fill(0xffffffff);
+
+	Gdiplus::Bitmap*			bitmap;
+	Gdiplus::Graphics*			graphics;
+	Gdiplus::GraphicsPath		path;
+	Gdiplus::FontFamily			family(L"Arial");
+	Gdiplus::StringFormat		format;
+	Gdiplus::Pen				pen(outline, 3);
+	Gdiplus::SolidBrush			brush(fill);
+	std::wstring				wstr(str.begin(), str.end());
+
+	format.SetAlignment(Gdiplus::StringAlignmentFar);
+
+	bitmap = new Gdiplus::Bitmap(width, height, PixelFormat32bppARGB);
+	graphics = new Gdiplus::Graphics(bitmap);
+
+	// render text
+	graphics->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+	graphics->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+	graphics->SetPageUnit(Gdiplus::UnitPixel);
+
+	path.AddString(wstr.c_str(), wstr.length(), &family, Gdiplus::FontStyleBold, 25, Gdiplus::Point(width, 0), &format);
+	pen.SetLineJoin(Gdiplus::LineJoinRound);
+
+	graphics->DrawPath(&pen, &path);
+	graphics->FillPath(&brush, &path);
+
+	// copy to texture
+	Gdiplus::Rect rc(0, 0, bitmap->GetWidth(), bitmap->GetHeight());
+	Gdiplus::BitmapData data;
+	D3DLOCKED_RECT d3drc;
+
+	memset(&data, 0, sizeof(Gdiplus::BitmapData));
+
+	bitmap->LockBits(&rc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data);
+	tex->LockRect(0, &d3drc, 0, 0);
+
+	memcpy(d3drc.pBits, data.Scan0, width * height * 4);
+
+	tex->UnlockRect(0);
+	bitmap->UnlockBits(&data);
+
+	delete graphics;
+	delete bitmap;
 }
 //*************************************************************************************************************
 HRESULT InitDirect3D(HWND hwnd)
@@ -137,6 +190,10 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 		case VK_ESCAPE:
 			SendMessage(hWnd, WM_CLOSE, 0, 0);
 			break;
+
+		default:
+			KeyPress(wParam);
+			break;
 		}
 		break;
 
@@ -194,6 +251,9 @@ void Adjust(tagRECT& out, long& width, long& height, DWORD style, DWORD exstyle,
 //*************************************************************************************************************
 int main(int argc, char* argv[])
 {
+	Gdiplus::GdiplusStartupInput gdiplustartup;
+	Gdiplus::GdiplusStartup(&gdiplustoken, &gdiplustartup, NULL);
+
 	LARGE_INTEGER qwTicksPerSec = { 0, 0 };
 	LARGE_INTEGER qwTime;
 	LONGLONG tickspersec;
@@ -222,8 +282,8 @@ int main(int argc, char* argv[])
 	Adjust(rect, screenwidth, screenheight, style, 0);
 
 	hwnd = CreateWindowA("TestClass", TITLE, style,
-			rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
-			NULL, NULL, wc.hInstance, NULL);
+		rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+		NULL, NULL, wc.hInstance, NULL);
 
 	if( !hwnd )
 	{
@@ -287,27 +347,25 @@ int main(int argc, char* argv[])
 			Render((float)accum / 0.0333f, (float)delta);
 	}
 
-	_end:
+_end:
+	UninitScene();
+
+	SAFE_RELEASE(scenesurf);
 	SAFE_RELEASE(normaldepthsurf);
 	SAFE_RELEASE(albedosurf);
-	SAFE_RELEASE(shadowsurf);
-	SAFE_RELEASE(shadowblursurf);
-	SAFE_RELEASE(shadowscenesurf);
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
-	SAFE_RELEASE(shadowmap);
-	SAFE_RELEASE(shadowscene);
-	SAFE_RELEASE(shadowblur);
+	SAFE_RELEASE(texture3);
+	SAFE_RELEASE(scene);
+	SAFE_RELEASE(text);
 	SAFE_RELEASE(normaldepth);
 	SAFE_RELEASE(albedo);
 	SAFE_RELEASE(vertexdecl);
-	SAFE_RELEASE(shadowreceiver);
-	SAFE_RELEASE(shadowcaster);
-	SAFE_RELEASE(distance);
+	SAFE_RELEASE(mesh2);
+	SAFE_RELEASE(mesh1);
 	SAFE_RELEASE(rendergbuffer);
-	SAFE_RELEASE(pcf);
-	SAFE_RELEASE(blur);
 	SAFE_RELEASE(deferred);
+	SAFE_RELEASE(forward);
 	
 	if( device )
 	{
@@ -319,6 +377,8 @@ int main(int argc, char* argv[])
 
 	if( direct3d )
 		direct3d->Release();
+
+	Gdiplus::GdiplusShutdown(gdiplustoken);
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();

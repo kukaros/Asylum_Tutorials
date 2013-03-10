@@ -30,11 +30,11 @@ extern LPD3DXMESH						shadowcaster;
 extern LPDIRECT3DTEXTURE9				texture1;
 extern LPDIRECT3DTEXTURE9				texture2;
 extern LPDIRECT3DTEXTURE9				shadowmap;
-extern LPDIRECT3DTEXTURE9				diffuse;
+extern LPDIRECT3DTEXTURE9				albedo;
 extern LPDIRECT3DTEXTURE9				normaldepth;
 extern LPDIRECT3DTEXTURE9				shadowscene;
 extern LPDIRECT3DTEXTURE9				shadowblur;
-extern LPDIRECT3DSURFACE9				diffusesurf;
+extern LPDIRECT3DSURFACE9				albedosurf;
 extern LPDIRECT3DSURFACE9				normaldepthsurf;
 extern LPDIRECT3DSURFACE9				shadowsurf;
 extern LPDIRECT3DSURFACE9				shadowblursurf;
@@ -44,7 +44,7 @@ extern LPDIRECT3DSURFACE9				shadowscenesurf;
 HRESULT DXCreateEffect(const char* file, LPD3DXEFFECT* out);
 
 // tutorial variables
-D3DXVECTOR4 lightpos(-1, 6, 5, 1);
+D3DXVECTOR4 lightpos(-1, 6, 5, 1000);
 D3DXVECTOR3 look(0, 0.5f, 0), up(0, 1, 0);
 D3DXVECTOR4 texelsize(1.0f / SHADOWMAP_SIZE, 1.0f / SHADOWMAP_SIZE, 0, 1);
 D3DXVECTOR4 scenesize(2.0f / (float)screenwidth, 2.0f / (float)screenheight, 0, 1);
@@ -81,7 +81,7 @@ HRESULT InitScene()
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
 
 	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &shadowmap, NULL));
-	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &diffuse, NULL));
+	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &albedo, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &normaldepth, NULL));
 	MYVALID(device->CreateTexture(screenwidth / SHADOW_DOWNSAMPLE, screenheight / SHADOW_DOWNSAMPLE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shadowscene, NULL));
 	MYVALID(device->CreateTexture(screenwidth / SHADOW_DOWNSAMPLE, screenheight / SHADOW_DOWNSAMPLE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shadowblur, NULL));
@@ -93,11 +93,13 @@ HRESULT InitScene()
 	MYVALID(DXCreateEffect("../media/shaders/pcf.fx", &pcf));
 	MYVALID(DXCreateEffect("../media/shaders/bilateralblur.fx", &blur));
   
-	MYVALID(diffuse->GetSurfaceLevel(0, &diffusesurf));
+	MYVALID(albedo->GetSurfaceLevel(0, &albedosurf));
 	MYVALID(normaldepth->GetSurfaceLevel(0, &normaldepthsurf));
 	MYVALID(shadowmap->GetSurfaceLevel(0, &shadowsurf));
 	MYVALID(shadowscene->GetSurfaceLevel(0, &shadowscenesurf));
 	MYVALID(shadowblur->GetSurfaceLevel(0, &shadowblursurf));
+
+	deferred->SetTechnique("deferred_shadow");
 
 	// setup camera
 	D3DXVECTOR3 eye(-3, 3, -3);
@@ -170,7 +172,7 @@ void Render(float alpha, float elapsedtime)
 		device->GetRenderTarget(0, &oldsurface);
 		device->SetRenderTarget(0, shadowsurf);
 		device->Clear(0, NULL, flags, 0x00000000, 1.0f, 0);
-				
+
 		distance->Begin(NULL, 0);
 		distance->BeginPass(0);
 		{
@@ -180,7 +182,7 @@ void Render(float alpha, float elapsedtime)
 		distance->End();
 		
 		// STEP 2: render scene
-		device->SetRenderTarget(0, diffusesurf);
+		device->SetRenderTarget(0, albedosurf);
 		device->SetRenderTarget(1, normaldepthsurf);
 		device->Clear(0, NULL, flags, 0xff000000, 1.0f, 0);
 
@@ -251,7 +253,7 @@ void Render(float alpha, float elapsedtime)
 		device->SetRenderTarget(0, oldsurface);
 		device->Clear(0, NULL, flags, 0xff6694ed, 1.0f, 0);
 
-		device->SetTexture(0, diffuse);
+		device->SetTexture(0, albedo);
 		device->SetTexture(1, normaldepth);
 		device->SetTexture(2, shadowblur);
 		device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
