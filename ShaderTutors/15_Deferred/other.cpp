@@ -24,6 +24,7 @@ LPD3DXMESH						mesh1			= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
 LPDIRECT3DTEXTURE9				texture3		= NULL;
+LPDIRECT3DTEXTURE9				texture4		= NULL;
 
 LPDIRECT3DTEXTURE9				albedo			= NULL;
 LPDIRECT3DTEXTURE9				normaldepth		= NULL;
@@ -356,6 +357,7 @@ _end:
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
 	SAFE_RELEASE(texture3);
+	SAFE_RELEASE(texture4);
 	SAFE_RELEASE(scene);
 	SAFE_RELEASE(text);
 	SAFE_RELEASE(normaldepth);

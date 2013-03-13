@@ -88,7 +88,7 @@ HRESULT InitScene()
 	MYVALID(device->CreateVertexDeclaration(elem, &vertexdecl));
 
 	MYVALID(DXCreateEffect("../media/shaders/gbuffer.fx", &rendergbuffer));
-	MYVALID(DXCreateEffect("../media/shaders/deferred.fx", &deferred));
+	MYVALID(DXCreateEffect("../media/shaders/deferred_shadow.fx", &deferred));
 	MYVALID(DXCreateEffect("../media/shaders/distance.fx", &distance));
 	MYVALID(DXCreateEffect("../media/shaders/pcf.fx", &pcf));
 	MYVALID(DXCreateEffect("../media/shaders/bilateralblur.fx", &blur));

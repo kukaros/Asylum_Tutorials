@@ -27,6 +27,7 @@ extern LPD3DXMESH						mesh1;
 extern LPDIRECT3DTEXTURE9				texture1;
 extern LPDIRECT3DTEXTURE9				texture2;
 extern LPDIRECT3DTEXTURE9				texture3;
+extern LPDIRECT3DTEXTURE9				texture4;
 extern LPDIRECT3DTEXTURE9				albedo;
 extern LPDIRECT3DTEXTURE9				normaldepth;
 extern LPDIRECT3DTEXTURE9				scene;
@@ -48,7 +49,6 @@ D3DXMATRIX		world[4];
 int				currentlight = 0;
 
 void DrawScene();
-void DrawForward();
 void DrawDeferred();
 
 class PointLight
@@ -77,7 +77,7 @@ PointLight pointlights[] =
 
 DirectionalLight directionallights[] =
 {
-	{ D3DXCOLOR(0.1f, 0.1f, 0.2f, 1), D3DXVECTOR3(-1, 1, 1) }
+	{ D3DXCOLOR(0.6f, 0.6f, 1, 1), D3DXVECTOR3(-0.2f, 1, 1) },
 };
 
 static const int NUM_POINT_LIGHTS = sizeof(pointlights) / sizeof(pointlights[0]);
@@ -105,6 +105,37 @@ float textvertices[36] =
 	(float)screenwidth - 5.5f,		128.0f + 9.5f,	0, 1,	1, 1
 };
 
+HRESULT GenerateTangentFrame(LPD3DXMESH* mesh)
+{
+	LPD3DXMESH newmesh = NULL;
+	HRESULT hr;
+
+	D3DVERTEXELEMENT9 decl[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		{ 0, 20, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		{ 0, 32, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TANGENT, 0 },
+		{ 0, 44, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BINORMAL, 0 },
+		D3DDECL_END()
+	};
+
+	hr = (*mesh)->CloneMesh(D3DXMESH_MANAGED, decl, device, &newmesh);
+
+	if( FAILED(hr) )
+		return hr;
+
+	(*mesh)->Release();
+	(*mesh) = NULL;
+
+	hr = D3DXComputeTangentFrameEx(newmesh, D3DDECLUSAGE_TEXCOORD, 0,
+		D3DDECLUSAGE_TANGENT, 0, D3DDECLUSAGE_BINORMAL, 0, D3DDECLUSAGE_NORMAL, 0,
+		0, NULL, 0.01f, 0.25f, 0.01f, mesh, NULL);
+
+	newmesh->Release();
+	return hr;
+}
+
 HRESULT InitScene()
 {
 	HRESULT hr;
@@ -121,6 +152,7 @@ HRESULT InitScene()
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/static_sky.jpg", &texture3));
+	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2_normal.tga", &texture4));
 
 	MYVALID(device->CreateTexture(512, 128, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &albedo, NULL));
@@ -136,17 +168,8 @@ HRESULT InitScene()
 	MYVALID(normaldepth->GetSurfaceLevel(0, &normaldepthsurf));
 	MYVALID(scene->GetSurfaceLevel(0, &scenesurf));
 
-	deferred->SetTechnique("deferred");
-
-	PreRenderText("Use the 1-3 buttons to view one light only\nUse the 0 button to view all lights", text, 512, 128);
-
-	// setup camera
-	D3DXVECTOR3 look(0, 0.5f, 0);
-	D3DXVECTOR3 up(0, 1, 0);
-
-	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)d3dpp.BackBufferWidth / (float)d3dpp.BackBufferHeight, 0.1f, 100);
-	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
-	D3DXMatrixMultiply(&viewproj, &view, &proj);
+	MYVALID(GenerateTangentFrame(&mesh2));
+	PreRenderText("Buttons 1-3: point lights\n Button 0: all lights", text, 512, 128);
 
 	return S_OK;
 }
@@ -158,7 +181,10 @@ void UninitScene()
 void KeyPress(WPARAM wparam)
 {
 	if( wparam >= 0x30 && wparam <= 0x39 )
-		currentlight = wparam - 0x30;
+	{
+		if( (wparam - 0x30) <= NUM_POINT_LIGHTS )
+			currentlight = wparam - 0x30;
+	}
 }
 //*************************************************************************************************************
 void Update(float delta)
@@ -169,6 +195,8 @@ void Update(float delta)
 void DrawScene(LPD3DXEFFECT effect)
 {
 	D3DXMATRIX inv;
+	D3DXHANDLE oldtech = effect->GetCurrentTechnique();
+	D3DXHANDLE tech = effect->GetTechniqueByName("gbuffer_tbn");
 
 	D3DXMatrixInverse(&inv, NULL, &world[0]);
 
@@ -200,7 +228,16 @@ void DrawScene(LPD3DXEFFECT effect)
 		effect->CommitChanges();
 
 		mesh1->DrawSubset(0);
+	}
+	effect->EndPass();
+	effect->End();
 
+	if( tech )
+		effect->SetTechnique(tech);
+
+	effect->Begin(NULL, 0);
+	effect->BeginPass(0);
+	{
 		// table
 		D3DXMatrixInverse(&inv, NULL, &world[3]);
 
@@ -209,72 +246,15 @@ void DrawScene(LPD3DXEFFECT effect)
 		effect->CommitChanges();
 
 		device->SetTexture(0, texture2);
+		device->SetTexture(1, texture4);
+
 		mesh2->DrawSubset(0);
 	}
 	effect->EndPass();
 	effect->End();
-}
-//*************************************************************************************************************
-void DrawForward()
-{
-	LPDIRECT3DSURFACE9	oldsurface = NULL;
-	D3DXVECTOR4 lightpos;
 
-	// fill zbuffer
-	device->GetRenderTarget(0, &oldsurface);
-	device->SetRenderTarget(0, scenesurf);
-	device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0x00000000, 1.0f, 0);
-	device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
-
-	forward->SetTechnique("zonly");
-	DrawScene(forward);
-
-	// render geometry
-	device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);
-	device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	device->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
-	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
-
-	forward->SetTechnique("forward");
-	forward->SetVector("eyePos", (D3DXVECTOR4*)&eye);
-
-	for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
-	{
-		const PointLight& lt = pointlights[i];
-
-		lightpos = D3DXVECTOR4(lt.Position, lt.Radius);
-
-		forward->SetVector("lightColor", &lt.Color);
-		forward->SetVector("lightPos", &lightpos);
-
-		DrawScene(forward);
-	}
-
-	device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-	device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-
-	// combine with sky & gamma correct
-	device->SetRenderState(D3DRS_ZENABLE, FALSE);
-	device->SetRenderTarget(0, oldsurface);
-	device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff6694ed, 1.0f, 0);
-
-	oldsurface->Release();
-
-	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-	device->SetRenderState(D3DRS_SRGBWRITEENABLE, TRUE);
-
-	device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
-	device->SetTexture(0, scene);
-	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
-
-	forward->End();
-
-	device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-	device->SetRenderState(D3DRS_ZENABLE, TRUE);
+	if( tech )
+		effect->SetTechnique(oldtech);
 }
 //*************************************************************************************************************
 void DrawDeferred()
@@ -371,7 +351,7 @@ void DrawDeferred()
 
 	// combine with sky & gamma correct
 	device->SetRenderTarget(0, oldsurface);
-	device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0); //0xff6694ed
+	device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0);
 
 	oldsurface->Release();
 
@@ -386,6 +366,7 @@ void DrawDeferred()
 	device->SetTexture(0, scene);
 	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
 
+	// render text
 	device->SetTexture(0, text);
 	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
 
@@ -397,6 +378,23 @@ void DrawDeferred()
 void Render(float alpha, float elapsedtime)
 {
 	static float time = 0;
+
+	// camera
+	D3DXVECTOR3 look(0, 0.5f, 0);
+	D3DXVECTOR3 up(0, 1, 0);
+
+	eye = D3DXVECTOR3(-3, 3, -3);
+
+	D3DXMatrixRotationY(&world[0], -0.03f * time);
+	D3DXVec3TransformCoord(&eye, &eye, &world[0]);
+
+	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)d3dpp.BackBufferWidth / (float)d3dpp.BackBufferHeight, 0.1f, 100);
+	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
+	D3DXMatrixMultiply(&viewproj, &view, &proj);
+
+	// lights
+	directionallights[0].Direction = D3DXVECTOR3(-0.2f, 1, 1);
+	D3DXVec3TransformCoord(&directionallights[0].Direction, &directionallights[0].Direction, &world[0]);
 
 	pointlights[0].Position.x = cosf(time * 0.5f) * 2;
 	pointlights[0].Position.z = sinf(time * 0.5f) * cosf(time * 0.5f) * 2;
@@ -427,7 +425,6 @@ void Render(float alpha, float elapsedtime)
 	// render
 	if( SUCCEEDED(device->BeginScene()) )
 	{
-		//DrawForward();
 		DrawDeferred();
 
 		device->EndScene();

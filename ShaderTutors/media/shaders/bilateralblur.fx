@@ -84,6 +84,7 @@ technique blur
 {
 	pass p0
 	{
+		vertexshader = null;
 		pixelshader = compile ps_3_0 ps_main();
 	}
 }

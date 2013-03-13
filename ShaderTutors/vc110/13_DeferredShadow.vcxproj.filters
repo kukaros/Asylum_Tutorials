@@ -15,9 +15,6 @@
     <None Include="..\media\shaders\bilateralblur.fx">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shaders\deferred.fx">
-      <Filter>shaders</Filter>
-    </None>
     <None Include="..\media\shaders\distance.fx">
       <Filter>shaders</Filter>
     </None>
@@ -25,6 +22,9 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="..\media\shaders\pcf.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\deferred_shadow.fx">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

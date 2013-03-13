@@ -28,14 +28,14 @@
     <ClCompile Include="..\15_Deferred\other.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\media\shaders\deferred.fx">
+    <None Include="..\media\shaders\deferred.fx">
       <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\media\shaders\gbuffer.fx">
+    </None>
+    <None Include="..\media\shaders\forward.fx">
       <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\media\shaders\forward.fx">
+    </None>
+    <None Include="..\media\shaders\gbuffer.fx">
       <Filter>shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>

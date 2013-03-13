@@ -94,7 +94,6 @@
   <ItemGroup>
     <None Include="..\media\directx.ico" />
     <None Include="..\media\shaders\bilateralblur.fx" />
-    <None Include="..\media\shaders\deferred.fx" />
     <None Include="..\media\shaders\distance.fx" />
     <None Include="..\media\shaders\gbuffer.fx" />
     <None Include="..\media\shaders\pcf.fx" />
@@ -108,6 +107,11 @@
   <ItemGroup>
     <ClCompile Include="..\13_DeferredShadow\main.cpp" />
     <ClCompile Include="..\13_DeferredShadow\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\deferred_shadow.fx">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
