@@ -1,0 +1,12 @@
+
+Asylum_Tutorials
+================
+
+Code for tutorials posted on my blog.
+
+
+Notes
+=====
+
+VS 2012 projects can be compiled with VS 2010 too, just change platform toolset to v100.
+I try to keep both up-to-date.

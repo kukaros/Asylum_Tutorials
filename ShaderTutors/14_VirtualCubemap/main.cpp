@@ -94,6 +94,8 @@ HRESULT InitScene()
 
 	MYVALID(shadowmap->GetSurfaceLevel(0, &shadowsurf));
 
+	distance->SetTechnique("distance_point");
+
 	// setup virtual cubemap
 	FillCubeFace(virtualcube, D3DCUBEMAP_FACE_POSITIVE_X, vcubelength, D3DXVECTOR4(0.75f, 0.5f, 0.25f, 0.5f));
 	FillCubeFace(virtualcube, D3DCUBEMAP_FACE_NEGATIVE_X, vcubelength, D3DXVECTOR4(0.25f, 0.0f, 0.25f, 0.5f));
@@ -228,7 +230,7 @@ void Render(float alpha, float elapsedtime)
 
 			D3DXMatrixMultiply(&lightvp, &lightview[i], &lightproj);
 
-			distance->SetMatrix("lightViewProj", &lightvp);
+			distance->SetMatrix("matViewProj", &lightvp);
 			distance->SetMatrix("matWorld", &world[0]);
 
 			distance->Begin(NULL, 0);

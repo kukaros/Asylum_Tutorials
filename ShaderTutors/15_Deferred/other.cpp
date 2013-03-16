@@ -1,7 +1,8 @@
 //*************************************************************************************************************
-#define TITLE			"Shader tutorial 15: Deferred shading"
-#define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
-#define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
+#pragma comment(lib, "d3d9.lib")
+#pragma comment(lib, "d3dx9.lib")
+#pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "GdiPlus.lib")
 
 #include <iostream>
 #include <d3dx9.h>
@@ -11,36 +12,21 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 
-HWND							hwnd			= NULL;
-LPDIRECT3D9						direct3d		= NULL;
-LPDIRECT3DDEVICE9				device			= NULL;
-LPD3DXEFFECT					rendergbuffer	= NULL;
-LPD3DXEFFECT					deferred		= NULL;
-LPD3DXEFFECT					forward			= NULL;
-LPDIRECT3DVERTEXDECLARATION9	vertexdecl		= NULL;
+#define TITLE			"Shader tutorial 15: Deferred shading"
+#define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
+#define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-LPD3DXMESH						mesh2			= NULL;
-LPD3DXMESH						mesh1			= NULL;
-LPDIRECT3DTEXTURE9				texture1		= NULL;
-LPDIRECT3DTEXTURE9				texture2		= NULL;
-LPDIRECT3DTEXTURE9				texture3		= NULL;
-LPDIRECT3DTEXTURE9				texture4		= NULL;
+HWND					hwnd			= NULL;
+LPDIRECT3D9				direct3d		= NULL;
+LPDIRECT3DDEVICE9		device			= NULL;
 
-LPDIRECT3DTEXTURE9				albedo			= NULL;
-LPDIRECT3DTEXTURE9				normaldepth		= NULL;
-LPDIRECT3DTEXTURE9				scene			= NULL;
-LPDIRECT3DTEXTURE9				text			= NULL;
+D3DPRESENT_PARAMETERS	d3dpp;
+RECT					workarea;
+ULONG_PTR				gdiplustoken;
+long					screenwidth		= 1360;
+long					screenheight	= 768;
 
-LPDIRECT3DSURFACE9				albedosurf		= NULL;
-LPDIRECT3DSURFACE9				normaldepthsurf	= NULL;
-LPDIRECT3DSURFACE9				scenesurf		= NULL;
-
-D3DPRESENT_PARAMETERS			d3dpp;
-RECT							workarea;
-ULONG_PTR						gdiplustoken;
-long							screenwidth		= 1360;
-long							screenheight	= 768;
-
+// must be implemented by tutorial
 HRESULT InitScene();
 
 void UninitScene();
@@ -68,7 +54,38 @@ HRESULT DXCreateEffect(const char* file, LPD3DXEFFECT* out)
 	return hr;
 }
 //*************************************************************************************************************
-void PreRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height)
+HRESULT DXGenTangentFrame(LPD3DXMESH* mesh)
+{
+	LPD3DXMESH newmesh = NULL;
+	HRESULT hr;
+
+	D3DVERTEXELEMENT9 decl[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		{ 0, 20, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		{ 0, 32, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TANGENT, 0 },
+		{ 0, 44, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BINORMAL, 0 },
+		D3DDECL_END()
+	};
+
+	hr = (*mesh)->CloneMesh(D3DXMESH_MANAGED, decl, device, &newmesh);
+
+	if( FAILED(hr) )
+		return hr;
+
+	(*mesh)->Release();
+	(*mesh) = NULL;
+
+	hr = D3DXComputeTangentFrameEx(newmesh, D3DDECLUSAGE_TEXCOORD, 0,
+		D3DDECLUSAGE_TANGENT, 0, D3DDECLUSAGE_BINORMAL, 0, D3DDECLUSAGE_NORMAL, 0,
+		0, NULL, 0.01f, 0.25f, 0.01f, mesh, NULL);
+
+	newmesh->Release();
+	return hr;
+}
+//*************************************************************************************************************
+void DXRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height)
 {
 	if( tex == 0 )
 		return;
@@ -85,7 +102,7 @@ void PreRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, 
 	Gdiplus::SolidBrush			brush(fill);
 	std::wstring				wstr(str.begin(), str.end());
 
-	format.SetAlignment(Gdiplus::StringAlignmentFar);
+	//format.SetAlignment(Gdiplus::StringAlignmentFar);
 
 	bitmap = new Gdiplus::Bitmap(width, height, PixelFormat32bppARGB);
 	graphics = new Gdiplus::Graphics(bitmap);
@@ -95,7 +112,7 @@ void PreRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, 
 	graphics->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
 	graphics->SetPageUnit(Gdiplus::UnitPixel);
 
-	path.AddString(wstr.c_str(), wstr.length(), &family, Gdiplus::FontStyleBold, 25, Gdiplus::Point(width, 0), &format);
+	path.AddString(wstr.c_str(), wstr.length(), &family, Gdiplus::FontStyleBold, 25, Gdiplus::Point(0, 0), &format);
 	pen.SetLineJoin(Gdiplus::LineJoinRound);
 
 	graphics->DrawPath(&pen, &path);
@@ -351,24 +368,6 @@ int main(int argc, char* argv[])
 _end:
 	UninitScene();
 
-	SAFE_RELEASE(scenesurf);
-	SAFE_RELEASE(normaldepthsurf);
-	SAFE_RELEASE(albedosurf);
-	SAFE_RELEASE(texture1);
-	SAFE_RELEASE(texture2);
-	SAFE_RELEASE(texture3);
-	SAFE_RELEASE(texture4);
-	SAFE_RELEASE(scene);
-	SAFE_RELEASE(text);
-	SAFE_RELEASE(normaldepth);
-	SAFE_RELEASE(albedo);
-	SAFE_RELEASE(vertexdecl);
-	SAFE_RELEASE(mesh2);
-	SAFE_RELEASE(mesh1);
-	SAFE_RELEASE(rendergbuffer);
-	SAFE_RELEASE(deferred);
-	SAFE_RELEASE(forward);
-	
 	if( device )
 	{
 		ULONG rc = device->Release();

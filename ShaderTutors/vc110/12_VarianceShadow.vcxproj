@@ -95,7 +95,6 @@
     <None Include="..\media\directx.ico" />
     <None Include="..\media\shaders\blinnphong.fx" />
     <None Include="..\media\shaders\blurshadow.fx" />
-    <None Include="..\media\shaders\distance.fx" />
     <None Include="..\media\shaders\variance.fx" />
   </ItemGroup>
   <ItemGroup>
@@ -107,6 +106,9 @@
   <ItemGroup>
     <ClCompile Include="..\12_VarianceShadow\main.cpp" />
     <ClCompile Include="..\12_VarianceShadow\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\distance.fx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

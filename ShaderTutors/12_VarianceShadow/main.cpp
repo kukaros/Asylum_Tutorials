@@ -72,6 +72,8 @@ HRESULT InitScene()
 	MYVALID(DXCreateEffect("../media/shaders/variance.fx", &variance));
 	MYVALID(DXCreateEffect("../media/shaders/blurshadow.fx", &blur));
 
+	distance->SetTechnique("distance_point");
+
 	// setup camera
 	D3DXVECTOR3 eye(-3, 3, -3);
 	D3DXVECTOR3 look(0, 0.5f, 0);
@@ -131,7 +133,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXMatrixMultiply(&lightvp, &lightview, &lightproj);
 
 	distance->SetMatrix("matWorld", &world);
-	distance->SetMatrix("lightViewProj", &lightvp);
+	distance->SetMatrix("matViewProj", &lightvp);
 	distance->SetVector("lightPos", &lightpos);
 
 	// shadow receiver uniforms
