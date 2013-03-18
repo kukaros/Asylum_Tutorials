@@ -489,8 +489,8 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 
 			if( result > 0 )
 				LoadTexture(wname);
-
 			}
+
 			return 0; // do not send activate messages
 
 		case IDM_EXIT_ITEM:
