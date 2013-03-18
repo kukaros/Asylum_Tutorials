@@ -92,8 +92,8 @@ bool InitScene()
 	Quadron::qGL2Extensions::QueryFeatures();
 
 	// setup opengl
-	//glClearColor(1, 1, 1, 1);
-	glClearColor(0.4f, 0.58f, 0.93f, 1.0f);
+	glClearColor(1, 1, 1, 1);
+	//glClearColor(0.4f, 0.58f, 0.93f, 1.0f);
 	glClearDepth(1);
 
 	glEnable(GL_CULL_FACE);
