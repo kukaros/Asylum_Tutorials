@@ -6,6 +6,9 @@ matrix matWorld;
 matrix matWorldInv;
 matrix matViewProj;
 
+float4 matDiffuse = { 1, 1, 1, 1 };
+float4 params = { 1, 1, 1, 1 }; // uv multiplier, binormal sign, has texture
+
 void vs_gbuffer(
 	in out	float4 pos		: POSITION,
 	in		float3 norm		: NORMAL,
@@ -28,7 +31,9 @@ void ps_gbuffer(
 	out	float4 color0	: COLOR0, // albedo
 	out	float4 color1	: COLOR1) // normal & depth
 {
-	color0 = tex2D(mytex0, tex);
+	float4 base = tex2D(mytex0, tex);
+
+	color0 = lerp(matDiffuse, base, params.w);
 	color1 = float4(wnorm, zw.x / zw.y);
 
 	color0.a = 1;
@@ -54,7 +59,7 @@ void vs_gbuffer_tbn(
 	pos = mul(pos, matViewProj);
 	zw = pos.zw;
 
-	tex *= 2;
+	tex *= params.xy;
 }
 
 void ps_gbuffer_tbn(
@@ -71,7 +76,7 @@ void ps_gbuffer_tbn(
 	color0 = tex2D(mytex0, tex);
 	color0.a = 1;
 
-	float3x3 tbn = { wtan, -wbin, wnorm };
+	float3x3 tbn = { wtan, wbin * params.z, wnorm };
 
 	color1.rgb = normalize(mul(tbn, norm));
 	color1.a = zw.x / zw.y;
