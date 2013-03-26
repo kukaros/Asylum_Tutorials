@@ -5,9 +5,10 @@
 
 #include "../common/dxext.h"
 
-// - sky
-// - szetvalasztani az atlatszot
-// - deferredlighting
+// - ablaktörlö
+// - point shadow...
+// - transparent
+// - reflection
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -24,11 +25,13 @@ extern long screenheight;
 extern LPDIRECT3DDEVICE9 device;
 
 // tutorial variables
+LPD3DXMESH						skymesh			= NULL;
 LPD3DXEFFECT					rendergbuffer	= NULL;
 LPD3DXEFFECT					deferred		= NULL;
 LPD3DXEFFECT					distance		= NULL;
+LPD3DXEFFECT					skyeffect		= NULL;
+LPD3DXEFFECT					finalpass			= NULL;
 LPDIRECT3DVERTEXDECLARATION9	quaddecl		= NULL;
-LPDIRECT3DVERTEXDECLARATION9	blurdecl		= NULL;
 
 DXObject*						object1			= NULL;
 DXObject*						object2			= NULL;
@@ -36,53 +39,35 @@ LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
 LPDIRECT3DTEXTURE9				texture3		= NULL;
 LPDIRECT3DTEXTURE9				texture4		= NULL;
-
-LPDIRECT3DTEXTURE9				albedo			= NULL;
-LPDIRECT3DTEXTURE9				normaldepth		= NULL;
-LPDIRECT3DTEXTURE9				scene			= NULL;
+LPDIRECT3DCUBETEXTURE9			skytex			= NULL;
 LPDIRECT3DTEXTURE9				text			= NULL;
 
-LPDIRECT3DSURFACE9				albedosurf		= NULL;
-LPDIRECT3DSURFACE9				normaldepthsurf	= NULL;
-LPDIRECT3DSURFACE9				scenesurf		= NULL;
+LPDIRECT3DTEXTURE9				normalpower		= NULL;
+LPDIRECT3DTEXTURE9				depth			= NULL;
+LPDIRECT3DTEXTURE9				irradiance1		= NULL;
+LPDIRECT3DTEXTURE9				irradiance2		= NULL;
 
-D3DXVECTOR3		eye(-3, 3, -3);
-D3DXVECTOR4		scenesize(2.0f / (float)screenwidth, 2.0f / (float)screenheight, 0, 1);
+LPDIRECT3DSURFACE9				normalsurf		= NULL;
+LPDIRECT3DSURFACE9				depthsurf		= NULL;
+LPDIRECT3DSURFACE9				irradsurf1		= NULL;
+LPDIRECT3DSURFACE9				irradsurf2		= NULL;
+
+D3DXVECTOR3		eye;
 D3DXMATRIX		view, proj, viewproj;
 D3DXMATRIX		world[2];
-D3DXMATRIX		shadowproj;
 int				currentlight = 0;
 
 DXPointLight pointlights[] =
 {
-	{ 0, 0, D3DXCOLOR(1, 0, 0, 1), D3DXVECTOR3(1.5f, 0.5f, 0), 5 },
-	{ 0, 0, D3DXCOLOR(0, 1, 0, 1), D3DXVECTOR3(-0.7f, 0.5f, 1.2f), 5 },
-	{ 0, 0, D3DXCOLOR(0, 0, 1, 1), D3DXVECTOR3(0, 0.5f, 0), 5 },
+	DXPointLight(D3DXCOLOR(1, 0, 0, 1), D3DXVECTOR3(1.5f, 0.5f, 0), 5),
+	DXPointLight(D3DXCOLOR(0, 1, 0, 1), D3DXVECTOR3(-0.7f, 0.5f, 1.2f), 5),
+	DXPointLight(D3DXCOLOR(0, 0, 1, 1), D3DXVECTOR3(0, 0.5f, 0), 5)
 };
 
 DXDirectionalLight directionallights[] =
 {
-	{ 0, 0, D3DXMATRIX(), D3DXCOLOR(0.6f, 0.6f, 1, 1), D3DXVECTOR4(0, 0, 0, 5) },
-};
-
-D3DXVECTOR3 cubefwd[6] =
-{
-	D3DXVECTOR3(1, 0, 0),
-	D3DXVECTOR3(-1, 0, 0),
-	D3DXVECTOR3(0, 1, 0),
-	D3DXVECTOR3(0, -1, 0),
-	D3DXVECTOR3(0, 0, 1),
-	D3DXVECTOR3(0, 0, -1),
-};
-
-D3DXVECTOR3 cubeup[6] =
-{
-	D3DXVECTOR3(0, 1, 0),
-	D3DXVECTOR3(0, 1, 0),
-	D3DXVECTOR3(0, 0, -1),
-	D3DXVECTOR3(0, 0, 1),
-	D3DXVECTOR3(0, 1, 0),
-	D3DXVECTOR3(0, 1, 0),
+	DXDirectionalLight(D3DXCOLOR(0.45f, 0.45f, 0.45f, 1), D3DXVECTOR4(0.1f, 0.9f, 0.8f, 5)),
+	DXDirectionalLight(D3DXCOLOR(0.05f, 0.05f, 0.05f, 1), D3DXVECTOR4(0.5f, 0.3f, -1, 5))
 };
 
 float quadvertices[36] =
@@ -107,70 +92,14 @@ float textvertices[36] =
 	521.5f,	128.0f + 9.5f,	0, 1,	1, 1
 };
 
-float blurvertices[36] =
-{
-	-0.5f,							-0.5f,							0, 1,	0, 0,
-	(float)SHADOWMAP_SIZE - 0.5f,	-0.5f,							0, 1,	1, 0,
-	-0.5f,							(float)SHADOWMAP_SIZE - 0.5f,	0, 1,	0, 1,
-	
-	-0.5f,							(float)SHADOWMAP_SIZE - 0.5f,	0, 1,	0, 1,
-	(float)SHADOWMAP_SIZE - 0.5f,	-0.5f, 0, 1,	1, 0,
-	(float)SHADOWMAP_SIZE - 0.5f,	(float)SHADOWMAP_SIZE - 0.5f,	0, 1,	1, 1
-};
-
-float cubevertices[24 * 5] =
-{
-	// X+
-	1, -1, 1,	0, 1,
-	1, 1, 1,	0, 0,
-	1, 1, -1,	1, 0,
-	1, -1, -1,	1, 1,
-
-	// X-
-	-1, -1, -1,	0, 1,
-	-1, 1, -1,	0, 0,
-	-1, 1, 1,	1, 0,
-	-1, -1, 1,	1, 1,
-
-	// Y+
-	-1, 1, 1,	0, 1,
-	-1, 1, -1,	0, 0,
-	1, 1, -1,	1, 0,
-	1, 1, 1,	1, 1,
-
-	// Y-
-	-1, -1, -1,	0, 1,
-	-1, -1, 1,	0, 0,
-	1, -1, 1,	1, 0,
-	1, -1, -1,	1, 1,
-
-	// Z+
-	-1, -1, 1,	0, 1,
-	-1, 1, 1,	0, 0,
-	1, 1, 1,	1, 0,
-	1, -1, 1,	1, 1,
-
-	// Z-
-	1, -1, -1,	0, 1,
-	1, 1, -1,	0, 0,
-	-1, 1, -1,	1, 0,
-	-1, -1, -1,	1, 1,
-};
-
-unsigned short cubeindices[6] =
-{
-	0, 1, 2, 0, 2, 3
-};
-
 static const int NUM_POINT_LIGHTS = sizeof(pointlights) / sizeof(pointlights[0]);
 static const int NUM_DIRECTIONAL_LIGHTS = sizeof(directionallights) / sizeof(directionallights[0]);
-static const UINT vertexstride = 6 * sizeof(float);
 
 // tutorial functions
 void DrawScene(LPD3DXEFFECT effect);
 void DrawSceneForShadow(LPD3DXEFFECT effect);
 void DrawDeferred();
-void DrawShadowsMaps();
+void DrawShadowMaps();
 void BlurShadowMaps();
 
 HRESULT InitScene()
@@ -199,15 +128,7 @@ HRESULT InitScene()
 		D3DDECL_END()
 	};
 
-	D3DVERTEXELEMENT9 elem2[] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
-
 	MYVALID(device->CreateVertexDeclaration(elem, &quaddecl));
-	MYVALID(device->CreateVertexDeclaration(elem2, &blurdecl));
 
 	object1 = new DXObject(device);
 	object2 = new DXObject(device);
@@ -224,35 +145,36 @@ HRESULT InitScene()
 		return E_FAIL;
 	}
 
-	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
-	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/static_sky.jpg", &texture3));
+	MYVALID(D3DXLoadMeshFromXA("../media/meshes/sky.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &skymesh));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/meshes/bridge/bridge_normal.tga", &texture4));
+	//MYVALID(D3DXCreateTextureFromFileA(device, "../media/meshes/bridge/bridge_spec.dds", &texture3)); // this is not shininess...
+	MYVALID(D3DXCreateCubeTextureFromFileA(device, "../media/textures/sky4.dds", &skytex));
 
 	MYVALID(device->CreateTexture(512, 128, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
-	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &albedo, NULL));
-	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &scene, NULL));
-	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &normaldepth, NULL));
+
+	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &normalpower, NULL));
+	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &depth, NULL));
+	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &irradiance1, NULL));
+	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &irradiance2, NULL));
 
 	MYVALID(DXCreateEffect("../media/shaders/gbuffer.fx", device, &rendergbuffer));
 	MYVALID(DXCreateEffect("../media/shaders/deferred.fx", device, &deferred));
 	MYVALID(DXCreateEffect("../media/shaders/distance.fx", device, &distance));
+	MYVALID(DXCreateEffect("../media/shaders/sky.fx", device, &skyeffect));
+	MYVALID(DXCreateEffect("../media/shaders/deferredlighting.fx", device, &finalpass));
 
-	MYVALID(albedo->GetSurfaceLevel(0, &albedosurf));
-	MYVALID(normaldepth->GetSurfaceLevel(0, &normaldepthsurf));
-	MYVALID(scene->GetSurfaceLevel(0, &scenesurf));
+	MYVALID(depth->GetSurfaceLevel(0, &depthsurf));
+	MYVALID(normalpower->GetSurfaceLevel(0, &normalsurf));
+	MYVALID(irradiance1->GetSurfaceLevel(0, &irradsurf1));
+	MYVALID(irradiance2->GetSurfaceLevel(0, &irradsurf2));
 
 	for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
-	{
-		MYVALID(device->CreateCubeTexture(CUBESHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G32R32F, D3DPOOL_DEFAULT, &pointlights[i].ShadowMap, NULL));
-		MYVALID(device->CreateCubeTexture(CUBESHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G32R32F, D3DPOOL_DEFAULT, &pointlights[i].Blur, NULL));
-	}
+		pointlights[i].CreateShadowMap(device, DXLight::Dynamic, CUBESHADOWMAP_SIZE);
 
 	for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
-	{
-		MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G32R32F, D3DPOOL_DEFAULT, &directionallights[i].ShadowMap, NULL));
-		MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G32R32F, D3DPOOL_DEFAULT, &directionallights[i].Blur, NULL));
-	}
+		directionallights[i].CreateShadowMap(device, DXLight::Static, SHADOWMAP_SIZE);
 
+	rendergbuffer->SetTechnique("gbuffer_dlighting");
 	DXRenderText("Press buttons 0-3 to view lights", text, 512, 128);
 
 	return S_OK;
@@ -260,43 +182,37 @@ HRESULT InitScene()
 //*************************************************************************************************************
 void UninitScene()
 {
+	// don't do this, ever!
 	for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
-	{
-		if( pointlights[i].ShadowMap )
-			pointlights[i].ShadowMap->Release();
-
-		if( pointlights[i].Blur )
-			pointlights[i].Blur->Release();
-	}
+		pointlights[i].~DXPointLight();
 
 	for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
-	{
-		if( directionallights[i].ShadowMap )
-			directionallights[i].ShadowMap->Release();
-
-		if( directionallights[i].Blur )
-			directionallights[i].Blur->Release();
-	}
+		directionallights[i].~DXDirectionalLight();
 
 	delete object1;
 	delete object2;
 
-	SAFE_RELEASE(scenesurf);
-	SAFE_RELEASE(normaldepthsurf);
-	SAFE_RELEASE(albedosurf);
+	SAFE_RELEASE(skymesh);
+	SAFE_RELEASE(skytex);
+	SAFE_RELEASE(skyeffect);
+	SAFE_RELEASE(irradsurf1);
+	SAFE_RELEASE(irradsurf2);
+	SAFE_RELEASE(normalsurf);
+	SAFE_RELEASE(depthsurf);
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
 	SAFE_RELEASE(texture3);
 	SAFE_RELEASE(texture4);
-	SAFE_RELEASE(scene);
+	SAFE_RELEASE(irradiance1);
+	SAFE_RELEASE(irradiance2);
 	SAFE_RELEASE(text);
-	SAFE_RELEASE(normaldepth);
-	SAFE_RELEASE(albedo);
+	SAFE_RELEASE(normalpower);
+	SAFE_RELEASE(depth);
 	SAFE_RELEASE(quaddecl);
-	SAFE_RELEASE(blurdecl);
 	SAFE_RELEASE(rendergbuffer);
 	SAFE_RELEASE(deferred);
 	SAFE_RELEASE(distance);
+	SAFE_RELEASE(finalpass);
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
@@ -317,38 +233,54 @@ void DrawScene(LPD3DXEFFECT effect)
 {
 	D3DXMATRIX inv;
 	D3DXHANDLE oldtech = effect->GetCurrentTechnique();
-	D3DXHANDLE tech = effect->GetTechniqueByName("gbuffer_tbn");
+	D3DXHANDLE tech = effect->GetTechniqueByName("gbuffer_tbn_dlighting");
+	D3DXVECTOR4 params(1, 1, 1, 0);
+	unsigned int flags = DXObject::Opaque;
+
+	if( !tech )
+		flags |= DXObject::Material;
 
 	D3DXMatrixInverse(&inv, NULL, &world[0]);
 
 	effect->SetMatrix("matWorld", &world[0]);
 	effect->SetMatrix("matWorldInv", &inv);
 	effect->SetMatrix("matViewProj", &viewproj);
+	effect->SetVector("params", &params);
 
 	effect->Begin(NULL, 0);
 	effect->BeginPass(0);
 	{
-		object2->Draw(effect);
+		// car
+		object2->Draw(flags, effect);
 	}
 	effect->EndPass();
 	effect->End();
 
 	if( tech )
+	{
 		effect->SetTechnique(tech);
+
+		// no need to flip binormal (was exported)
+		params = D3DXVECTOR4(1, 1, 1, 1);
+		effect->SetVector("params", &params);
+	}
+
+	D3DXMatrixInverse(&inv, NULL, &world[1]);
+
+	effect->SetMatrix("matWorldInv", &inv);
+	effect->SetMatrix("matWorld", &world[1]);
 
 	effect->Begin(NULL, 0);
 	effect->BeginPass(0);
 	{
 		// bridge
-		D3DXMatrixInverse(&inv, NULL, &world[1]);
+		if( tech )
+		{
+			//device->SetTexture(0, texture3); // spec power
+			device->SetTexture(1, texture4); // normal map
+		}
 
-		effect->SetMatrix("matWorldInv", &inv);
-		effect->SetMatrix("matWorld", &world[1]);
-		effect->CommitChanges();
-
-		device->SetTexture(1, texture4);
-
-		object1->Draw();
+		object1->Draw(flags, effect);
 	}
 	effect->EndPass();
 	effect->End();
@@ -359,27 +291,22 @@ void DrawScene(LPD3DXEFFECT effect)
 //*************************************************************************************************************
 void DrawSceneForShadow(LPD3DXEFFECT effect)
 {
+	// car
 	effect->SetMatrix("matWorld", &world[0]);
 	effect->CommitChanges();
 
-	object2->Draw();
+	object2->Draw(DXObject::Opaque);
 
 	// bridge
 	distance->SetMatrix("matWorld", &world[1]);
 	distance->CommitChanges();
 
-	object1->DrawSubset(0);
+	object1->Draw(DXObject::Opaque);
 }
 //*************************************************************************************************************
-void DrawShadowsMaps()
+void DrawShadowMaps()
 {
 	LPDIRECT3DSURFACE9	oldsurface = NULL;
-	LPDIRECT3DSURFACE9	surface = NULL;
-	D3DXMATRIX			shadowview;
-	D3DXMATRIX			shadowvp;
-	D3DXVECTOR4			origin(0, 0, 0, 0);
-	D3DXVECTOR3			up(0, 1, 0);
-
 	device->GetRenderTarget(0, &oldsurface);
 
 	// directional lights
@@ -388,92 +315,52 @@ void DrawShadowsMaps()
 		distance->SetTechnique("distance_directional");
 		distance->Begin(NULL, 0);
 		distance->BeginPass(0);
-
-		D3DXMatrixOrthoLH(&shadowproj, 7, 7, 0.1f, 100);
-
-		for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
 		{
-			DXDirectionalLight& lt = directionallights[i];
-
-			D3DXMatrixLookAtLH(&shadowview, (D3DXVECTOR3*)&(origin + lt.Direction.w * lt.Direction), (D3DXVECTOR3*)&origin, &up);
-			D3DXMatrixMultiply(&lt.ViewProj, &shadowview, &shadowproj);
-
-			distance->SetVector("lightPos", &lt.Direction);
-			distance->SetMatrix("matViewProj", &lt.ViewProj);
-
-			lt.ShadowMap->GetSurfaceLevel(0, &surface);
-
-			device->SetRenderTarget(0, surface);
-			device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff000000, 1.0f, 0);
-
-			DrawSceneForShadow(distance);
-			surface->Release();
+			for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
+			{
+				DXDirectionalLight& lt = directionallights[i];
+				lt.DrawShadowMap(device, distance, &DrawSceneForShadow);
+			}
 		}
-
 		distance->EndPass();
 		distance->End();
 	}
 
 	// point lights
+	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
 	distance->SetTechnique("distance_point");
 	distance->Begin(NULL, 0);
 	distance->BeginPass(0);
-
-	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-
-	for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
 	{
-		const DXPointLight& lt = pointlights[i];
-
-		if( currentlight > 0 && ((i + 1) != currentlight) )
-			continue;
-
-		D3DXMatrixPerspectiveFovLH(&shadowproj, D3DX_PI / 2, 1, 0.1f, lt.Radius);
-		distance->SetVector("lightPos", (D3DXVECTOR4*)&lt.Position);
-
-		for( int j = 0; j < 6; ++j )
+		for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
 		{
-			D3DXMatrixLookAtLH(&shadowview, &lt.Position, &(lt.Position + cubefwd[j]), &cubeup[j]);
-			D3DXMatrixMultiply(&shadowvp, &shadowview, &shadowproj);
+			if( currentlight > 0 && ((i + 1) != currentlight) )
+				continue;
 
-			distance->SetMatrix("matViewProj", &shadowvp);
-
-			lt.ShadowMap->GetCubeMapSurface((D3DCUBEMAP_FACES)j, 0, &surface);
-
-			device->SetRenderTarget(0, surface);
-			device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff000000, 1.0f, 0);
-
-			DrawSceneForShadow(distance);
-			surface->Release();
+			DXPointLight& lt = pointlights[i];
+			lt.DrawShadowMap(device, distance, &DrawSceneForShadow);
 		}
 	}
-
 	distance->EndPass();
 	distance->End();
 
 	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 
+	// now blur them
 	BlurShadowMaps();
 
-	device->SetRenderState(D3DRS_ZENABLE, TRUE);
 	device->SetRenderTarget(0, oldsurface);
-
 	oldsurface->Release();
 }
 //*************************************************************************************************************
 void BlurShadowMaps()
 {
-	LPDIRECT3DSURFACE9	surface = NULL;
-	D3DXMATRIX			shadowview;
-
-	device->SetVertexDeclaration(quaddecl);
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
 
 	// blur directional shadows
 	if( currentlight == 0 )
 	{
-		D3DXVECTOR4 texelsize(1.0f / SHADOWMAP_SIZE, 0, 0, 0);
-
 		distance->SetTechnique("blur5x5");
 		distance->Begin(NULL, 0);
 		distance->BeginPass(0);
@@ -481,36 +368,7 @@ void BlurShadowMaps()
 			for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
 			{
 				DXDirectionalLight& lt = directionallights[i];
-
-				// x
-				lt.Blur->GetSurfaceLevel(0, &surface);
-
-				distance->SetVector("texelSize", &texelsize);
-				distance->CommitChanges();
-
-				device->SetRenderTarget(0, surface);
-				device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0);
-
-				device->SetTexture(0, lt.ShadowMap);
-				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, blurvertices, vertexstride);
-
-				surface->Release();
-				std::swap(texelsize.x, texelsize.y);
-
-				// y
-				lt.ShadowMap->GetSurfaceLevel(0, &surface);
-
-				distance->SetVector("texelSize", &texelsize);
-				distance->CommitChanges();
-
-				device->SetRenderTarget(0, surface);
-				device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0);
-
-				device->SetTexture(0, lt.Blur);
-				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, blurvertices, vertexstride);
-
-				surface->Release();
-				std::swap(texelsize.x, texelsize.y);
+				lt.BlurShadowMap(device, distance);
 			}
 		}
 		distance->EndPass();
@@ -518,116 +376,57 @@ void BlurShadowMaps()
 	}
 
 	// blur point shadows
-	D3DXVECTOR4 texelsizesx[6] =
-	{
-		D3DXVECTOR4(0, 0, 2.0f / CUBESHADOWMAP_SIZE, 0),
-		D3DXVECTOR4(0, 0, 2.0f / CUBESHADOWMAP_SIZE, 0),
-
-		D3DXVECTOR4(2.0f / CUBESHADOWMAP_SIZE, 0, 0, 0),
-		D3DXVECTOR4(2.0f / CUBESHADOWMAP_SIZE, 0, 0, 0),
-
-		D3DXVECTOR4(2.0f / CUBESHADOWMAP_SIZE, 0, 0, 0),
-		D3DXVECTOR4(2.0f / CUBESHADOWMAP_SIZE, 0, 0, 0),
-	};
-
-	D3DXVECTOR4 texelsizesy[6] =
-	{
-		D3DXVECTOR4(0, 2.0f / CUBESHADOWMAP_SIZE, 0, 0),
-		D3DXVECTOR4(0, 2.0f / CUBESHADOWMAP_SIZE, 0, 0),
-
-		D3DXVECTOR4(0, 0, 2.0f / CUBESHADOWMAP_SIZE, 0),
-		D3DXVECTOR4(0, 0, 2.0f / CUBESHADOWMAP_SIZE, 0),
-
-		D3DXVECTOR4(0, 2.0f / CUBESHADOWMAP_SIZE, 0, 0),
-		D3DXVECTOR4(0, 2.0f / CUBESHADOWMAP_SIZE, 0, 0),
-	};
-
-	UINT stride = 5 * sizeof(float);
-	char* vert = (char*)&cubevertices[0];
-
-	device->SetVertexDeclaration(blurdecl);
-
 	distance->SetTechnique("blurcube5x5");
 	distance->Begin(NULL, 0);
 	distance->BeginPass(0);
 	{
 		for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
 		{
-			const DXPointLight& lt = pointlights[i];
+			DXPointLight& lt = pointlights[i];
 
 			if( currentlight > 0 && ((i + 1) != currentlight) )
 				continue;
 
-			for( int j = 0; j < 6; ++j )
-			{
-				D3DXMatrixLookAtLH(&shadowview, &D3DXVECTOR3(0, 0, 0), &cubefwd[j], &cubeup[j]);
-
-				// x
-				distance->SetMatrix("matViewProj", &shadowview);
-				distance->SetVector("texelSize", &texelsizesx[j]);
-				distance->CommitChanges();
-
-				lt.Blur->GetCubeMapSurface((D3DCUBEMAP_FACES)j, 0, &surface);
-
-				device->SetRenderTarget(0, surface);
-				device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0);
-
-				device->SetTexture(0, lt.ShadowMap);
-				device->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, cubeindices, D3DFMT_INDEX16, vert + j * 4 * stride, stride);
-
-				surface->Release();
-
-				// y
-				distance->SetVector("texelSize", &texelsizesy[j]);
-				distance->CommitChanges();
-
-				lt.ShadowMap->GetCubeMapSurface((D3DCUBEMAP_FACES)j, 0, &surface);
-
-				device->SetRenderTarget(0, surface);
-				device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0);
-
-				device->SetTexture(0, lt.Blur);
-				device->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, cubeindices, D3DFMT_INDEX16,  vert + j * 4 * stride, stride);
-
-				surface->Release();
-			}
+			lt.BlurShadowMap(device, distance);
 		}
 	}
 	distance->EndPass();
 	distance->End();
+
+	device->SetRenderState(D3DRS_ZENABLE, TRUE);
 }
 //*************************************************************************************************************
 void DrawDeferred()
 {
 	LPDIRECT3DSURFACE9	oldsurface = NULL;
 	D3DXMATRIX			inv;
+	D3DXMATRIX			shadowvp;
 	D3DXVECTOR4			lightpos;
 	RECT				scissorbox;
 
-	// geometry pass
+	// STEP 1: geometry pass
 	device->GetRenderTarget(0, &oldsurface);
-	device->SetRenderTarget(0, albedosurf);
-	device->SetRenderTarget(1, normaldepthsurf);
+	device->SetRenderTarget(0, normalsurf);
+	device->SetRenderTarget(1, depthsurf);
 	device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0x00000000, 1.0f, 0);
 
 	DrawScene(rendergbuffer);
 
-	// deferred pass
+	// STEP 3: deferred pass
 	D3DXMatrixInverse(&inv, NULL, &viewproj);
 
 	deferred->SetVector("eyePos", (D3DXVECTOR4*)&eye);
 	deferred->SetMatrix("matViewProjInv", &inv);
 
-	device->SetRenderTarget(0, scenesurf);
-	device->SetRenderTarget(1, NULL);
+	device->SetRenderTarget(0, irradsurf1);
+	device->SetRenderTarget(1, irradsurf2);
 	device->Clear(0, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0);
 
-	device->SetTexture(0, albedo);
-	device->SetTexture(1, normaldepth);
+	device->SetTexture(0, normalpower);
+	device->SetTexture(1, depth);
 
 	device->SetVertexDeclaration(quaddecl);
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
-
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
 	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
@@ -635,22 +434,23 @@ void DrawDeferred()
 	// directional lights
 	if( currentlight == 0 )
 	{
-		deferred->SetTechnique("deferred_directional");
+		deferred->SetTechnique("irradiance_directional");
 
 		deferred->Begin(NULL, 0);
 		deferred->BeginPass(0);
 		{
 			for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
 			{
-				const DXDirectionalLight& lt = directionallights[i];
+				DXDirectionalLight& lt = directionallights[i];
+				lt.GetViewProjMatrix(shadowvp, D3DXVECTOR3(0, 0, 0));
 
-				deferred->SetVector("lightColor", &lt.Color);
-				deferred->SetVector("lightPos", &lt.Direction);
-				deferred->SetMatrix("lightViewProj", &lt.ViewProj);
+				deferred->SetVector("lightColor", (D3DXVECTOR4*)&lt.GetColor());
+				deferred->SetVector("lightPos", &lt.GetDirection());
+				deferred->SetMatrix("lightViewProj", &shadowvp);
 				deferred->CommitChanges();
 
-				device->SetTexture(2, lt.ShadowMap);
-				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, vertexstride);
+				device->SetTexture(2, lt.GetShadowMap());
+				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, 6 * sizeof(float));
 			}
 		}
 		deferred->EndPass();
@@ -658,7 +458,7 @@ void DrawDeferred()
 	}
 
 	// point lights
-	deferred->SetTechnique("deferred_point");
+	deferred->SetTechnique("irradiance_point");
 
 	device->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
 
@@ -667,22 +467,22 @@ void DrawDeferred()
 	{
 		for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
 		{
-			const DXPointLight& lt = pointlights[i];
+			DXPointLight& lt = pointlights[i];
 
 			if( currentlight > 0 && ((i + 1) != currentlight) )
 				continue;
 
-			lightpos = D3DXVECTOR4(lt.Position, lt.Radius);
+			lightpos = D3DXVECTOR4(lt.GetPosition(), lt.GetRadius());
 
-			deferred->SetVector("lightColor", &lt.Color);
+			deferred->SetVector("lightColor", (D3DXVECTOR4*)&lt.GetColor());
 			deferred->SetVector("lightPos", &lightpos);
 			deferred->CommitChanges();
 
 			lt.GetScissorRect(scissorbox, view, proj, screenwidth, screenheight);
 
-			device->SetTexture(2, lt.ShadowMap);
+			device->SetTexture(2, lt.GetShadowMap());
 			device->SetScissorRect(&scissorbox);
-			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, vertexstride);
+			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, 6 * sizeof(float));
 		}
 	}
 	deferred->EndPass();
@@ -691,29 +491,60 @@ void DrawDeferred()
 	device->SetTexture(1, NULL);
 	device->SetTexture(2, NULL);
 	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
-	// combine with sky & gamma correct
+	// render sky
+	device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+
 	device->SetRenderTarget(0, oldsurface);
-	device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff000000, 1.0f, 0);
+	device->SetRenderTarget(1, NULL);
+	device->Clear(0, NULL, D3DCLEAR_TARGET, 0xff6694ed, 1.0f, 0);
 
 	oldsurface->Release();
 
-	device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
-	device->SetTexture(0, texture3);
-	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, vertexstride);
+	D3DXMatrixScaling(&inv, 20, 20, 20);
+	skyeffect->SetMatrix("matWorld", &inv);
 
-	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	D3DXMatrixRotationX(&inv, D3DXToRadian(-30));
+	skyeffect->SetMatrix("matWorldSky", &inv);
+
+	skyeffect->SetMatrix("matViewProj", &viewproj);
+	skyeffect->SetVector("eyePos", (D3DXVECTOR4*)&eye);
+
+	skyeffect->Begin(0, 0);
+	skyeffect->BeginPass(0);
+	{
+		device->SetTexture(0, skytex);
+		skymesh->DrawSubset(0);
+	}
+	skyeffect->EndPass();
+	skyeffect->End();
+
+	// STEP 3: final scene pass
 	device->SetRenderState(D3DRS_SRGBWRITEENABLE, TRUE);
+	device->SetRenderState(D3DRS_ZENABLE, TRUE);
+	device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 
-	device->SetTexture(0, scene);
-	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, vertexstride);
+	device->SetTexture(1, irradiance1);
+	device->SetTexture(2, irradiance2);
 
-	// render text
-	device->SetTexture(0, text);
-	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, vertexstride);
+	DrawScene(finalpass);
 
 	device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
+
+	device->SetTexture(1, NULL);
+	device->SetTexture(2, NULL);
+
+	// render text
+	device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
+	device->SetRenderState(D3DRS_ZENABLE, FALSE);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	device->SetTexture(0, text);
+	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, 6 * sizeof(float));
+
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 	device->SetRenderState(D3DRS_ZENABLE, TRUE);
 }
@@ -726,27 +557,21 @@ void Render(float alpha, float elapsedtime)
 	D3DXVECTOR3 look(-1, 0.3f, -0.4f);
 	D3DXVECTOR3 up(0, 1, 0);
 
-	eye = D3DXVECTOR3(-3, 2, -2.4f);
+	eye = D3DXVECTOR3(-2.5f, 1.26f, -2.0f);
 
 	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, 0.1f, 100);
 	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
 	D3DXMatrixMultiply(&viewproj, &view, &proj);
 
 	// lights
-	D3DXVECTOR3 dir(-0.2f, 0.65f, 1);
+	pointlights[0].GetPosition().x = cosf(time * 0.5f) * 2;
+	pointlights[0].GetPosition().z = sinf(time * 0.5f) * cosf(time * 0.5f) * 2;
 
-	directionallights[0].Direction.x = dir.x;
-	directionallights[0].Direction.y = dir.y;
-	directionallights[0].Direction.z = dir.z;
+	pointlights[1].GetPosition().x = cosf(1.5f * time) * 2;
+	pointlights[1].GetPosition().z = sinf(1 * time) * 2;
 
-	pointlights[0].Position.x = cosf(time * 0.5f) * 2;
-	pointlights[0].Position.z = sinf(time * 0.5f) * cosf(time * 0.5f) * 2;
-
-	pointlights[1].Position.x = cosf(1.5f * time) * 2;
-	pointlights[1].Position.z = sinf(1 * time) * 2;
-
-	pointlights[2].Position.x = cosf(0.75f * time) * 1.5f;
-	pointlights[2].Position.z = sinf(1.5f * time) * 1.5f;
+	pointlights[2].GetPosition().x = cosf(0.75f * time) * 1.5f;
+	pointlights[2].GetPosition().z = sinf(1.5f * time) * 1.5f;
 
 	time += elapsedtime;
 
@@ -764,7 +589,7 @@ void Render(float alpha, float elapsedtime)
 	if( SUCCEEDED(device->BeginScene()) )
 	{
 		// shadow pass
-		DrawShadowsMaps();
+		DrawShadowMaps();
 
 		// draw scene & lights
 		DrawDeferred();

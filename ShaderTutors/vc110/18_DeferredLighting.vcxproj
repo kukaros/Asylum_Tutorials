@@ -44,6 +44,19 @@
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\sky.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\deferredlighting.fx">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\media\shaders\forward.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{7FB6FE12-2007-46F5-B684-5051630AA510}</ProjectGuid>
     <RootNamespace>My18_DeferredLighting</RootNamespace>

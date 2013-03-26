@@ -301,8 +301,10 @@ void Render(float alpha, float elapsedtime)
 	effect->SetMatrix("matViewProj", &wvp);
 
 	D3DXMatrixScaling(&world, 4407, 4407, 4407);
-
 	skyeffect->SetMatrix("matWorld", &world);
+
+	D3DXMatrixIdentity(&world);
+	skyeffect->SetMatrix("matWorldSky", &world);
 	skyeffect->SetMatrix("matViewProj", &wvp);
 
 	LPDIRECT3DSURFACE9 oldtarget = NULL;

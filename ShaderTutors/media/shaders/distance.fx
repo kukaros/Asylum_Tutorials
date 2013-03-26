@@ -80,6 +80,8 @@ void ps_blurcube5x5(
 {
 	float4 s = 0;
 
+	s = texCUBE(mytex0, cdir);
+
 	// texelSize must be multiplied by 2
 	s += texCUBE(mytex0, cdir + offsets[0] * texelSize);
 	s += texCUBE(mytex0, cdir + offsets[1] * texelSize);

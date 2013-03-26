@@ -7,6 +7,7 @@ matrix matWorldInv;
 matrix matViewProj;
 
 float4 matDiffuse = { 1, 1, 1, 1 };
+float4 matShininess = { 80.0f, 1, 1, 1 };
 float4 params = { 1, 1, 1, 1 }; // uv multiplier, binormal sign, has texture
 
 void vs_gbuffer(
@@ -17,26 +18,12 @@ void vs_gbuffer(
 	out		float3 wnorm	: TEXCOORD2)
 {
 	pos = mul(pos, matWorld);
-
 	wnorm = mul(matWorldInv, float4(norm, 0)).xyz;
+
 	pos = mul(pos, matViewProj);
-
 	zw = pos.zw;
-}
 
-void ps_gbuffer(
-	in	float2 tex		: TEXCOORD0,
-	in	float2 zw		: TEXCOORD1,
-	in	float3 wnorm	: TEXCOORD2,
-	out	float4 color0	: COLOR0, // albedo
-	out	float4 color1	: COLOR1) // normal & depth
-{
-	float4 base = tex2D(mytex0, tex);
-
-	color0 = lerp(matDiffuse, base, params.w);
-	color1 = float4(wnorm, zw.x / zw.y);
-
-	color0.a = 1;
+	tex *= params.xy;
 }
 
 void vs_gbuffer_tbn(
@@ -62,40 +49,119 @@ void vs_gbuffer_tbn(
 	tex *= params.xy;
 }
 
-void ps_gbuffer_tbn(
+void ps_gbuffer_ds(
+	in	float2 tex		: TEXCOORD0,
+	in	float2 zw		: TEXCOORD1,
+	in	float3 wnorm	: TEXCOORD2,
+	out	float4 color0	: COLOR0, // albedo
+	out	float4 color1	: COLOR1, // normals
+	out	float4 color2	: COLOR2) // depth
+{
+	float4 base = tex2D(mytex0, tex);
+
+	color0 = lerp(matDiffuse, base, params.w);
+	color1 = float4(wnorm, 1);
+	color2 = float4(zw.x / zw.y, 0, 0, 1);
+
+	color0.a = 1;
+}
+
+void ps_gbuffer_tbn_ds(
 	in	float2 tex		: TEXCOORD0,
 	in	float2 zw		: TEXCOORD1,
 	in	float3 wnorm	: TEXCOORD2,
 	in	float3 wtan		: TEXCOORD3,
 	in	float3 wbin		: TEXCOORD4,
 	out	float4 color0	: COLOR0, // albedo
-	out	float4 color1	: COLOR1) // normal & depth
+	out	float4 color1	: COLOR1, // normals
+	out	float4 color2	: COLOR2) // depth
 {
 	float3 norm = tex2D(mytex1, tex).rgb * 2 - 1;
+	float4 base = tex2D(mytex0, tex);
+
+	color0 = lerp(matDiffuse, base, params.w);
+	color0.a = 1;
+
+	float3x3 tbn = { wtan, wbin * params.z, wnorm };
+
+	color1.rgb = normalize(mul(tbn, norm));
+	color1.a = 1;
+
+	color2 = float4(zw.x / zw.y, 0, 0, 1);
+}
+
+void ps_gbuffer_dl(
+	in	float2 tex		: TEXCOORD0,
+	in	float2 zw		: TEXCOORD1,
+	in	float3 wnorm	: TEXCOORD2,
+	out	float4 color0	: COLOR0, // normal & shininess
+	out	float4 color1	: COLOR1) // depth
+{
+	float4 spec = tex2D(mytex0, tex);
+
+	spec.r = lerp(matShininess.x, spec.r, params.w);
+
+	color0 = float4(wnorm, spec.r);
+	color1 = zw.x / zw.y;
+}
+
+void ps_gbuffer_tbn_dl(
+	in	float2 tex		: TEXCOORD0,
+	in	float2 zw		: TEXCOORD1,
+	in	float3 wnorm	: TEXCOORD2,
+	in	float3 wtan		: TEXCOORD3,
+	in	float3 wbin		: TEXCOORD4,
+	out	float4 color0	: COLOR0, // normal & shininess
+	out	float4 color1	: COLOR1) // depth
+{
+	float4 spec = tex2D(mytex0, tex);
+	float3 norm = tex2D(mytex1, tex).rgb * 2 - 1;
+
+	spec.r = lerp(matShininess.x, spec.r, params.w);
 
 	color0 = tex2D(mytex0, tex);
 	color0.a = 1;
 
 	float3x3 tbn = { wtan, wbin * params.z, wnorm };
 
-	color1.rgb = normalize(mul(tbn, norm));
-	color1.a = zw.x / zw.y;
+	color0.rgb = normalize(mul(tbn, norm));
+	color0.a = spec.r;
+
+	color1 = zw.x / zw.y;
 }
 
-technique gbuffer
+technique gbuffer_dshading
 {
 	pass p0
 	{
 		vertexshader = compile vs_2_0 vs_gbuffer();
-		pixelshader = compile ps_2_0 ps_gbuffer();
+		pixelshader = compile ps_2_0 ps_gbuffer_ds();
 	}
 }
 
-technique gbuffer_tbn
+technique gbuffer_tbn_dshading
 {
 	pass p0
 	{
 		vertexshader = compile vs_2_0 vs_gbuffer_tbn();
-		pixelshader = compile ps_2_0 ps_gbuffer_tbn();
+		pixelshader = compile ps_2_0 ps_gbuffer_tbn_ds();
+	}
+}
+
+technique gbuffer_dlighting
+{
+	pass p0
+	{
+		vertexshader = compile vs_2_0 vs_gbuffer();
+		pixelshader = compile ps_2_0 ps_gbuffer_dl();
+	}
+}
+
+technique gbuffer_tbn_dlighting
+{
+	pass p0
+	{
+		vertexshader = compile vs_2_0 vs_gbuffer_tbn();
+		pixelshader = compile ps_2_0 ps_gbuffer_tbn_dl();
 	}
 }
