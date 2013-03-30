@@ -1,8 +1,44 @@
 
-sampler mytex0 : register(s0); // albedo
-sampler mytex1 : register(s1); // diffuse
-sampler mytex2 : register(s2); // specular
-sampler mytex3 : register(s3); // envmap
+sampler mytex0 : register(s0) = sampler_state // albedo
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = linear;
+
+	AddressU = wrap;
+	AddressV = wrap;
+};
+
+sampler mytex1 : register(s1) = sampler_state // diffuse
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = none;
+
+	AddressU = clamp;
+	AddressV = clamp;
+};
+
+sampler mytex2 : register(s2) = sampler_state // specular
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = none;
+
+	AddressU = clamp;
+	AddressV = clamp;
+};
+
+sampler mytex3 : register(s3) // envmap
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = none;
+
+	AddressU = clamp;
+	AddressV = clamp;
+	AddressW = clamp;
+};
 
 matrix matWorld;
 matrix matWorldInv;

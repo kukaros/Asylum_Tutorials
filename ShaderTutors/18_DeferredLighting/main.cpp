@@ -5,9 +5,6 @@
 
 #include "../common/dxext.h"
 
-// - transparent
-// - spotlight
-// - ablaktörlö
 // - shadow blur
 // - depth envelope: B-be max, ha b < d akkor shadow
 
@@ -16,8 +13,8 @@
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-// NOTE: if you want to use bigger then the screen resolution,
-// create a depth-stencil surface for them
+// NOTE: if you want to use bigger than the screen resolution,
+// create a depth-stencil surface for shadows
 #define SHADOWMAP_SIZE		512
 #define CUBESHADOWMAP_SIZE	256
 #define CUBEMAP_SIZE		256
@@ -35,6 +32,7 @@ LPD3DXEFFECT					deferred		= NULL;
 LPD3DXEFFECT					distance		= NULL;
 LPD3DXEFFECT					skyeffect		= NULL;
 LPD3DXEFFECT					finalpass		= NULL;
+LPD3DXEFFECT					forward			= NULL;
 LPDIRECT3DVERTEXDECLARATION9	quaddecl		= NULL;
 
 DXObject*						object1			= NULL;
@@ -78,9 +76,19 @@ DXPointLight pointlights[] =
 
 DXDirectionalLight directionallights[] =
 {
-	DXDirectionalLight(D3DXCOLOR(0.45f, 0.45f, 0.45f, 1), D3DXVECTOR4(0.1f, 0.9f, 0.8f, 5)),
+	DXDirectionalLight(D3DXCOLOR(0.45f, 0.45f, 0.45f, 1), D3DXVECTOR4(0.1f, 1, 0.7f, 5)),
 	DXDirectionalLight(D3DXCOLOR(0.05f, 0.05f, 0.05f, 1), D3DXVECTOR4(0.5f, 0.3f, -1, 5))
 };
+
+DXSpotLight spotlights[] =
+{
+	DXSpotLight(D3DXCOLOR(1, 1, 1, 1), D3DXVECTOR3(-1, 0.1f, 0.3f), D3DXVECTOR3(-1, 0, 0), D3DX_PI / 4, D3DX_PI / 6),
+	DXSpotLight(D3DXCOLOR(1, 1, 1, 1), D3DXVECTOR3(-1, 0.1f, -0.3f), D3DXVECTOR3(-1, 0, 0), D3DX_PI / 4, D3DX_PI / 6),
+};
+
+static const int NUM_POINT_LIGHTS = sizeof(pointlights) / sizeof(pointlights[0]);
+static const int NUM_DIRECTIONAL_LIGHTS = sizeof(directionallights) / sizeof(directionallights[0]);
+static const int NUM_SPOTLIGHTS = sizeof(spotlights) / sizeof(spotlights[0]);
 
 float quadvertices[36] =
 {
@@ -104,13 +112,11 @@ float textvertices[36] =
 	521.5f,	128.0f + 9.5f,	0, 1,	1, 1
 };
 
-static const int NUM_POINT_LIGHTS = sizeof(pointlights) / sizeof(pointlights[0]);
-static const int NUM_DIRECTIONAL_LIGHTS = sizeof(directionallights) / sizeof(directionallights[0]);
-
 // tutorial functions
 void DrawScene(LPD3DXEFFECT effect, const D3DXMATRIX& viewproj, const D3DXVECTOR3& eye);
 void DrawSceneForShadow(LPD3DXEFFECT effect);
 void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params);
+void DrawTransparent(const ViewParams& params);
 void DrawEnvironment();
 void DrawShadowMaps();
 void BlurShadowMaps();
@@ -167,7 +173,6 @@ HRESULT InitScene()
 
 	MYVALID(D3DXLoadMeshFromXA("../media/meshes/sky.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &skymesh));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/meshes/bridge/bridge_normal.tga", &texture4));
-	//MYVALID(D3DXCreateTextureFromFileA(device, "../media/meshes/bridge/bridge_spec.dds", &texture3)); // this is not shininess...
 	MYVALID(D3DXCreateCubeTextureFromFileA(device, "../media/textures/sky4.dds", &skytex));
 
 	MYVALID(device->CreateTexture(512, 128, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
@@ -176,13 +181,14 @@ HRESULT InitScene()
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &depth, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &irradiance1, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &irradiance2, NULL));
-	MYVALID(device->CreateCubeTexture(CUBEMAP_SIZE, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &envcube, NULL));
+	MYVALID(device->CreateCubeTexture(CUBEMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &envcube, NULL));
 
 	MYVALID(DXCreateEffect("../media/shaders/gbuffer.fx", device, &rendergbuffer));
 	MYVALID(DXCreateEffect("../media/shaders/deferred.fx", device, &deferred));
 	MYVALID(DXCreateEffect("../media/shaders/distance.fx", device, &distance));
 	MYVALID(DXCreateEffect("../media/shaders/sky.fx", device, &skyeffect));
 	MYVALID(DXCreateEffect("../media/shaders/deferredlighting.fx", device, &finalpass));
+	MYVALID(DXCreateEffect("../media/shaders/forward.fx", device, &forward));
 
 	MYVALID(depth->GetSurfaceLevel(0, &depthsurf));
 	MYVALID(normalpower->GetSurfaceLevel(0, &normalsurf));
@@ -236,6 +242,7 @@ void UninitScene()
 	SAFE_RELEASE(deferred);
 	SAFE_RELEASE(distance);
 	SAFE_RELEASE(finalpass);
+	SAFE_RELEASE(forward);
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
@@ -557,8 +564,8 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 	device->Clear(0, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0);
 	device->SetViewport(&params.viewport);
 
-	device->SetTexture(0, normalpower);
-	device->SetTexture(1, depth);
+	device->SetTexture(1, normalpower);
+	device->SetTexture(3, depth);
 
 	device->SetVertexDeclaration(quaddecl);
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -622,9 +629,33 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 	deferred->EndPass();
 	deferred->End();
 
-	device->SetTexture(1, NULL);
-	device->SetTexture(2, NULL);
 	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+	device->SetTexture(2, NULL);
+
+	// spot lights
+	deferred->SetTechnique("irradiance_spot");
+
+	deferred->Begin(NULL, 0);
+	deferred->BeginPass(0);
+	{
+		for( int i = 0; i < NUM_SPOTLIGHTS; ++i )
+		{
+			DXSpotLight& lt = spotlights[i];
+
+			deferred->SetVector("lightColor", (D3DXVECTOR4*)&lt.GetColor());
+			deferred->SetVector("lightPos", (D3DXVECTOR4*)&lt.GetPosition());
+			deferred->SetVector("spotDir", (D3DXVECTOR4*)&lt.GetDirection());
+			deferred->SetVector("spotParams", &lt.GetParams());
+			deferred->CommitChanges();
+
+			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, 6 * sizeof(float));
+		}
+	}
+	deferred->EndPass();
+	deferred->End();
+
+	device->SetTexture(1, NULL);
+	device->SetTexture(3, NULL);
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
 	// render sky
@@ -668,6 +699,97 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 
 	device->SetTexture(1, NULL);
 	device->SetTexture(2, NULL);
+}
+//*************************************************************************************************************
+void DrawTransparent(const ViewParams& params)
+{
+	D3DXMATRIX inv;
+	D3DXMATRIX viewproj;
+	D3DXMATRIX shadowvp;
+	D3DXVECTOR4 lightpos;
+	bool firstpass = true;
+
+	D3DXMatrixMultiply(&viewproj, &params.view, &params.proj);
+	D3DXMatrixInverse(&inv, NULL, &world[0]);
+
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	if( currentlight == 0 )
+	{
+		// directional lights
+		forward->SetTechnique("forward_directional");
+		forward->SetMatrix("matWorld", &world[0]);
+		forward->SetMatrix("matWorldInv", &inv);
+		forward->SetMatrix("matViewProj", &viewproj);
+		forward->SetVector("eyePos", (D3DXVECTOR4*)&params.eye);
+
+		forward->Begin(NULL, 0);
+		forward->BeginPass(0);
+		{
+			for( int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i )
+			{
+				DXDirectionalLight& lt = directionallights[i];
+				lt.GetViewProjMatrix(shadowvp, D3DXVECTOR3(0, 0, 0));
+
+				forward->SetVector("lightColor", (D3DXVECTOR4*)&lt.GetColor());
+				forward->SetVector("lightPos", &lt.GetDirection());
+				forward->SetMatrix("lightViewProj", &shadowvp);
+				forward->CommitChanges();
+
+				device->SetTexture(2, lt.GetShadowMap());
+				object2->Draw(DXObject::Transparent|DXObject::Material, forward);
+
+				if( firstpass )
+				{
+					firstpass = false;
+
+					device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+					device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+				}
+			}
+		}
+		forward->EndPass();
+		forward->End();
+	}
+
+	// point lights
+	forward->SetTechnique("forward_point");
+
+	forward->Begin(NULL, 0);
+	forward->BeginPass(0);
+	{
+		for( int i = 0; i < NUM_POINT_LIGHTS; ++i )
+		{
+			DXPointLight& lt = pointlights[i];
+
+			if( currentlight > 0 && ((i + 1) != currentlight) )
+				continue;
+
+			lightpos = D3DXVECTOR4(lt.GetPosition(), lt.GetRadius());
+
+			forward->SetVector("lightColor", (D3DXVECTOR4*)&lt.GetColor());
+			forward->SetVector("lightPos", &lightpos);
+			forward->CommitChanges();
+
+			device->SetTexture(2, lt.GetShadowMap());
+			object2->Draw(DXObject::Transparent|DXObject::Material, forward);
+
+			if( firstpass )
+			{
+				firstpass = false;
+
+				device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+				device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+			}
+		}
+	}
+	forward->EndPass();
+	forward->End();
+
+	device->SetTexture(2, NULL);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 }
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
@@ -733,6 +855,8 @@ void Render(float alpha, float elapsedtime)
 
 		DrawDeferred(backbuffer, params);
 		backbuffer->Release();
+
+		DrawTransparent(params);
 
 		// render text
 		device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);

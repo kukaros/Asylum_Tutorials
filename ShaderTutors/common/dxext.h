@@ -117,6 +117,32 @@ public:
 	}
 };
 
+class DXSpotLight : public DXLight
+{
+private:
+	D3DXVECTOR3 position;
+	D3DXVECTOR3 direction;
+	D3DXVECTOR4 params;
+
+public:
+	DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, float inner, float outer);
+	~DXSpotLight();
+
+	void CreateShadowMap(LPDIRECT3DDEVICE9 device, DWORD type, DWORD size);
+
+	inline D3DXVECTOR3& GetPosition() {
+		return position;
+	}
+
+	inline D3DXVECTOR3& GetDirection() {
+		return direction;
+	}
+	
+	inline D3DXVECTOR4& GetParams() {
+		return params;
+	}
+};
+
 HRESULT DXLoadMeshFromQM(LPCTSTR file, DWORD options, LPDIRECT3DDEVICE9 d3ddevice, D3DXMATERIAL** materials, DWORD* nummaterials, LPD3DXMESH* mesh);
 HRESULT DXSaveMeshToQM(LPCTSTR file, LPD3DXMESH mesh, D3DXMATERIAL* materials, DWORD nummaterials);
 HRESULT DXCreateEffect(LPCTSTR file, LPDIRECT3DDEVICE9 d3ddevice, LPD3DXEFFECT* out);

@@ -1,39 +1,39 @@
 
-sampler mytex0 : register(s0) = sampler_state
+sampler mytex0 : register(s0) = sampler_state // albedo
 {
 	MinFilter = linear;
 	MagFilter = linear;
-	MipFilter = point;
+	MipFilter = none;
 
 	AddressU = clamp;
 	AddressV = clamp;
 };
 
-sampler mytex1 : register(s1) = sampler_state
+sampler mytex1 : register(s1) = sampler_state // norm
 {
 	MinFilter = linear;
 	MagFilter = linear;
-	MipFilter = point;
+	MipFilter = none;
 
 	AddressU = clamp;
 	AddressV = clamp;
 };
 
-sampler mytex2 : register(s2) = sampler_state
+sampler mytex2 : register(s2) = sampler_state // shadow
 {
 	MinFilter = linear;
 	MagFilter = linear;
-	MipFilter = point;
+	MipFilter = none;
 
 	AddressU = clamp;
 	AddressV = clamp;
 };
 
-sampler mytex3 : register(s3) = sampler_state
+sampler mytex3 : register(s3) = sampler_state // depth
 {
 	MinFilter = point;
 	MagFilter = point;
-	MipFilter = point;
+	MipFilter = none;
 
 	AddressU = clamp;
 	AddressV = clamp;
@@ -44,11 +44,14 @@ matrix lightViewProj;
 
 float4 lightPos;
 float4 lightColor = { 1, 1, 1, 1 };
+float4 spotDir;
+float4 spotParams;
 float4 eyePos;
 float4 scale = { 1, 1, 1, 1 };
 
 static const float dirLightIntensity = 1;
 static const float pointLightIntensity = 1.5f;
+static const float spotLightIntensity = 2.5f;
 
 float attenuate(float3 ldir)
 {
@@ -102,14 +105,47 @@ float2 pointLight(float2 tex, float4 normd)
 		float t = max(d <= mean, pmax);
 		float s = ((sd.x < 0.001f) ? 1.0f : t);
 
-		// this is also sufficient btw. (but point filter then)
-		//float t = (((d - sd.x) < 0.1f) ? 1.0f : 0.0f);
-		//float s = ((sd.x < 0.001f) ? 1.0f : t);
-
 		s = saturate(s);
 
 		irrad.x = diffuse * atten * pointLightIntensity * s;
 		irrad.y = specular * atten * pointLightIntensity * s;
+	}
+
+	return irrad;
+}
+
+float2 spotLight(float2 tex, float4 normd)
+{
+	float2 irrad = 0;
+	float4 wpos = float4(tex.x * 2 - 1, tex.y * -2 + 1, normd.w, 1);
+
+	if( normd.w > 0 )
+	{
+		wpos = mul(wpos, matViewProjInv);
+		wpos /= wpos.w;
+
+		float3 ldir = lightPos.xyz - wpos.xyz;
+
+		float3 n = normalize(normd.xyz);
+		float3 l = normalize(ldir);
+		float3 v = normalize(eyePos.xyz - wpos.xyz);
+		float3 h = normalize(l + v);
+		float3 d = normalize(spotDir.xyz);
+
+		float diffuse = saturate(dot(n, l));
+		float specular = saturate(dot(n, h));
+
+		specular = pow(specular, 200);
+
+		float cosa = dot(-l, d);
+		float isinlight = ((cosa > spotParams.x) ? 1.0f : 0.0f);
+		float falloff = (cosa - spotParams.x) / (spotParams.y - spotParams.x);
+		float isinfalloff = ((cosa > spotParams.y) ? 1.0f : falloff);
+
+		isinlight *= isinfalloff;
+
+		irrad.x = diffuse * spotLightIntensity * isinlight;
+		irrad.y = specular * spotLightIntensity * isinlight;
 	}
 
 	return irrad;
@@ -200,9 +236,9 @@ void ps_irradiance_point(
 	out	float4 specular	: COLOR1)
 {
 	float2 stex = tex * scale.xy;
-	float4 normd = tex2D(mytex0, stex);
+	float4 normd = tex2D(mytex1, stex);
 
-	normd.w = tex2D(mytex1, stex).r;
+	normd.w = tex2D(mytex3, stex).r;
 
 	float2 irrad = pointLight(tex, normd);
 
@@ -216,11 +252,27 @@ void ps_irradiance_directional(
 	out	float4 specular	: COLOR1)
 {
 	float2 stex = tex * scale.xy;
-	float4 normd = tex2D(mytex0, stex);
+	float4 normd = tex2D(mytex1, stex);
 
-	normd.w = tex2D(mytex1, stex).r;
+	normd.w = tex2D(mytex3, stex).r;
 
 	float2 irrad = directionalLight(tex, normd);
+	
+	diffuse = float4(irrad.x * lightColor.rgb, 1);
+	specular = float4(irrad.y * lightColor.rgb, 1);
+}
+
+void ps_irradiance_spot(
+	in	float2 tex		: TEXCOORD0,
+	out	float4 diffuse	: COLOR0,
+	out	float4 specular	: COLOR1)
+{
+	float2 stex = tex * scale.xy;
+	float4 normd = tex2D(mytex1, stex);
+
+	normd.w = tex2D(mytex3, stex).r;
+
+	float2 irrad = spotLight(tex, normd);
 	
 	diffuse = float4(irrad.x * lightColor.rgb, 1);
 	specular = float4(irrad.y * lightColor.rgb, 1);
@@ -259,5 +311,14 @@ technique irradiance_directional
 	{
 		vertexshader = null;
 		pixelshader = compile ps_3_0 ps_irradiance_directional();
+	}
+}
+
+technique irradiance_spot
+{
+	pass p0
+	{
+		vertexshader = null;
+		pixelshader = compile ps_3_0 ps_irradiance_spot();
 	}
 }

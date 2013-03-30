@@ -739,6 +739,31 @@ void DXPointLight::DrawShadowMap(LPDIRECT3DDEVICE9 device, LPD3DXEFFECT effect, 
 
 // *****************************************************************************************************************************
 //
+// DXSpotLight impl
+//
+// *****************************************************************************************************************************
+
+DXSpotLight::DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, float inner, float outer)
+{
+	this->color			= color;
+	this->position		= pos;
+	this->direction		= dir;
+	
+	params.x = cosf(inner);
+	params.y = cosf(outer);
+}
+
+DXSpotLight::~DXSpotLight()
+{
+}
+
+void DXSpotLight::CreateShadowMap(LPDIRECT3DDEVICE9 device, DWORD type, DWORD size)
+{
+	// TODO:
+}
+
+// *****************************************************************************************************************************
+//
 // Functions impl
 //
 // *****************************************************************************************************************************
