@@ -221,41 +221,47 @@ bool DXObject::Save(const std::string& file)
 
 void DXObject::Draw(unsigned int flags, LPD3DXEFFECT effect)
 {
-	D3DXVECTOR4 params(1, 1, 1, 1);
+	for( DWORD i = 0; i < nummaterials; ++i )
+		DrawSubset(i, flags, effect);
+}
 
+void DXObject::DrawExcept(DWORD subset, unsigned int flags, LPD3DXEFFECT effect)
+{
 	for( DWORD i = 0; i < nummaterials; ++i )
 	{
-		if( !(flags & Opaque) && (textures[i] || materials[i].MatD3D.Diffuse.a == 1) )
-			continue;
+		if( i != subset )
+			DrawSubset(i, flags, effect);
+	}
+}
 
-		if( !(flags & Transparent) && (materials[i].MatD3D.Diffuse.a < 1) )
-			continue;
+void DXObject::DrawSubset(DWORD subset, unsigned int flags, LPD3DXEFFECT effect)
+{
+	D3DXVECTOR4 params(1, 1, 1, 1);
+
+	if( subset < nummaterials )
+	{
+		if( !(flags & Opaque) && (textures[subset] || materials[subset].MatD3D.Diffuse.a == 1) )
+			return;
+
+		if( !(flags & Transparent) && (materials[subset].MatD3D.Diffuse.a < 1) )
+			return;
 
 		if( flags & Material )
 		{
 			if( effect )
 			{
-				if( !textures[i] )
-					effect->SetVector("matDiffuse", (D3DXVECTOR4*)&materials[i].MatD3D.Diffuse);
+				if( !textures[subset] )
+					effect->SetVector("matDiffuse", (D3DXVECTOR4*)&materials[subset].MatD3D.Diffuse);
 
-				params.w = (textures[i] ? 1.0f : 0.0f);
+				params.w = (textures[subset] ? 1.0f : 0.0f);
 
 				effect->SetVector("params", &params);
 				effect->CommitChanges();
 			}
 
-			device->SetTexture(0, textures[i]);
+			device->SetTexture(0, textures[subset]);
 		}
 
-		mesh->DrawSubset(i);
-	}
-}
-
-void DXObject::DrawSubset(DWORD subset)
-{
-	if( subset < nummaterials )
-	{
-		device->SetTexture(0, textures[subset]);
 		mesh->DrawSubset(subset);
 	}
 }
@@ -516,6 +522,8 @@ void DXPointLight::CreateShadowMap(LPDIRECT3DDEVICE9 device, DWORD type, DWORD s
 
 void DXPointLight::GetScissorRect(RECT& out, const D3DXMATRIX& view, const D3DXMATRIX& proj, int w, int h) const
 {
+	// NOTE: should also consider viewport origin
+
 	D3DXVECTOR4 Q;
 	D3DXVECTOR3 L, P1, P2;
 	float u, v;
@@ -1254,4 +1262,10 @@ void DXRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, D
 
 	delete graphics;
 	delete bitmap;
+}
+
+void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye)
+{
+	D3DXVECTOR3 look = eye + DXCubeForward[i];
+	D3DXMatrixLookAtLH(&out, &eye, &look, &DXCubeUp[i]);
 }

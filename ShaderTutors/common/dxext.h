@@ -32,7 +32,8 @@ public:
 	bool Save(const std::string& file);
 
 	void Draw(unsigned int flags = All, LPD3DXEFFECT effect = NULL);
-	void DrawSubset(DWORD subset);
+	void DrawSubset(DWORD subset, unsigned int flags = All, LPD3DXEFFECT effect = NULL);
+	void DrawExcept(DWORD subset, unsigned int flags = All, LPD3DXEFFECT effect = NULL);
 };
 
 class DXLight
@@ -122,5 +123,6 @@ HRESULT DXCreateEffect(LPCTSTR file, LPDIRECT3DDEVICE9 d3ddevice, LPD3DXEFFECT* 
 HRESULT DXGenTangentFrame(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* mesh);
 
 void DXRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height);
+void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye);
 
 #endif

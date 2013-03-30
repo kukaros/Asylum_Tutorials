@@ -45,6 +45,7 @@ matrix lightViewProj;
 float4 lightPos;
 float4 lightColor = { 1, 1, 1, 1 };
 float4 eyePos;
+float4 scale = { 1, 1, 1, 1 };
 
 static const float dirLightIntensity = 1;
 static const float pointLightIntensity = 1.5f;
@@ -198,8 +199,10 @@ void ps_irradiance_point(
 	out	float4 diffuse	: COLOR0,
 	out	float4 specular	: COLOR1)
 {
-	float4 normd = tex2D(mytex0, tex);
-	normd.w = tex2D(mytex1, tex).r;
+	float2 stex = tex * scale.xy;
+	float4 normd = tex2D(mytex0, stex);
+
+	normd.w = tex2D(mytex1, stex).r;
 
 	float2 irrad = pointLight(tex, normd);
 
@@ -212,8 +215,10 @@ void ps_irradiance_directional(
 	out	float4 diffuse	: COLOR0,
 	out	float4 specular	: COLOR1)
 {
-	float4 normd = tex2D(mytex0, tex);
-	normd.w = tex2D(mytex1, tex).r;
+	float2 stex = tex * scale.xy;
+	float4 normd = tex2D(mytex0, stex);
+
+	normd.w = tex2D(mytex1, stex).r;
 
 	float2 irrad = directionalLight(tex, normd);
 	

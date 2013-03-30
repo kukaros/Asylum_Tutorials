@@ -46,16 +46,12 @@
     <None Include="..\media\shaders\distance.fx">
       <Filter>shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\media\shaders\sky.fx">
+    <None Include="..\media\shaders\sky.fx" />
+    <None Include="..\media\shaders\deferredlighting.fx">
       <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\media\shaders\deferredlighting.fx">
+    </None>
+    <None Include="..\media\shaders\forward.fx">
       <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\media\shaders\forward.fx">
-      <Filter>shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>
