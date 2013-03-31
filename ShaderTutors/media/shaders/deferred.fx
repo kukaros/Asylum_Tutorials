@@ -134,6 +134,7 @@ float2 spotLight(float2 tex, float4 normd)
 
 		float diffuse = saturate(dot(n, l));
 		float specular = saturate(dot(n, h));
+		float atten = attenuate(ldir);
 
 		specular = pow(specular, 200);
 
@@ -144,8 +145,8 @@ float2 spotLight(float2 tex, float4 normd)
 
 		isinlight *= isinfalloff;
 
-		irrad.x = diffuse * spotLightIntensity * isinlight;
-		irrad.y = specular * spotLightIntensity * isinlight;
+		irrad.x = diffuse * atten * spotLightIntensity * isinlight;
+		irrad.y = specular * atten * spotLightIntensity * isinlight;
 	}
 
 	return irrad;

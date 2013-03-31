@@ -743,7 +743,7 @@ void DXPointLight::DrawShadowMap(LPDIRECT3DDEVICE9 device, LPD3DXEFFECT effect, 
 //
 // *****************************************************************************************************************************
 
-DXSpotLight::DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, float inner, float outer)
+DXSpotLight::DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, float inner, float outer, float radius)
 {
 	this->color			= color;
 	this->position		= pos;
@@ -751,6 +751,7 @@ DXSpotLight::DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D
 	
 	params.x = cosf(inner);
 	params.y = cosf(outer);
+	params.z = radius;
 }
 
 DXSpotLight::~DXSpotLight()
@@ -759,6 +760,16 @@ DXSpotLight::~DXSpotLight()
 
 void DXSpotLight::CreateShadowMap(LPDIRECT3DDEVICE9 device, DWORD type, DWORD size)
 {
+	// TODO:
+}
+
+void DXSpotLight::GetScissorRect(RECT& out, const D3DXMATRIX& view, const D3DXMATRIX& proj, int w, int h) const
+{
+	out.left	= 0;
+	out.right	= w;
+	out.top		= 0;
+	out.bottom	= h;
+
 	// TODO:
 }
 

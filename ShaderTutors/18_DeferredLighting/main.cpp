@@ -5,7 +5,7 @@
 
 #include "../common/dxext.h"
 
-// - shadow blur
+// - point shadow blur
 // - depth envelope: B-be max, ha b < d akkor shadow
 
 // helper macros
@@ -82,8 +82,8 @@ DXDirectionalLight directionallights[] =
 
 DXSpotLight spotlights[] =
 {
-	DXSpotLight(D3DXCOLOR(1, 1, 1, 1), D3DXVECTOR3(-1, 0.1f, 0.3f), D3DXVECTOR3(-1, 0, 0), D3DX_PI / 4, D3DX_PI / 6),
-	DXSpotLight(D3DXCOLOR(1, 1, 1, 1), D3DXVECTOR3(-1, 0.1f, -0.3f), D3DXVECTOR3(-1, 0, 0), D3DX_PI / 4, D3DX_PI / 6),
+	DXSpotLight(D3DXCOLOR(1, 1, 1, 1), D3DXVECTOR3(-1, 0.1f, 0.3f), D3DXVECTOR3(-1, 0, 0), D3DX_PI / 4, D3DX_PI / 6, 10),
+	DXSpotLight(D3DXCOLOR(1, 1, 1, 1), D3DXVECTOR3(-1, 0.1f, -0.3f), D3DXVECTOR3(-1, 0, 0), D3DX_PI / 4, D3DX_PI / 6, 10),
 };
 
 static const int NUM_POINT_LIGHTS = sizeof(pointlights) / sizeof(pointlights[0]);
@@ -629,7 +629,6 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 	deferred->EndPass();
 	deferred->End();
 
-	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 	device->SetTexture(2, NULL);
 
 	// spot lights
@@ -641,13 +640,17 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 		for( int i = 0; i < NUM_SPOTLIGHTS; ++i )
 		{
 			DXSpotLight& lt = spotlights[i];
+			lightpos = D3DXVECTOR4(lt.GetPosition(), lt.GetRadius());
 
 			deferred->SetVector("lightColor", (D3DXVECTOR4*)&lt.GetColor());
-			deferred->SetVector("lightPos", (D3DXVECTOR4*)&lt.GetPosition());
+			deferred->SetVector("lightPos", &lightpos);
 			deferred->SetVector("spotDir", (D3DXVECTOR4*)&lt.GetDirection());
 			deferred->SetVector("spotParams", &lt.GetParams());
 			deferred->CommitChanges();
 
+			lt.GetScissorRect(scissorbox, params.view, params.proj, params.viewport.Width, params.viewport.Height);
+
+			device->SetScissorRect(&scissorbox);
 			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quadvertices, 6 * sizeof(float));
 		}
 	}
@@ -657,6 +660,7 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 	device->SetTexture(1, NULL);
 	device->SetTexture(3, NULL);
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 
 	// render sky
 	device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);

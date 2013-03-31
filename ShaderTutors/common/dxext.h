@@ -125,10 +125,11 @@ private:
 	D3DXVECTOR4 params;
 
 public:
-	DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, float inner, float outer);
+	DXSpotLight(const D3DXCOLOR& color, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, float inner, float outer, float radius);
 	~DXSpotLight();
 
 	void CreateShadowMap(LPDIRECT3DDEVICE9 device, DWORD type, DWORD size);
+	void GetScissorRect(RECT& out, const D3DXMATRIX& view, const D3DXMATRIX& proj, int w, int h) const;
 
 	inline D3DXVECTOR3& GetPosition() {
 		return position;
@@ -140,6 +141,10 @@ public:
 	
 	inline D3DXVECTOR4& GetParams() {
 		return params;
+	}
+
+	inline float GetRadius() const {
+		return params.z;
 	}
 };
 
