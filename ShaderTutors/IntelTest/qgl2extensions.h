@@ -35,6 +35,7 @@ extern PFNGLCREATESHADEROBJECTARBPROC			glCreateShader;
 extern PFNGLSHADERSOURCEARBPROC					glShaderSource;
 extern PFNGLCOMPILESHADERARBPROC				glCompileShader;
 extern PFNGLATTACHOBJECTARBPROC					glAttachShader;
+extern PFNGLDETACHOBJECTARBPROC					glDetachShader;
 extern PFNGLLINKPROGRAMARBPROC					glLinkProgram;
 extern PFNGLGETINFOLOGARBPROC					glGetShaderInfoLog;
 extern PFNGLGETINFOLOGARBPROC					glGetProgramInfoLog;
@@ -86,8 +87,15 @@ extern PFNGLCOMPRESSEDTEXIMAGE1DPROC			glCompressedTexImage1D;
 extern PFNGLDRAWBUFFERSARBPROC					glDrawBuffers;
 extern PFNGLDRAWRANGEELEMENTSPROC				glDrawRangeElements;
 
+extern PFNGLGENVERTEXARRAYSPROC					glGenVertexArrays;
+extern PFNGLBINDVERTEXARRAYPROC					glBindVertexArray;
+extern PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays;
+
 typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
+typedef const GLubyte* (APIENTRY *GLGETSTRINGIPROC)(GLenum  name,  GLuint  index);
+
 extern PFNWGLSWAPINTERVALFARPROC wglSwapInterval;
+extern GLGETSTRINGIPROC glGetStringi;
 
 #define glGetProgramiv							glGetObjectParameteriv
 #define glGetShaderiv							glGetObjectParameteriv
@@ -112,6 +120,25 @@ namespace Quadron
 	class qGL2Extensions
 	{
 	public:
+		enum glversion
+		{
+			GL_1_1 = MAKE_VERSION(1, 1),
+			GL_1_2 = MAKE_VERSION(1, 2),
+			GL_1_3 = MAKE_VERSION(1, 3),
+			GL_1_4 = MAKE_VERSION(1, 4),
+			GL_1_5 = MAKE_VERSION(1, 5),
+			GL_2_0 = MAKE_VERSION(2, 0),
+			GL_2_1 = MAKE_VERSION(2, 1),
+			GL_3_0 = MAKE_VERSION(3, 0),
+			GL_3_1 = MAKE_VERSION(3, 1),
+			GL_3_2 = MAKE_VERSION(3, 2),
+			GL_3_3 = MAKE_VERSION(3, 3),
+			GL_4_0 = MAKE_VERSION(4, 0),
+			GL_4_1 = MAKE_VERSION(4, 1),
+			GL_4_2 = MAKE_VERSION(4, 2),
+			GL_4_3 = MAKE_VERSION(4, 3),
+		};
+
 		enum glslversion
 		{
 			GLSL_110 = MAKE_VERSION(1, 10),
@@ -126,6 +153,7 @@ namespace Quadron
 			GLSL_430 = MAKE_VERSION(4, 30)
 		};
 
+		static quint16 GLVersion;
 		static quint16 GLSLVersion;
 
 		static bool IsSupported(const char* name);
@@ -140,6 +168,7 @@ namespace Quadron
 		static bool ARB_texture_rg;
 		static bool ARB_texture_compression;
 		static bool ARB_draw_buffers;
+		static bool ARB_vertex_array_object;
 
 		static bool EXT_texture_compression_s3tc;
 		static bool EXT_texture_cube_map;

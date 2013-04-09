@@ -39,6 +39,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "18_DeferredLighting", "vc10
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "17_Combiners", "vc100\17_Combiners.vcxproj", "{187B807A-0984-4483-82DE-FE4FE056F31F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreProfileTest", "vc100\CoreProfileTest.vcxproj", "{EA562003-C608-4251-9229-37331A0C4F5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -121,6 +123,10 @@ Global
 		{187B807A-0984-4483-82DE-FE4FE056F31F}.Debug|Win32.Build.0 = Debug|Win32
 		{187B807A-0984-4483-82DE-FE4FE056F31F}.Release|Win32.ActiveCfg = Release|Win32
 		{187B807A-0984-4483-82DE-FE4FE056F31F}.Release|Win32.Build.0 = Release|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Debug|Win32.Build.0 = Debug|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Release|Win32.ActiveCfg = Release|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
