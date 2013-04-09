@@ -329,7 +329,6 @@ void DrawScene(LPD3DXEFFECT effect, const D3DXMATRIX& viewproj, const D3DXVECTOR
 			effect->Begin(NULL, 0);
 			effect->BeginPass(0);
 			{
-				// car
 				if( drawforfinal )
 				{
 					device->SetTexture(3, envcube);
@@ -801,8 +800,8 @@ void Render(float alpha, float elapsedtime)
 	static float time = 0;
 
 	// camera
-	D3DXVECTOR3	look(-1, 0.3f, -0.4f);
-	D3DXVECTOR3	up(0, 1, 0);
+	D3DXVECTOR3 look(-1, 0.3f, -0.4f);
+	D3DXVECTOR3 up(0, 1, 0);
 	ViewParams params;
 
 	params.eye = D3DXVECTOR3(-2.5f, 1.26f, -2.0f);

@@ -12,26 +12,24 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 
-#define TITLE			"Shader tutorial 18: Deferred lighting"
+#define TITLE			"Shader tutorial 13: Stencil shadow volume"
 #define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-HWND					hwnd			= NULL;
-LPDIRECT3D9				direct3d		= NULL;
-LPDIRECT3DDEVICE9		device			= NULL;
+HWND					hwnd		= NULL;
+LPDIRECT3D9				direct3d	= NULL;
+LPDIRECT3DDEVICE9		device		= NULL;
 
 D3DPRESENT_PARAMETERS	d3dpp;
 RECT					workarea;
-long					screenwidth		= 800;
-long					screenheight	= 600;
+long					screenwidth = 800;
+long					screenheight = 600;
 
-// must be implemented by tutorial
 HRESULT InitScene();
 
 void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
-void KeyPress(WPARAM wparam);
 
 HRESULT InitDirect3D(HWND hwnd)
 {
@@ -53,7 +51,7 @@ HRESULT InitDirect3D(HWND hwnd)
 	d3dpp.MultiSampleQuality			= 0;
 
 	if( FAILED(direct3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd,
-			D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &device)) )
+		D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &device)) )
 	{
 		MYERROR("Could not create Direct3D device");
 		return E_FAIL;
@@ -80,10 +78,6 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 		{
 		case VK_ESCAPE:
 			SendMessage(hWnd, WM_CLOSE, 0, 0);
-			break;
-
-		default:
-			KeyPress(wParam);
 			break;
 		}
 		break;
@@ -154,7 +148,8 @@ int main(int argc, char* argv[])
 		sizeof(WNDCLASSEX),
 		CS_CLASSDC,
 		(WNDPROC)WndProc,
-		0L,    0L,
+		0L,
+		0L,
 		GetModuleHandle(NULL),
 		NULL, NULL, NULL, NULL, "TestClass", NULL
 	};
@@ -248,11 +243,6 @@ _end:
 
 	if( direct3d )
 		direct3d->Release();
-
-	extern ULONG_PTR gdiplustoken;
-
-	if( gdiplustoken )
-		Gdiplus::GdiplusShutdown(gdiplustoken);
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();

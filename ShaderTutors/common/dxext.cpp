@@ -867,7 +867,6 @@ HRESULT DXLoadMeshFromQM(LPCTSTR file, DWORD options, LPDIRECT3DDEVICE9 d3ddevic
 		fread(&tmp8, 1, 1, infile);
 		decl[i].UsageIndex = tmp8;
 
-		decl[i].Offset;
 		decl[i].Method = D3DDECLMETHOD_DEFAULT;
 		decl[i].Offset = vstride;
 
@@ -950,7 +949,6 @@ HRESULT DXLoadMeshFromQM(LPCTSTR file, DWORD options, LPDIRECT3DDEVICE9 d3ddevic
 			fread(&mat.MatD3D.Diffuse.a, sizeof(float), 1, infile);
 
 			fread(&unused, 4, 1, infile);
-
 			DXReadString(infile, buff);
 
 			if( buff[1] != ',' )

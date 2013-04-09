@@ -59,29 +59,6 @@ HRESULT InitDirect3D(HWND hwnd)
 		return E_FAIL;
 	}
 
-	device->SetRenderState(D3DRS_LIGHTING, false);
-
-	device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-
-	device->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
-	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-
-	D3DCAPS9 caps;
-	device->GetDeviceCaps(&caps);
-
-	if( caps.NumSimultaneousRTs < 2 )
-	{
-		MYERROR("Device does not support enough render targets");
-		return E_FAIL;
-	}
-
 	return S_OK;
 }
 //*************************************************************************************************************
