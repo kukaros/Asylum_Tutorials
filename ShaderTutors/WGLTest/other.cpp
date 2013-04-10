@@ -13,12 +13,11 @@
 #include <crtdbg.h>
 
 #define IDM_OPEN_ITEM			1001
+#define IDM_OPENAS_ITEM			1002
 #define IDM_EXIT_ITEM			1004
 #define IDM_ABOUT_ITEM			1005
 #define IDM_FULLSCREEN_ITEM		1006
 
-#define WM_DEACTIVATE_FILE		WM_USER + 1
-#define WM_ACTIVATE_FILE		WM_USER + 2
 #define WM_DISABLE_ACTIVE		WM_USER + 3
 #define WM_ENABLE_ACTIVE		WM_USER + 4
 
@@ -444,6 +443,7 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 	case WM_COMMAND:
 		switch( LOWORD(wParam) )
 		{
+		case IDM_OPENAS_ITEM:
 		case IDM_OPEN_ITEM: {
 			OPENFILENAMEW ofn;
 			std::wstring wname;
@@ -472,20 +472,33 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 			ofn.lpstrFile				= &wname[0];
 			ofn.lpstrInitialDir			= 0;
 
-			SendMessage(hwnd, WM_DISABLE_ACTIVE, 0, 0);
-
-			if( fullscreen )
+			if( LOWORD(wParam) == IDM_OPENAS_ITEM )
 			{
-				ToggleFullscreen();
-				Render(0, 1);
+				SendMessage(hwnd, WM_DISABLE_ACTIVE, 0, 0);
+				HideFullscreenWindow();
 
 				result = GetOpenFileNameW(&ofn);
-				ToggleFullscreen();
+
+				ShowFullscreenWindow();
+				SendMessage(hwnd, WM_ENABLE_ACTIVE, 0, 0);
 			}
 			else
-				result = GetOpenFileNameW(&ofn);
+			{
+				SendMessage(hwnd, WM_DISABLE_ACTIVE, 0, 0);
 
-			SendMessage(hwnd, WM_ENABLE_ACTIVE, 0, 0);
+				if( fullscreen )
+				{
+					ToggleFullscreen();
+					Render(0, 1);
+
+					result = GetOpenFileNameW(&ofn);
+					ToggleFullscreen();
+				}
+				else
+					result = GetOpenFileNameW(&ofn);
+
+				SendMessage(hwnd, WM_ENABLE_ACTIVE, 0, 0);
+			}
 
 			if( result > 0 )
 				LoadTexture(wname);
@@ -509,13 +522,13 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 				"2) When in fullscreen mode, check if the About item is working. "
 				"If it pops up in the background, press space.\n"
 				"3) Also in fullscreen mode, test Alt-Tab\n"
-				"4) Use the Open item to give the cube a texture\n\n"
+				"4) Use the Open or Open As item to give the cube a texture\n\n"
 
 				"Note that when in fullscreen mode, the application has exclusive focus, and if you click another window,"
 				"then the program acts as if you pressed Alt-Tab.\n\n"
 
 				"If you find any problems, right click on the console window's title bar, "
-				"and press Edit -> Select All, then right click on the selection, and paste it into a text document.",
+				"and press Edit -> Select All, then right click on the selection, and paste it into a text document which you may send to darthasylum@gmail.com.",
 				"About", MB_OK);
 
 			SendMessage(hwnd, WM_ENABLE_ACTIVE, 0, 0);
@@ -525,16 +538,6 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 			ToggleFullscreen();
 			return 0; // do not send activate messages
 		}
-
-	case WM_DEACTIVATE_FILE:
-		SendMessage(hWnd, WM_ACTIVATE, WA_INACTIVE, 0);
-		minimized = true;
-		return 0;
-
-	case WM_ACTIVATE_FILE:
-		minimized = false;
-		SendMessage(hWnd, WM_ACTIVATE, WA_ACTIVE, 0);
-		return 0;
 
 	case WM_DISABLE_ACTIVE:
 		active = false;
@@ -653,6 +656,7 @@ int main(int argc, char* argv[])
 	HMENU submenu3 = CreatePopupMenu();
 	
 	AppendMenuA(submenu1, MF_STRING, IDM_OPEN_ITEM, "&Open");
+	AppendMenuA(submenu1, MF_STRING, IDM_OPENAS_ITEM, "Open &As");
 	AppendMenuA(submenu1, MF_SEPARATOR, 0, 0);
 	AppendMenuA(submenu1, MF_STRING, IDM_EXIT_ITEM, "&Exit");
 	AppendMenuA(submenu2, MF_STRING, IDM_FULLSCREEN_ITEM, "&Toggle fullscreen");
