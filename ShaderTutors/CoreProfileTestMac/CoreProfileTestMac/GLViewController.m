@@ -1,25 +1,17 @@
-//*************************************************************************************************************
-#pragma comment(lib, "OpenGL32.lib")
-#pragma comment(lib, "GLU32.lib")
-#pragma comment(lib, "winmm.lib")
-#pragma comment(lib, "GdiPlus.lib")
+//
+//  GLViewController.m
+//  CoreProfileTestMac
+//
+//  Created by gliptak on 4/16/13.
+//  Copyright (c) 2013 Asylum. All rights reserved.
+//
 
-#include <Windows.h>
-#include <GdiPlus.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <iostream>
-
-#include "../IntelTest/qgl2extensions.h"
+#import "GLViewController.h"
+#import <OpenGL/OpenGL.h>
 
 // helper macros
-#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+#define MYERROR(x)			{ printf("* Error: %s!\n", x); }
 #define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
-
-// external variables
-extern HDC hdc;
-extern long screenwidth;
-extern long screenheight;
 
 // tutorial variables
 GLuint texid				= 0;
@@ -58,13 +50,13 @@ const char* vscode =
 
 	"void main()\n"
 	"{\n"
-		"vec4 wpos = matWorld * vec4(my_Position, 1);\n"
+	"vec4 wpos = matWorld * vec4(my_Position, 1);\n"
 
-		"ldir = lightPos.xyz - wpos.xyz;\n"
-		"vdir = eyePos.xyz - wpos.xyz;\n"
+	"ldir = lightPos.xyz - wpos.xyz;\n"
+	"vdir = eyePos.xyz - wpos.xyz;\n"
 
-		"wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
-		"gl_Position = matViewProj * wpos;\n"
+	"wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
+	"gl_Position = matViewProj * wpos;\n"
 	"}\n"
 };
 
@@ -78,27 +70,27 @@ const char* pscode =
 
 	"void main()\n"
 	"{\n"
-		"vec3 n = normalize(wnorm);\n"
-		"vec3 l = normalize(ldir);\n"
-		"vec3 v = normalize(vdir);\n"
-		"vec3 h = normalize(v + l);\n"
+	"vec3 n = normalize(wnorm);\n"
+	"vec3 l = normalize(ldir);\n"
+	"vec3 v = normalize(vdir);\n"
+	"vec3 h = normalize(v + l);\n"
 
-		"float d = clamp(dot(l, n), 0.0, 1.0);\n"
-		"float s = clamp(dot(h, n), 0.0, 1.0);\n"
+	"float d = clamp(dot(l, n), 0.0, 1.0);\n"
+	"float s = clamp(dot(h, n), 0.0, 1.0);\n"
 
-		"s = pow(s, 80.0);\n"
+	"s = pow(s, 80.0);\n"
 
-		"gl_FragColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
-		"gl_FragColor.a = 1.0;\n"
+	"gl_FragColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
+	"gl_FragColor.a = 1.0;\n"
 	"}\n"
 };
 
-struct CommonVertex
+typedef struct _CommonVertex
 {
 	float x, y, z;
 	float nx, ny, nz;
 	float u, v;
-};
+} CommonVertex;
 
 float vertices[24 * sizeof(CommonVertex)] =
 {
@@ -135,7 +127,7 @@ float vertices[24 * sizeof(CommonVertex)] =
 
 unsigned short indices[36] =
 {
-	0, 1, 2, 2, 3, 0, 
+	0, 1, 2, 2, 3, 0,
 	4, 5, 6, 6, 7, 4,
 	8, 9, 10, 10, 11, 8,
 	12, 13, 14, 14, 15, 12,
@@ -143,11 +135,11 @@ unsigned short indices[36] =
 	20, 21, 22, 22, 23, 20
 };
 
-inline float Dot(float a[3], float b[3]) {
+float Dot(float a[3], float b[3]) {
 	return (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]);
 }
 
-inline float Length(float a[3]) {
+float Length(float a[3]) {
 	return sqrtf(Dot(a, a));
 }
 
@@ -264,9 +256,52 @@ void Identity(float out[16])
 	out[0] = out[5] = out[10] = out[15] = 1;
 }
 
-bool InitScene()
+@implementation GLViewController
+
+- (BOOL)acceptsFirstResponder
 {
-	Quadron::qGL2Extensions::QueryFeatures();
+	return YES;
+}
+
+- (BOOL)becomeFirstResponder
+{
+	return YES;
+}
+
+- (BOOL)resignFirstResponder
+{
+	return YES;
+}
+
+- (void)animationTimer:(NSTimer*)timer
+{
+	[self drawRect:[self bounds]];
+}
+
+- (void)awakeFromNib
+{
+	NSOpenGLPixelFormatAttribute attributes[] =
+	{
+		NSOpenGLPFAWindow,
+		NSOpenGLPFADoubleBuffer,
+		NSOpenGLPFADepthSize, (NSOpenGLPixelFormatAttribute)16,
+		NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
+		(NSOpenGLPixelFormatAttribute)nil
+	};
+
+	NSOpenGLPixelFormat* format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
+	NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
+
+	if (context == nil)
+	{
+		attributes[4] = (NSOpenGLPixelFormatAttribute)nil;
+
+		format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
+		context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
+	}
+	
+	[self setOpenGLContext:context];
+	[context makeCurrentContext];
 
 	// setup opengl
 	//glClearColor(0.4f, 0.58f, 0.93f, 1.0f);
@@ -299,26 +334,26 @@ bool InitScene()
 	vertexshader = glCreateShader(GL_VERTEX_SHADER);
 	pixelshader = glCreateShader(GL_FRAGMENT_SHADER);
 
-	length = strlen(vscode);
+	length = (GLint)strlen(vscode);
 	glShaderSource(vertexshader, 1, &vscode, &length);
 	glCompileShader(vertexshader);
 	glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &success);
 
 	if( success != GL_TRUE )
 	{
-		MYERROR("InitScene(): Could not compile vertex shader");
-		return false;
+		MYERROR("awakeFromNib(): Could not compile vertex shader");
+		return;
 	}
 
-	length = strlen(pscode);
+	length = (GLint)strlen(pscode);
 	glShaderSource(pixelshader, 1, &pscode, &length);
 	glCompileShader(pixelshader);
 	glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &success);
 
 	if( success != GL_TRUE )
 	{
-		MYERROR("InitScene(): Could not compile pixel shader");
-		return false;
+		MYERROR("awakeFromNib(): Could not compile pixel shader");
+		return;
 	}
 
 	glAttachShader(program, vertexshader);
@@ -328,8 +363,8 @@ bool InitScene()
 
 	if( success != GL_TRUE )
 	{
-		MYERROR("InitScene(): Could not link shader");
-		return false;
+		MYERROR("awakeFromNib(): Could not link shader");
+		return;
 	}
 
 	glUseProgram(program);
@@ -345,8 +380,8 @@ bool InitScene()
 	glUseProgram(0);
 
 	// vertex decl
-	glGenVertexArrays(1, &vertexdecl);
-	glBindVertexArray(vertexdecl);
+	glGenVertexArraysAPPLE(1, &vertexdecl);
+	glBindVertexArrayAPPLE(vertexdecl);
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexbuffer);
@@ -357,58 +392,15 @@ bool InitScene()
 		glVertexAttribPointer(attrib_Position, 3, GL_FLOAT, GL_FALSE, sizeof(CommonVertex), 0);
 		glVertexAttribPointer(attrib_Normal, 3, GL_FLOAT, GL_FALSE, sizeof(CommonVertex), (const GLvoid*)(3 * sizeof(float)));
 	}
-	glBindVertexArray(0);
+	glBindVertexArrayAPPLE(0);
 
-	return true;
+	timer = [NSTimer timerWithTimeInterval:(1.0f / 60.0f) target:self selector:@selector(animationTimer:) userInfo:nil repeats:YES];
+
+    [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSDefaultRunLoopMode];
+    [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSEventTrackingRunLoopMode];
 }
-//*************************************************************************************************************
-void UninitScene()
-{
-	if( texid != 0 )
-		glDeleteTextures(1, &texid);
 
-	if( vertexbuffer != 0 )
-		glDeleteBuffers(1, &vertexbuffer);
-
-	if( indexbuffer != 0 )
-		glDeleteBuffers(1, &indexbuffer);
-
-	if( program != 0 )
-	{
-		glUseProgram(0);
-
-		if( vertexshader != 0 )
-		{
-			glDetachShader(program, vertexshader);
-			glDeleteShader(vertexshader);
-		}
-
-		if( pixelshader != 0 )
-		{
-			glDetachShader(program, pixelshader);
-			glDeleteShader(pixelshader);
-		}
-
-		glDeleteProgram(program);
-	}
-
-	if( vertexdecl != 0 )
-		glDeleteVertexArrays(1, &vertexdecl);
-
-	texid = 0;
-	vertexbuffer = 0;
-	indexbuffer = 0;
-	vertexshader = 0;
-	pixelshader = 0;
-	program = 0;
-	vertexdecl = 0;
-}
-//*************************************************************************************************************
-void Update(float delta)
-{
-}
-//*************************************************************************************************************
-void Render(float alpha, float elapsedtime)
+- (void)drawRect:(NSRect)dirtyRect
 {
 	static float time = 0;
 
@@ -424,11 +416,14 @@ void Render(float alpha, float elapsedtime)
 	float tmp1[16];
 	float tmp2[16];
 
+	float screenwidth = [self bounds].size.width;
+	float screenheight = [self bounds].size.height;
+
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	LookAtRH(view, eye, look, up);
-	PerspectiveRH(proj, (60.0f * 3.14159f) / 180.f,  (float)screenwidth / (float)screenheight, 0.1f, 100.0f);
-	
+	PerspectiveRH(proj, (60.0f * 3.14159f) / 180.f,  screenwidth / screenheight, 0.1f, 100.0f);
+
 	Multiply(viewproj, view, proj);
 
 	RotationAxis(tmp1, fmodf(time * 20.0f, 360.0f) * (3.14152f / 180.0f), 1, 0, 0);
@@ -436,7 +431,7 @@ void Render(float alpha, float elapsedtime)
 
 	Multiply(world, tmp1, tmp2);
 
-	time += elapsedtime;
+	time += (1.0f / 60.0f);
 
 	glUseProgram(program);
 	glUniform4fv(uniform_eyePos, 1, eye);
@@ -444,18 +439,13 @@ void Render(float alpha, float elapsedtime)
 	glUniformMatrix4fv(uniform_matWorld, 1, false, world);
 	glUniformMatrix4fv(uniform_matViewProj, 1, false, viewproj);
 	{
-		glBindVertexArray(vertexdecl);
+		glBindVertexArrayAPPLE(vertexdecl);
 		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, 0);
-		glBindVertexArray(0);
+		glBindVertexArrayAPPLE(0);
 	}
 	glUseProgram(0);
 
-	// check errors
-	GLenum err = glGetError();
-
-	if( err != GL_NO_ERROR )
-		std::cout << "Error\n";
-
-	SwapBuffers(hdc);
+	[self.openGLContext flushBuffer];
 }
-//*************************************************************************************************************
+
+@end
