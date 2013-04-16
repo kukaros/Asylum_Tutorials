@@ -33,8 +33,9 @@ GLuint vertexdecl			= 0;
 GLuint attrib_Position		= 0;
 GLuint attrib_Normal		= 0;
 
+GLuint uniform_lightPos		= 0;
+GLuint uniform_eyePos		= 0;
 GLuint uniform_matWorld		= 0;
-GLuint uniform_matWorldInv	= 0;
 GLuint uniform_matViewProj	= 0;
 
 const char* vscode =
@@ -48,13 +49,21 @@ const char* vscode =
 	"uniform mat4 matWorldInv;\n"
 	"uniform mat4 matViewProj;\n"
 
+	"uniform vec4 lightPos;\n"
+	"uniform vec4 eyePos;\n"
+
 	"varying vec3 wnorm;\n"
+	"varying vec3 vdir;\n"
+	"varying vec3 ldir;\n"
 
 	"void main()\n"
 	"{\n"
 		"vec4 wpos = matWorld * vec4(my_Position, 1);\n"
 
-		"wnorm = (vec4(my_Normal, 0) * matWorldInv).xyz;\n"
+		"ldir = lightPos.xyz - wpos.xyz;\n"
+		"vdir = eyePos.xyz - wpos.xyz;\n"
+
+		"wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
 		"gl_Position = matViewProj * wpos;\n"
 	"}\n"
 };
@@ -64,10 +73,23 @@ const char* pscode =
 	"#version 110\n"
 
 	"varying vec3 wnorm;\n"
+	"varying vec3 vdir;\n"
+	"varying vec3 ldir;\n"
 
 	"void main()\n"
 	"{\n"
-		"gl_FragColor = vec4(1, 1, 1, 1);\n"
+		"vec3 n = normalize(wnorm);\n"
+		"vec3 l = normalize(ldir);\n"
+		"vec3 v = normalize(vdir);\n"
+		"vec3 h = normalize(v + l);\n"
+
+		"float d = clamp(dot(l, n), 0.0, 1.0);\n"
+		"float s = clamp(dot(h, n), 0.0, 1.0);\n"
+
+		"s = pow(s, 80.0);\n"
+
+		"gl_FragColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
+		"gl_FragColor.a = 1.0;\n"
 	"}\n"
 };
 
@@ -208,6 +230,34 @@ void Multiply(float out[16], float a[16], float b[16])
 	out[15] = a[12] * b[3] + a[13] * b[7] + a[14] * b[11] + a[15] * b[15];
 }
 
+void RotationAxis(float out[16], float angle, float x, float y, float z)
+{
+	float u[3] = { x, y, z };
+
+	float cosa = cosf(angle);
+	float sina = sinf(angle);
+
+	Normalize(u);
+
+	out[0] = cosa + u[0] * u[0] * (1.0f - cosa);
+	out[1] = u[0] * u[1] * (1.0f - cosa) - u[2] * sina;
+	out[2] = u[0] * u[2] * (1.0f - cosa) + u[1] * sina;
+	out[3] = 0;
+
+	out[4] = u[1] * u[0] * (1.0f - cosa) + u[2] * sina;
+	out[5] = cosa + u[1] * u[1] * (1.0f - cosa);
+	out[6] = u[1] * u[2] * (1.0f - cosa) - u[0] * sina;
+	out[7] = 0;
+
+	out[8] = u[2] * u[0] * (1.0f - cosa) - u[1] * sina;
+	out[9] = u[2] * u[1] * (1.0f - cosa) + u[0] * sina;
+	out[10] = cosa + u[2] * u[2] * (1.0f - cosa);
+	out[11] = 0;
+
+	out[12] = out[13] = out[14] = 0;
+	out[15] = 1;
+}
+
 void Identity(float out[16])
 {
 	memset(out, 0, 16 * sizeof(float));
@@ -287,8 +337,9 @@ bool InitScene()
 		attrib_Position = glGetAttribLocation(program, "my_Position");
 		attrib_Normal = glGetAttribLocation(program, "my_Normal");
 
+		uniform_lightPos = glGetUniformLocation(program, "lightPos");
+		uniform_eyePos = glGetUniformLocation(program, "eyePos");
 		uniform_matWorld = glGetUniformLocation(program, "matWorld");
-		uniform_matWorldInv = glGetUniformLocation(program, "matWorldInv");
 		uniform_matViewProj = glGetUniformLocation(program, "matViewProj");
 	}
 	glUseProgram(0);
@@ -371,6 +422,8 @@ void Render(float alpha, float elapsedtime)
 	float proj[16];
 	float world[16];
 	float viewproj[16];
+	float tmp1[16];
+	float tmp2[16];
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
@@ -378,10 +431,11 @@ void Render(float alpha, float elapsedtime)
 	PerspectiveRH(proj, (60.0f * 3.14159f) / 180.f,  (float)screenwidth / (float)screenheight, 0.1f, 100.0f);
 	
 	Multiply(viewproj, view, proj);
-	Identity(world);
 
-	//glRotatef(fmodf(time * 20.0f, 360.0f), 1, 0, 0);
-	//glRotatef(fmodf(time * 20.0f, 360.0f), 0, 1, 0);
+	RotationAxis(tmp1, fmodf(time * 20.0f, 360.0f) * (3.14152f / 180.0f), 1, 0, 0);
+	RotationAxis(tmp2, fmodf(time * 20.0f, 360.0f) * (3.14152f / 180.0f), 0, 1, 0);
+
+	Multiply(world, tmp1, tmp2);
 
 	time += elapsedtime;
 
@@ -389,6 +443,8 @@ void Render(float alpha, float elapsedtime)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glUseProgram(program);
+	glUniform4fv(uniform_eyePos, 1, eye);
+	glUniform4fv(uniform_lightPos, 1, lightpos);
 	glUniformMatrix4fv(uniform_matWorld, 1, false, world);
 	glUniformMatrix4fv(uniform_matViewProj, 1, false, viewproj);
 	{
