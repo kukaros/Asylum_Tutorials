@@ -18,6 +18,7 @@ PFNGLCREATESHADEROBJECTARBPROC			glCreateShader = 0;
 PFNGLSHADERSOURCEARBPROC				glShaderSource = 0;
 PFNGLCOMPILESHADERARBPROC				glCompileShader = 0;
 PFNGLATTACHOBJECTARBPROC				glAttachShader = 0;
+PFNGLDETACHOBJECTARBPROC				glDetachShader = 0;
 PFNGLLINKPROGRAMARBPROC					glLinkProgram = 0;
 PFNGLGETINFOLOGARBPROC					glGetShaderInfoLog = 0;
 PFNGLGETINFOLOGARBPROC					glGetProgramInfoLog = 0;
@@ -61,7 +62,6 @@ PFNGLGENERATEMIPMAPEXTPROC				glGenerateMipmap = 0;
 PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC	glRenderbufferStorageMultisample = 0;
 PFNGLBLITFRAMEBUFFEREXTPROC				glBlitFramebuffer = 0;
 
-
 PFNGLGETBUFFERSUBDATAARBPROC			glGetBufferSubData = 0;
 PFNGLMAPBUFFERARBPROC					glMapBuffer = 0;
 PFNGLUNMAPBUFFERARBPROC					glUnmapBuffer = 0;
@@ -70,13 +70,18 @@ PFNGLCOMPRESSEDTEXIMAGE1DPROC			glCompressedTexImage1D = 0;
 PFNGLDRAWBUFFERSARBPROC					glDrawBuffers = 0;
 PFNGLDRAWRANGEELEMENTSPROC				glDrawRangeElements = 0;
 
-typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
-PFNWGLSWAPINTERVALFARPROC wglSwapInterval = 0;
+PFNGLGENVERTEXARRAYSPROC				glGenVertexArrays = 0;
+PFNGLBINDVERTEXARRAYPROC				glBindVertexArray = 0;
+PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays = 0;
+
+PFNWGLSWAPINTERVALFARPROC				wglSwapInterval = 0;
+GLGETSTRINGIPROC						glGetStringi = 0;
 #endif
 
 namespace Quadron
 {
 	quint16 qGL2Extensions::GLSLVersion = 0;
+	quint16 qGL2Extensions::GLVersion = 0;
 
 	bool qGL2Extensions::ARB_vertex_buffer_object = false;
 	bool qGL2Extensions::ARB_vertex_program = false;
@@ -87,6 +92,7 @@ namespace Quadron
 	bool qGL2Extensions::ARB_texture_rg = false;
 	bool qGL2Extensions::ARB_texture_compression = false;
 	bool qGL2Extensions::ARB_draw_buffers = false;
+	bool qGL2Extensions::ARB_vertex_array_object = false;
 
 	bool qGL2Extensions::EXT_texture_compression_s3tc = false;
 	bool qGL2Extensions::EXT_texture_cube_map = false;
@@ -111,23 +117,43 @@ namespace Quadron
 		if( loc || *name == '\0' )
 			return false;
 
-		ext = (const char*)glGetString(GL_EXTENSIONS);
-		start = ext;
-
-		for( ;; )
+		if( glGetStringi )
 		{
-			if( !(loc = strstr(start, name)) )
-				break;
+			GLint numext = 0;
 
-			term = loc + strlen(name);
+			glGetIntegerv(GL_NUM_EXTENSIONS, &numext);
 
-			if( loc == start || *(loc - 1) == ' ' )
+			for( GLint i = 0; i < numext; ++i )
 			{
-				if( *term == ' ' || *term == '\0' )
+				ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
+
+				if( 0 == strcmp(ext, name) )
 					return true;
 			}
+		}
+		else
+		{
+			ext = (const char*)glGetString(GL_EXTENSIONS);
+			start = ext;
 
-			start = term;
+			if( !ext )
+				return false;
+
+			for( ;; )
+			{
+				if( !(loc = strstr(start, name)) )
+					break;
+
+				term = loc + strlen(name);
+
+				if( loc == start || *(loc - 1) == ' ' )
+				{
+					if( *term == ' ' || *term == '\0' )
+						return true;
+				}
+
+				start = term;
+			}
 		}
 
 		return false;
@@ -135,6 +161,19 @@ namespace Quadron
 
 	void qGL2Extensions::QueryFeatures()
 	{
+		const char* glversion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+		int major, minor;
+
+#ifdef _MSC_VER
+		sscanf_s(glversion, "%1d.%2d %*s", &major, &minor);
+#else
+		sscanf(glversion, "%1d.%2d %*s", &major, &minor);
+#endif
+		GLVersion = MAKE_VERSION(major, minor);
+
+		if( GLVersion >= GL_3_2 )
+			glGetStringi = (GLGETSTRINGIPROC)wglGetProcAddress("glGetStringi");
+
 		ARB_vertex_buffer_object		= IsSupported("GL_ARB_vertex_buffer_object");
 		ARB_vertex_program				= IsSupported("GL_ARB_vertex_program");
 		ARB_fragment_program			= IsSupported("GL_ARB_fragment_program");
@@ -144,6 +183,7 @@ namespace Quadron
 		ARB_texture_rg					= IsSupported("GL_ARB_texture_rg");
 		ARB_texture_compression			= IsSupported("GL_ARB_texture_compression");
 		ARB_draw_buffers				= IsSupported("GL_ARB_draw_buffers");
+		ARB_vertex_array_object			= IsSupported("GL_ARB_vertex_array_object");
 
 		EXT_framebuffer_object			= IsSupported("GL_EXT_framebuffer_object");
 		EXT_texture_cube_map			= IsSupported("GL_EXT_texture_cube_map");
@@ -178,6 +218,7 @@ namespace Quadron
 		glShaderSource				= (PFNGLSHADERSOURCEARBPROC)wglGetProcAddress("glShaderSourceARB");
 		glCompileShader				= (PFNGLCOMPILESHADERARBPROC)wglGetProcAddress("glCompileShaderARB");
 		glAttachShader				= (PFNGLATTACHOBJECTARBPROC)wglGetProcAddress("glAttachObjectARB");
+		glDetachShader				= (PFNGLDETACHOBJECTARBPROC)wglGetProcAddress("glDetachObjectARB");
 		glLinkProgram				= (PFNGLLINKPROGRAMARBPROC)wglGetProcAddress("glLinkProgramARB");
 		glGetShaderInfoLog			= (PFNGLGETINFOLOGARBPROC)wglGetProcAddress("glGetInfoLogARB");
 		glGetProgramInfoLog			= (PFNGLGETINFOLOGARBPROC)wglGetProcAddress("glGetInfoLogARB");
@@ -230,6 +271,10 @@ namespace Quadron
 		glDrawBuffers				= (PFNGLDRAWBUFFERSARBPROC)wglGetProcAddress("glDrawBuffers");
 		glDrawRangeElements			= (PFNGLDRAWRANGEELEMENTSPROC)wglGetProcAddress("glDrawRangeElements");
 
+		glGenVertexArrays			= (PFNGLGENVERTEXARRAYSPROC)wglGetProcAddress("glGenVertexArrays");
+		glBindVertexArray			= (PFNGLBINDVERTEXARRAYPROC)wglGetProcAddress("glBindVertexArray");
+		glDeleteVertexArrays		= (PFNGLDELETEVERTEXARRAYSPROC)wglGetProcAddress("glDeleteVertexArrays");
+
 		if( (WGL_EXT_swap_control = IsSupported("WGL_EXT_swap_control")) )
 			wglSwapInterval = (PFNWGLSWAPINTERVALFARPROC)wglGetProcAddress("wglSwapIntervalEXT");
 #endif
@@ -237,7 +282,6 @@ namespace Quadron
 		if( ARB_shader_objects )
 		{
 			const char* glslversion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
-			int major, minor;
 			
 #ifdef _MSC_VER
 			sscanf_s(glslversion, "%1d.%2d %*s", &major, &minor);
