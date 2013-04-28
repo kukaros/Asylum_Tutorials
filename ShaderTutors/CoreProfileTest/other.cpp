@@ -194,6 +194,7 @@ bool InitGL(HWND hwnd)
 				DestroyWindow(dummy);
 				dummy = 0;
 				hdc = GetDC(hwnd);
+				hrc = 0;
 
 				int success = SetPixelFormat(hdc, pixelformat, &pfd);
 				V_RETURN(false, "InitGL(): Could not setup pixel format", success);
@@ -219,7 +220,7 @@ bool InitGL(HWND hwnd)
 					std::cout << "Created core profile context...\n";
 				}
 
-				if( !wglCreateContextAttribsARB )
+				if( !hrc )
 				{
 					hrc = wglCreateContext(hdc);
 					V_RETURN(false, "InitGL(): Context creation failed", hrc);

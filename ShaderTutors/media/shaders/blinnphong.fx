@@ -7,6 +7,7 @@ matrix matViewProj;
 
 float4 lightPos = { -10, 10, -10, 1 };
 float4 eyePos;
+float ambient = 0.2f;
 
 void vs_main(
 	in out	float4 pos		: POSITION,
@@ -40,8 +41,7 @@ void ps_main(
 	float diffuse = saturate(dot(n, l));
 	float specular = saturate(dot(n, h));
 
-	// [0, 1] -> [0.2, 1]
-	diffuse = diffuse * 0.8f + 0.2f;
+	diffuse = lerp(diffuse, 1, ambient);
 
 	// approximating Phong model (needs larger exponent)
 	specular = pow(specular, 60);

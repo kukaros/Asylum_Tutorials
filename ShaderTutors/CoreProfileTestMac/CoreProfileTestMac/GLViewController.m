@@ -7,7 +7,7 @@
 //
 
 #import "GLViewController.h"
-#import <OpenGL/OpenGL.h>
+#import <OpenGL/gl3.h>
 
 // helper macros
 #define MYERROR(x)			{ printf("* Error: %s!\n", x); }
@@ -32,10 +32,10 @@ GLuint uniform_matViewProj	= 0;
 
 const char* vscode =
 {
-	"#version 110\n"
+	"#version 150\n"
 
-	"attribute vec3 my_Position;\n"
-	"attribute vec3 my_Normal;\n"
+	"in vec3 my_Position;\n"
+	"in vec3 my_Normal;\n"
 
 	"uniform mat4 matWorld;\n"
 	"uniform mat4 matWorldInv;\n"
@@ -44,44 +44,46 @@ const char* vscode =
 	"uniform vec4 lightPos;\n"
 	"uniform vec4 eyePos;\n"
 
-	"varying vec3 wnorm;\n"
-	"varying vec3 vdir;\n"
-	"varying vec3 ldir;\n"
+	"out vec3 wnorm;\n"
+	"out vec3 vdir;\n"
+	"out vec3 ldir;\n"
 
 	"void main()\n"
 	"{\n"
-	"vec4 wpos = matWorld * vec4(my_Position, 1);\n"
+	"	vec4 wpos = matWorld * vec4(my_Position, 1);\n"
 
-	"ldir = lightPos.xyz - wpos.xyz;\n"
-	"vdir = eyePos.xyz - wpos.xyz;\n"
+	"	ldir = lightPos.xyz - wpos.xyz;\n"
+	"	vdir = eyePos.xyz - wpos.xyz;\n"
 
-	"wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
-	"gl_Position = matViewProj * wpos;\n"
+	"	wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
+	"	gl_Position = matViewProj * wpos;\n"
 	"}\n"
 };
 
 const char* pscode =
 {
-	"#version 110\n"
+	"#version 150\n"
 
-	"varying vec3 wnorm;\n"
-	"varying vec3 vdir;\n"
-	"varying vec3 ldir;\n"
+	"in vec3 wnorm;\n"
+	"in vec3 vdir;\n"
+	"in vec3 ldir;\n"
+	
+	"out vec4 outColor;\n"
 
 	"void main()\n"
 	"{\n"
-	"vec3 n = normalize(wnorm);\n"
-	"vec3 l = normalize(ldir);\n"
-	"vec3 v = normalize(vdir);\n"
-	"vec3 h = normalize(v + l);\n"
+	"	vec3 n = normalize(wnorm);\n"
+	"	vec3 l = normalize(ldir);\n"
+	"	vec3 v = normalize(vdir);\n"
+	"	vec3 h = normalize(v + l);\n"
 
-	"float d = clamp(dot(l, n), 0.0, 1.0);\n"
-	"float s = clamp(dot(h, n), 0.0, 1.0);\n"
+	"	float d = clamp(dot(l, n), 0.0, 1.0);\n"
+	"	float s = clamp(dot(h, n), 0.0, 1.0);\n"
 
-	"s = pow(s, 80.0);\n"
+	"	s = pow(s, 80.0);\n"
 
-	"gl_FragColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
-	"gl_FragColor.a = 1.0;\n"
+	"	outColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
+	"	outColor.a = 1.0;\n"
 	"}\n"
 };
 
@@ -282,11 +284,13 @@ void Identity(float out[16])
 {
 	NSOpenGLPixelFormatAttribute attributes[] =
 	{
-		NSOpenGLPFAWindow,
-		NSOpenGLPFADoubleBuffer,
-		NSOpenGLPFADepthSize, (NSOpenGLPixelFormatAttribute)16,
+        NSOpenGLPFAColorSize, 24,
+        NSOpenGLPFAAlphaSize, 8,
+        NSOpenGLPFADoubleBuffer,
+        NSOpenGLPFAAccelerated,
+        NSOpenGLPFANoRecovery,
 		NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
-		(NSOpenGLPixelFormatAttribute)nil
+		0
 	};
 
 	NSOpenGLPixelFormat* format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
@@ -294,7 +298,7 @@ void Identity(float out[16])
 
 	if (context == nil)
 	{
-		attributes[4] = (NSOpenGLPixelFormatAttribute)nil;
+		attributes[7] = (NSOpenGLPixelFormatAttribute)nil;
 
 		format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
 		context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
@@ -303,6 +307,11 @@ void Identity(float out[16])
 	[self setOpenGLContext:context];
 	[context makeCurrentContext];
 
+	const char* renderer = (const char*)glGetString(GL_RENDERER);
+	const char* version = (const char*)glGetString(GL_VERSION);
+	
+	printf("%s\n%s\n", renderer, version);
+	
 	// setup opengl
 	//glClearColor(0.4f, 0.58f, 0.93f, 1.0f);
 	glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
@@ -329,6 +338,7 @@ void Identity(float out[16])
 	// shader
 	GLint length;
 	GLint success = GL_FALSE;
+	char buff[1024];
 
 	program = glCreateProgram();
 	vertexshader = glCreateShader(GL_VERTEX_SHADER);
@@ -342,17 +352,25 @@ void Identity(float out[16])
 	if( success != GL_TRUE )
 	{
 		MYERROR("awakeFromNib(): Could not compile vertex shader");
+		
+		glGetShaderInfoLog(vertexshader, 1024, &length, buff);
+		printf("%s\n", buff);
+		
 		return;
 	}
 
 	length = (GLint)strlen(pscode);
 	glShaderSource(pixelshader, 1, &pscode, &length);
 	glCompileShader(pixelshader);
-	glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &success);
+	glGetShaderiv(pixelshader, GL_COMPILE_STATUS, &success);
 
 	if( success != GL_TRUE )
 	{
 		MYERROR("awakeFromNib(): Could not compile pixel shader");
+		
+		glGetShaderInfoLog(pixelshader, 1024, &length, buff);
+		printf("%s\n", buff);
+		
 		return;
 	}
 
@@ -363,6 +381,9 @@ void Identity(float out[16])
 
 	if( success != GL_TRUE )
 	{
+		glGetProgramInfoLog(program, 1024, &length, buff);
+		printf("%s\n", buff);
+		
 		MYERROR("awakeFromNib(): Could not link shader");
 		return;
 	}
@@ -380,8 +401,8 @@ void Identity(float out[16])
 	glUseProgram(0);
 
 	// vertex decl
-	glGenVertexArraysAPPLE(1, &vertexdecl);
-	glBindVertexArrayAPPLE(vertexdecl);
+	glGenVertexArrays(1, &vertexdecl);
+	glBindVertexArray(vertexdecl);
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexbuffer);
@@ -392,7 +413,7 @@ void Identity(float out[16])
 		glVertexAttribPointer(attrib_Position, 3, GL_FLOAT, GL_FALSE, sizeof(CommonVertex), 0);
 		glVertexAttribPointer(attrib_Normal, 3, GL_FLOAT, GL_FALSE, sizeof(CommonVertex), (const GLvoid*)(3 * sizeof(float)));
 	}
-	glBindVertexArrayAPPLE(0);
+	glBindVertexArray(0);
 
 	timer = [NSTimer timerWithTimeInterval:(1.0f / 60.0f) target:self selector:@selector(animationTimer:) userInfo:nil repeats:YES];
 
@@ -439,9 +460,9 @@ void Identity(float out[16])
 	glUniformMatrix4fv(uniform_matWorld, 1, false, world);
 	glUniformMatrix4fv(uniform_matViewProj, 1, false, viewproj);
 	{
-		glBindVertexArrayAPPLE(vertexdecl);
+		glBindVertexArray(vertexdecl);
 		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, 0);
-		glBindVertexArrayAPPLE(0);
+		glBindVertexArray(0);
 	}
 	glUseProgram(0);
 

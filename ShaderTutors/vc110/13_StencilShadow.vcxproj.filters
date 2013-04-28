@@ -40,6 +40,9 @@
     <ClInclude Include="..\common\dxext.h">
       <Filter>common</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\orderedarray.hpp">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\13_StencilShadow\main.cpp" />

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../common/dxext.h"
+#include "../common/orderedarray.hpp"
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -39,9 +40,8 @@ struct Edge
 };
 
 // tutorial variables
-typedef std::set<Edge> edgeset;
+typedef mystl::orderedarray<Edge> edgeset;
 typedef std::vector<Edge> edgelist;
-typedef edgeset::iterator edgeit;
 
 LPD3DXEFFECT		specular		= NULL;
 LPD3DXMESH			shadowreceiver	= NULL;
@@ -70,8 +70,9 @@ HRESULT InitScene()
 	MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &shadowcaster, NULL));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
-
 	MYVALID(DXCreateEffect("../media/shaders/blinnphong.fx", device, &specular));
+
+	specular->SetFloat("ambient", 0);
 
 	std::cout << "Generating edge info...\n";
 	GenerateEdges(casteredges, shadowcaster);
@@ -89,6 +90,8 @@ void UninitScene()
 
 	casteredges.clear();
 	silhouette.clear();
+
+	silhouette.swap(edgelist());
 }
 //*************************************************************************************************************
 void Update(float delta)
@@ -195,7 +198,6 @@ void Render(float alpha, float elapsedtime)
 		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_DECRSAT);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 
-		FindSilhouette(silhouette, casteredges, world[0], (D3DXVECTOR3&)lightpos);
 		DrawShadowVolume(silhouette, world[0], lightpos);
 
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);
@@ -251,7 +253,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 	Edge		e;
 	D3DXVECTOR3	p1, p2, p3;
 	D3DXVECTOR3	a, b, n;
-	edgeit		it;
+	size_t		ind;
 
 	out.clear();
 
@@ -289,8 +291,13 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 	mesh->LockIndexBuffer(D3DLOCK_READONLY, (LPVOID*)&idata);
 	mesh->LockVertexBuffer(D3DLOCK_READONLY, (LPVOID*)&vdata);
 
+	out.reserve(512);
+
 	for( DWORD i = 0; i < numindices; i += 3 )
 	{
+		if( out.capacity() <= out.size() )
+			out.reserve(out.size() + 1024);
+
 		i1 = idata[i + 0];
 		i2 = idata[i + 1];
 		i3 = idata[i + 2];
@@ -313,7 +320,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.v2 = p2;
 			e.n1 = n;
 
-			if( !out.insert(e).second )
+			if( !out.insert(e) )
 				std::cout << "Crack in object (first triangle)\n";
 		}
 
@@ -325,7 +332,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.v2 = p3;
 			e.n1 = n;
 
-			if( !out.insert(e).second )
+			if( !out.insert(e) )
 				std::cout << "Crack in object (first triangle)\n";
 		}
 
@@ -337,7 +344,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.v2 = p1;
 			e.n1 = n;
 
-			if( !out.insert(e).second )
+			if( !out.insert(e) )
 				std::cout << "Crack in object (first triangle)\n";
 		}
 	}
@@ -364,18 +371,18 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.i1 = i2;
 			e.i2 = i1;
 
-			it = out.find(e);
+			ind = out.find(e);
 
-			if( it == out.end() )
+			if( ind == edgeset::npos )
 			{
 				std::cout << "Lone triangle\n";
 				continue;
 			}
 
-			if( it->other == 0xffffffff )
+			if( out[ind].other == 0xffffffff )
 			{
-				it->other = i / 3;
-				it->n2 = n;
+				out[ind].other = i / 3;
+				out[ind].n2 = n;
 			}
 			else
 				std::cout << "Crack in object (second triangle)\n";
@@ -386,12 +393,18 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.i1 = i3;
 			e.i2 = i2;
 
-			it = out.find(e);
+			ind = out.find(e);
 
-			if( it->other == 0xffffffff )
+			if( ind == edgeset::npos )
 			{
-				it->other = i / 3;
-				it->n2 = n;
+				std::cout << "Lone triangle\n";
+				continue;
+			}
+
+			if( out[ind].other == 0xffffffff )
+			{
+				out[ind].other = i / 3;
+				out[ind].n2 = n;
 			}
 			else
 				std::cout << "Crack in object (second triangle)\n";
@@ -402,12 +415,18 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.i1 = i1;
 			e.i2 = i3;
 
-			it = out.find(e);
+			ind = out.find(e);
 
-			if( it->other == 0xffffffff )
+			if( ind == edgeset::npos )
 			{
-				it->other = i / 3;
-				it->n2 = n;
+				std::cout << "Lone triangle\n";
+				continue;
+			}
+
+			if( out[ind].other == 0xffffffff )
+			{
+				out[ind].other = i / 3;
+				out[ind].n2 = n;
 			}
 			else
 				std::cout << "Crack in object (second triangle)\n";
@@ -421,18 +440,27 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 void FindSilhouette(edgelist& out, const edgeset& edges, const D3DXMATRIX& world, const D3DXVECTOR3& lightpos)
 {
 	D3DXVECTOR3 p1, n1, n2;
+	D3DXMATRIX invt;
 	float a, b;
+
+	D3DXMatrixInverse(&invt, NULL, &world);
+	D3DXMatrixTranspose(&invt, &invt);
 
 	out.clear();
 	out.reserve(50);
 
-	for( edgeset::iterator it = edges.begin(); it != edges.end(); ++it )
+	for( size_t i = 0; i < edges.size(); ++i )
 	{
-		if( it->other != 0xffffffff )
+		const Edge& e = edges[i];
+
+		if( e.other != 0xffffffff )
 		{
-			D3DXVec3TransformCoord(&p1, &it->v1, &world);
-			D3DXVec3TransformNormal(&n1, &it->n1, &world);
-			D3DXVec3TransformNormal(&n2, &it->n2, &world);
+			D3DXVec3TransformCoord(&p1, &e.v1, &world);
+			D3DXVec3TransformNormal(&n1, &e.n1, &invt);
+			D3DXVec3TransformNormal(&n2, &e.n2, &invt);
+
+			D3DXVec3Normalize(&n1, &n1);
+			D3DXVec3Normalize(&n2, &n2);
 
 			a = D3DXVec3Dot(&lightpos, &n1) - D3DXVec3Dot(&n1, &p1);
 			b = D3DXVec3Dot(&lightpos, &n2) - D3DXVec3Dot(&n2, &p1);
@@ -442,8 +470,8 @@ void FindSilhouette(edgelist& out, const edgeset& edges, const D3DXMATRIX& world
 				if( out.capacity() <= out.size() )
 					out.reserve(out.size() + 50);
 
-				it->flip = (b < 0);
-				out.push_back(*it);
+				e.flip = (b < 0);
+				out.push_back(e);
 			}
 		}
 	}
