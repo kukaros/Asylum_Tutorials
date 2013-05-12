@@ -13,11 +13,11 @@
   <ItemGroup>
     <ClCompile Include="..\17_Combiners\main.cpp" />
     <ClCompile Include="..\17_Combiners\other.cpp" />
-    <ClCompile Include="..\IntelTest\qgl2extensions.cpp" />
+    <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\extern\qglextensions.h" />
     <ClInclude Include="..\IntelTest\glext.h" />
-    <ClInclude Include="..\IntelTest\qgl2extensions.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{187B807A-0984-4483-82DE-FE4FE056F31F}</ProjectGuid>

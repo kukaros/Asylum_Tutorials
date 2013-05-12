@@ -9,7 +9,7 @@
 #include <GL/glu.h>
 #include <iostream>
 
-#include "../extern/qgl2extensions.h"
+#include "../extern/qglextensions.h"
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -215,7 +215,7 @@ void CalculateTangentFrame()
 
 bool InitScene()
 {
-	Quadron::qGL2Extensions::QueryFeatures();
+	Quadron::qGLExtensions::QueryFeatures();
 
 	// setup opengl
 	//glClearColor(0.4f, 0.58f, 0.93f, 1.0f);

@@ -3,7 +3,7 @@
   <ItemGroup>
     <ClCompile Include="..\CoreProfileTest\main.cpp" />
     <ClCompile Include="..\CoreProfileTest\other.cpp" />
-    <ClCompile Include="..\IntelTest\qgl2extensions.cpp">
+    <ClCompile Include="..\extern\qglextensions.cpp">
       <Filter>extern</Filter>
     </ClCompile>
   </ItemGroup>
@@ -11,13 +11,33 @@
     <Filter Include="extern">
       <UniqueIdentifier>{638c7da3-24dc-4d2f-b688-9283f29be83e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="osx">
+      <UniqueIdentifier>{08ec701b-4a30-4692-8fee-2cbd609b46e6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\IntelTest\glext.h">
       <Filter>extern</Filter>
     </ClInclude>
-    <ClInclude Include="..\IntelTest\qgl2extensions.h">
+    <ClInclude Include="..\CoreProfileTestMac\CoreProfileTestMac\AppDelegate.h">
+      <Filter>osx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CoreProfileTestMac\CoreProfileTestMac\GLViewController.h">
+      <Filter>osx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\qglextensions.h">
       <Filter>extern</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\CoreProfileTestMac\CoreProfileTestMac\AppDelegate.m">
+      <Filter>osx</Filter>
+    </None>
+    <None Include="..\CoreProfileTestMac\CoreProfileTestMac\GLViewController.m">
+      <Filter>osx</Filter>
+    </None>
+    <None Include="..\CoreProfileTestMac\CoreProfileTestMac\main.m">
+      <Filter>osx</Filter>
+    </None>
   </ItemGroup>
 </Project>

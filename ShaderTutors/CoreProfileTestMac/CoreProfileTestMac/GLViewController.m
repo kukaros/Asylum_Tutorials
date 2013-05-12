@@ -284,11 +284,13 @@ void Identity(float out[16])
 {
 	NSOpenGLPixelFormatAttribute attributes[] =
 	{
-        NSOpenGLPFAColorSize, 24,
-        NSOpenGLPFAAlphaSize, 8,
-        NSOpenGLPFADoubleBuffer,
-        NSOpenGLPFAAccelerated,
-        NSOpenGLPFANoRecovery,
+		NSOpenGLPFAColorSize, 24,
+		NSOpenGLPFAAlphaSize, 8,
+		NSOpenGLPFADepthSize, 24,
+		NSOpenGLPFAStencilSize, 8,
+		NSOpenGLPFADoubleBuffer,
+		NSOpenGLPFAAccelerated,
+		NSOpenGLPFANoRecovery,
 		NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
 		0
 	};
@@ -298,7 +300,7 @@ void Identity(float out[16])
 
 	if (context == nil)
 	{
-		attributes[7] = (NSOpenGLPixelFormatAttribute)nil;
+		attributes[11] = (NSOpenGLPixelFormatAttribute)nil;
 
 		format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
 		context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];

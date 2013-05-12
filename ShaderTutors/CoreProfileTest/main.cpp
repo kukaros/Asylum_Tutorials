@@ -10,7 +10,7 @@
 #include <GL/glu.h>
 #include <iostream>
 
-#include "../IntelTest/qgl2extensions.h"
+#include "../extern/qglextensions.h"
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -40,10 +40,10 @@ GLuint uniform_matViewProj	= 0;
 
 const char* vscode =
 {
-	"#version 110\n"
+	"#version 150\n"
 
-	"attribute vec3 my_Position;\n"
-	"attribute vec3 my_Normal;\n"
+	"in vec3 my_Position;\n"
+	"in vec3 my_Normal;\n"
 
 	"uniform mat4 matWorld;\n"
 	"uniform mat4 matWorldInv;\n"
@@ -52,44 +52,46 @@ const char* vscode =
 	"uniform vec4 lightPos;\n"
 	"uniform vec4 eyePos;\n"
 
-	"varying vec3 wnorm;\n"
-	"varying vec3 vdir;\n"
-	"varying vec3 ldir;\n"
+	"out vec3 wnorm;\n"
+	"out vec3 vdir;\n"
+	"out vec3 ldir;\n"
 
 	"void main()\n"
 	"{\n"
-		"vec4 wpos = matWorld * vec4(my_Position, 1);\n"
+	"	vec4 wpos = matWorld * vec4(my_Position, 1);\n"
 
-		"ldir = lightPos.xyz - wpos.xyz;\n"
-		"vdir = eyePos.xyz - wpos.xyz;\n"
+	"	ldir = lightPos.xyz - wpos.xyz;\n"
+	"	vdir = eyePos.xyz - wpos.xyz;\n"
 
-		"wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
-		"gl_Position = matViewProj * wpos;\n"
+	"	wnorm = (matWorld * vec4(my_Normal, 0)).xyz;\n"
+	"	gl_Position = matViewProj * wpos;\n"
 	"}\n"
 };
 
 const char* pscode =
 {
-	"#version 110\n"
+	"#version 150\n"
 
-	"varying vec3 wnorm;\n"
-	"varying vec3 vdir;\n"
-	"varying vec3 ldir;\n"
+	"in vec3 wnorm;\n"
+	"in vec3 vdir;\n"
+	"in vec3 ldir;\n"
+	
+	"out vec4 outColor;\n"
 
 	"void main()\n"
 	"{\n"
-		"vec3 n = normalize(wnorm);\n"
-		"vec3 l = normalize(ldir);\n"
-		"vec3 v = normalize(vdir);\n"
-		"vec3 h = normalize(v + l);\n"
+	"	vec3 n = normalize(wnorm);\n"
+	"	vec3 l = normalize(ldir);\n"
+	"	vec3 v = normalize(vdir);\n"
+	"	vec3 h = normalize(v + l);\n"
 
-		"float d = clamp(dot(l, n), 0.0, 1.0);\n"
-		"float s = clamp(dot(h, n), 0.0, 1.0);\n"
+	"	float d = clamp(dot(l, n), 0.0, 1.0);\n"
+	"	float s = clamp(dot(h, n), 0.0, 1.0);\n"
 
-		"s = pow(s, 80.0);\n"
+	"	s = pow(s, 80.0);\n"
 
-		"gl_FragColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
-		"gl_FragColor.a = 1.0;\n"
+	"	outColor.rgb = vec3(d, d, d) + vec3(s, s, s);\n"
+	"	outColor.a = 1.0;\n"
 	"}\n"
 };
 
@@ -266,7 +268,7 @@ void Identity(float out[16])
 
 bool InitScene()
 {
-	Quadron::qGL2Extensions::QueryFeatures();
+	Quadron::qGLExtensions::QueryFeatures();
 
 	// setup opengl
 	//glClearColor(0.4f, 0.58f, 0.93f, 1.0f);

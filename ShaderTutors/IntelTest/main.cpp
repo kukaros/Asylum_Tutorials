@@ -10,7 +10,7 @@
 #include <GL/glu.h>
 #include <iostream>
 
-#include "qgl2extensions.h"
+#include "../extern/qglextensions.h"
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -89,7 +89,7 @@ bool InitScene()
 	Gdiplus::GdiplusStartupInput gdiplustartup;
 	Gdiplus::GdiplusStartup(&gdiplustoken, &gdiplustartup, NULL);
 
-	Quadron::qGL2Extensions::QueryFeatures();
+	Quadron::qGLExtensions::QueryFeatures();
 
 	// setup opengl
 	glClearColor(1, 1, 1, 1);

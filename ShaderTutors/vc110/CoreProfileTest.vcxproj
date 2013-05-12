@@ -13,11 +13,18 @@
   <ItemGroup>
     <ClCompile Include="..\CoreProfileTest\main.cpp" />
     <ClCompile Include="..\CoreProfileTest\other.cpp" />
-    <ClCompile Include="..\IntelTest\qgl2extensions.cpp" />
+    <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\CoreProfileTestMac\CoreProfileTestMac\AppDelegate.h" />
+    <ClInclude Include="..\CoreProfileTestMac\CoreProfileTestMac\GLViewController.h" />
+    <ClInclude Include="..\extern\qglextensions.h" />
     <ClInclude Include="..\IntelTest\glext.h" />
-    <ClInclude Include="..\IntelTest\qgl2extensions.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\CoreProfileTestMac\CoreProfileTestMac\AppDelegate.m" />
+    <None Include="..\CoreProfileTestMac\CoreProfileTestMac\GLViewController.m" />
+    <None Include="..\CoreProfileTestMac\CoreProfileTestMac\main.m" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>

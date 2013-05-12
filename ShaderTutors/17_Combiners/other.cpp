@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 
-#include "../extern/qgl2extensions.h"
+#include "../extern/qglextensions.h"
 
 HWND		hwnd			= NULL;
 HDC			hdc				= NULL;

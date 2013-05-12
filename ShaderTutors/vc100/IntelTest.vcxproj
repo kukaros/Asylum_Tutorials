@@ -11,13 +11,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\extern\qglextensions.cpp" />
     <ClCompile Include="..\IntelTest\main.cpp" />
     <ClCompile Include="..\IntelTest\other.cpp" />
-    <ClCompile Include="..\IntelTest\qgl2extensions.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\extern\qglextensions.h" />
     <ClInclude Include="..\IntelTest\glext.h" />
-    <ClInclude Include="..\IntelTest\qgl2extensions.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D850013C-11F3-4C6E-B8E1-A82751C89B6B}</ProjectGuid>

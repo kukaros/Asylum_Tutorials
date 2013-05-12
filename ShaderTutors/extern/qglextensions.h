@@ -1,18 +1,34 @@
 //=============================================================================================================
-#if !defined(_QGL2EXTENSIONS_H_)
-#define _QGL2EXTENSIONS_H_
+#if !defined(_QGLEXTENSIONS_H_)
+#define _QGLEXTENSIONS_H_
 
-typedef unsigned short quint16;
+//#define _Q_TEST_LOW_CONFIG
 
-#ifdef __APPLE__
-#	include <OpenGL/gl.h>
-#	include <OpenGL/OpenGL.h>
-#else
-#	include <Windows.h>
-#	include <gl/gl.h>
+#ifdef _WIN32
+#	define _Q_WINDOWS
 #endif
 
-#include "glext.h"
+#ifdef __APPLE__
+#	define _Q_MAC
+#endif
+
+#ifdef _Q_MAC
+#	include <OpenGL/gl.h>
+#	include <OpenGL/OpenGL.h>
+#	include <glext.h>
+#elif defined(_Q_WINDOWS)
+#	include <Windows.h>
+#	include <gl/gl.h>
+#	include "../extern/glext.h"
+#elif defined(_Q_IOS)
+#	include <OpenGLES/ES2/gl.h>
+#	include <OpenGLES/ES2/glext.h>
+#elif defined(_Q_ANDROID)
+#	include <GLES2/gl2.h>
+#	include <GLES2/gl2ext.h>
+#endif
+
+#include <string>
 
 #if defined(_Q_MAC)
 #	define GL_SHARING_EXTENSION		"cl_APPLE_gl_sharing"
@@ -21,7 +37,79 @@ typedef unsigned short quint16;
 #	define GL_SHARING_EXTENSION		"cl_khr_gl_sharing"
 #endif
 
-#ifdef _WIN32
+typedef std::string qstring;
+typedef unsigned short quint16;
+typedef unsigned int quint32;
+
+#define qdebugbreak()	throw 1;
+#define Q_SSCANF		sscanf
+
+#if defined(_Q_MOBILE) && _Q_GLES == 2
+#	undef GL_RGB5_A1	// doesnt work
+
+// workaround
+#	define GL_DEPTH_COMPONENT24					GL_DEPTH_COMPONENT16
+#	define GL_DEPTH_COMPONENT32					GL_DEPTH_COMPONENT16
+#	define GL_DEPTH24_STENCIL8					GL_DEPTH24_STENCIL8_OES
+#	define GL_DEPTH_STENCIL_ATTACHMENT			GL_DEPTH_ATTACHMENT
+#	define GL_LUMINANCE8						GL_LUMINANCE
+#	define GL_LUMINANCE8_ALPHA8					GL_LUMINANCE_ALPHA
+#	define GL_CLAMP								GL_CLAMP_TO_EDGE
+#	define GL_CLAMP_TO_BORDER					GL_CLAMP_TO_EDGE
+#	define GL_RGBA8								GL_RGBA
+#	define GL_RGB5_A1							GL_RGBA
+
+// will generate error when used
+#	define GL_R32F								0
+#	define GL_R16F								0
+#	define GL_RG32F								0
+#	define GL_RG16F								0
+#	define GL_RGB16F_ARB						0
+#	define GL_RGBA16F_ARB						0
+#	define GL_RGB32F_ARB						0
+#	define GL_RGBA32F_ARB						0
+#	define GL_SRGB8_ALPHA8						0
+#	define GL_RED								0
+#	define GL_RG								0
+#	define GL_HALF_FLOAT						0
+#	define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT		0
+#	define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT		0
+
+#	define GL_MODULATE							0
+#	define GL_PREVIOUS							0
+#	define GL_PRIMARY_COLOR						0
+#	define GL_CONSTANT							0
+#	define GL_MODELVIEW							0
+#	define GL_PROJECTION						0
+#	define GL_COLOR_ATTACHMENT1					0
+#	define GL_COLOR_ATTACHMENT2					0
+#	define GL_COLOR_ATTACHMENT3					0
+#	define GL_SMOOTH							0
+
+// unsupported functions
+#	define glGetBufferSubData(a, b, c, d)
+#	define glDrawBuffers(a, b)
+#	define glDrawBuffer(a)
+
+// other
+#	define glClearDepth							glClearDepthf
+#	define glRenderbufferStorageMultisample		glRenderbufferStorageMultisampleAPPLE
+#endif
+
+#define FRAMEBUFFER_SRGB_EXT					0x8DB9
+#define FRAMEBUFFER_SRGB_CAPABLE_EXT			0x8DBA
+#define WGL_FRAMEBUFFER_SRGB_CAPABLE_EXT		0x20A9
+#define GLX_FRAMEBUFFER_SRGB_CAPABLE_EXT		0x20B2
+#define CUBEMAP_RENDERTARGET_MASK				0x100
+
+#ifndef GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+#	define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS	0x8CD9
+#endif
+
+#define MAKE_VERSION(major, minor) \
+	((0xff00 & (major << 8)) | minor)
+
+#ifdef _Q_WINDOWS
 extern PFNGLACTIVETEXTUREARBPROC				glActiveTexture;
 extern PFNGLCLIENTACTIVETEXTUREARBPROC			glClientActiveTexture;
 extern PFNGLDELETEBUFFERSARBPROC				glDeleteBuffers;
@@ -55,15 +143,20 @@ extern PFNGLUNIFORM2FVARBPROC					glUniform2fv;
 extern PFNGLUNIFORM3FVARBPROC					glUniform3fv;
 extern PFNGLUNIFORM4FVARBPROC					glUniform4fv;
 
-extern PFNGLDELETEOBJECTARBPROC					glDeleteObject;
 extern PFNGLUSEPROGRAMOBJECTARBPROC				glUseProgram;
-extern PFNGLGETOBJECTPARAMETERIVARBPROC			glGetObjectParameteriv;
+extern PFNGLGETPROGRAMIVPROC					glGetProgramiv;
+extern PFNGLGETSHADERIVPROC						glGetShaderiv;
+extern PFNGLDELETEPROGRAMPROC					glDeleteProgram;
+extern PFNGLDELETESHADERPROC					glDeleteShader;
+
 extern PFNGLGETACTIVEUNIFORMARBPROC				glGetActiveUniform;
 extern PFNGLGETACTIVEATTRIBPROC					glGetActiveAttrib;
 extern PFNGLGETATTRIBLOCATIONPROC				glGetAttribLocation;
 extern PFNGLENABLEVERTEXATTRIBARRAYARBPROC		glEnableVertexAttribArray;
 extern PFNGLDISABLEVERTEXATTRIBARRAYARBPROC		glDisableVertexAttribArray;
 extern PFNGLVERTEXATTRIBPOINTERARBPROC			glVertexAttribPointer;
+extern PFNGLBINDATTRIBLOCATIONARBPROC			glBindAttribLocation;
+extern PFNGLBINDFRAGDATALOCATIONPROC			glBindFragDataLocation;
 
 extern PFNGLGENFRAMEBUFFERSEXTPROC				glGenFramebuffers;
 extern PFNGLGENRENDERBUFFERSEXTPROC				glGenRenderbuffers;
@@ -91,34 +184,41 @@ extern PFNGLGENVERTEXARRAYSPROC					glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC					glBindVertexArray;
 extern PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays;
 
+// WGL specific
 typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
-typedef const GLubyte* (APIENTRY *GLGETSTRINGIPROC)(GLenum  name,  GLuint  index);
+typedef const char* (APIENTRY *WGLGETEXTENSIONSSTRINGARBPROC)(HDC hdc);
+typedef HGLRC (APIENTRY *WGLCREATECONTEXTATTRIBSARBPROC)(HDC hDC, HGLRC hShareContext, const int *attribList);
+typedef BOOL (APIENTRY *WGLGETPIXELFORMATATTRIBIVARBPROC)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
+typedef BOOL (APIENTRY *WGLGETPIXELFORMATATTRIBFVARBPROC)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
+typedef BOOL (APIENTRY *WGLCHOOSEPIXELFORMATARBPROC)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+typedef const GLubyte* (APIENTRY *GLGETSTRINGIPROC)(GLenum  name, GLuint index);
 
 extern PFNWGLSWAPINTERVALFARPROC wglSwapInterval;
+extern WGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribs;
+extern WGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsString;
+extern WGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribiv;
+extern WGLGETPIXELFORMATATTRIBFVARBPROC wglGetPixelFormatAttribfv;
+extern WGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormat;
 extern GLGETSTRINGIPROC glGetStringi;
 
-#define glGetProgramiv							glGetObjectParameteriv
-#define glGetShaderiv							glGetObjectParameteriv
-#define glDeleteProgram							glDeleteObject
-#define glDeleteShader							glDeleteObject
 #endif
 
-#define FRAMEBUFFER_SRGB_EXT					0x8DB9
-#define FRAMEBUFFER_SRGB_CAPABLE_EXT			0x8DBA
-#define WGL_FRAMEBUFFER_SRGB_CAPABLE_EXT		0x20A9
-#define GLX_FRAMEBUFFER_SRGB_CAPABLE_EXT		0x20B2
-
-#ifndef GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS
-#	define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS	0x8CD9
+#ifdef _Q_MAC
+extern "C" {
+	extern void glBindVertexArray(GLuint array);
+	extern void glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
+	extern void glGenVertexArrays(GLsizei n, GLuint *arrays);
+	extern void glBindFragDataLocation(GLuint program, GLuint color, const GLchar *name);
+}
 #endif
-
-#define MAKE_VERSION(major, minor) \
-	((0xff00 & (major << 8)) | minor)
 
 namespace Quadron
 {
-	class qGL2Extensions
+	class qGLExtensions
 	{
+	private:
+		qGLExtensions();
+
 	public:
 		enum glversion
 		{
@@ -157,7 +257,7 @@ namespace Quadron
 		static quint16 GLSLVersion;
 
 		static bool IsSupported(const char* name);
-		static void QueryFeatures();
+		static void QueryFeatures(void* dc = 0);
 
 		static bool ARB_vertex_buffer_object;
 		static bool ARB_vertex_program;
@@ -179,8 +279,15 @@ namespace Quadron
 		static bool EXT_framebuffer_blit;
 		static bool EXT_packed_depth_stencil;
 
-#ifdef _WIN32
+		// GLES
+		static bool IMG_texture_compression_pvrtc;
+		static bool IMG_user_clip_plane;
+
+#ifdef _Q_WINDOWS
 		static bool WGL_EXT_swap_control;
+		static bool WGL_ARB_pixel_format;
+		static bool WGL_ARB_create_context;
+		static bool WGL_ARB_create_context_profile;
 #endif
 	};
 }
