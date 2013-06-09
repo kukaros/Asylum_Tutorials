@@ -6,6 +6,9 @@
     <ClCompile Include="..\extern\qglextensions.cpp">
       <Filter>extern</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\glext.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="extern">
@@ -13,6 +16,9 @@
     </Filter>
     <Filter Include="osx">
       <UniqueIdentifier>{08ec701b-4a30-4692-8fee-2cbd609b46e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{ca697c53-88a7-4f0d-b3f4-529b3133419b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -27,6 +33,9 @@
     </ClInclude>
     <ClInclude Include="..\extern\qglextensions.h">
       <Filter>extern</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\glext.h">
+      <Filter>common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

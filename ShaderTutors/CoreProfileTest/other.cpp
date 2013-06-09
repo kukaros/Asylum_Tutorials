@@ -94,8 +94,6 @@ bool InitGL(HWND hwnd)
 	success = wglMakeCurrent(hdc, hrc);
 	V_RETURN(false, "InitGL(): Could not acquire context", success);
 
-	std::cout << "\nWGL test program by Asylum\n\n";
-
 	const char* str = (const char*)glGetString(GL_VENDOR);
 	std::cout << "Vendor: " << str << "\n";
 
