@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cstdio>
+#include <cmath>
 
 static void GLReadString(FILE* f, char* buff)
 {
@@ -279,7 +280,7 @@ bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* numm
 #ifdef _MSC_VER
 	fopen_s(&infile, file, "rb");
 #else
-	infile = fopen(file, "rb")
+	infile = fopen(file, "rb");
 #endif
 
 	if( !infile )

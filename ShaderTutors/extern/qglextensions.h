@@ -15,7 +15,7 @@
 #ifdef _Q_MAC
 #	include <OpenGL/gl.h>
 #	include <OpenGL/OpenGL.h>
-#	include <glext.h>
+#	include <OpenGL/glext.h>
 #elif defined(_Q_WINDOWS)
 #	include <Windows.h>
 #	include <gl/gl.h>
@@ -32,7 +32,10 @@
 
 #if defined(_Q_MAC)
 #	define GL_SHARING_EXTENSION		"cl_APPLE_gl_sharing"
-#	define GL_PROGRAM_POINT_SIZE	GL_PROGRAM_POINT_SIZE_EXT
+
+#	ifndef GL_PROGRAM_POINT_SIZE
+#		define GL_PROGRAM_POINT_SIZE	GL_PROGRAM_POINT_SIZE_EXT
+#	endif
 #else
 #	define GL_SHARING_EXTENSION		"cl_khr_gl_sharing"
 #endif

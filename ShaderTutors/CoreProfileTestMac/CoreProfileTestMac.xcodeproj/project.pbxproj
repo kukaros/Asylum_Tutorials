@@ -15,6 +15,8 @@
 		7381868D171D6BEF009A27B0 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 7381868B171D6BEF009A27B0 /* MainMenu.xib */; };
 		73818695171D6CC4009A27B0 /* GLViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 73818694171D6CC3009A27B0 /* GLViewController.m */; };
 		73818697171D6D2A009A27B0 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73818696171D6D2A009A27B0 /* OpenGL.framework */; };
+		A6E6FE8F1764F11C00972D5B /* glext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A6E6FE8D1764F11C00972D5B /* glext.cpp */; };
+		A6E6FE941764F31F00972D5B /* teapot.qm in Resources */ = {isa = PBXBuildFile; fileRef = A6E6FE931764F31F00972D5B /* teapot.qm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,8 +34,11 @@
 		73818689171D6BEF009A27B0 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		7381868C171D6BEF009A27B0 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		73818693171D6CC3009A27B0 /* GLViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GLViewController.h; sourceTree = "<group>"; };
-		73818694171D6CC3009A27B0 /* GLViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GLViewController.m; sourceTree = "<group>"; };
+		73818694171D6CC3009A27B0 /* GLViewController.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; path = GLViewController.m; sourceTree = "<group>"; };
 		73818696171D6D2A009A27B0 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		A6E6FE8D1764F11C00972D5B /* glext.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = glext.cpp; path = ../../common/glext.cpp; sourceTree = "<group>"; };
+		A6E6FE8E1764F11C00972D5B /* glext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = glext.h; path = ../../common/glext.h; sourceTree = "<group>"; };
+		A6E6FE931764F31F00972D5B /* teapot.qm */ = {isa = PBXFileReference; lastKnownFileType = file; name = teapot.qm; path = ../../media/meshes/teapot.qm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +94,8 @@
 		7381867C171D6BEF009A27B0 /* CoreProfileTestMac */ = {
 			isa = PBXGroup;
 			children = (
+				A6E6FE921764F30100972D5B /* media */,
+				A6E6FE911764F2FA00972D5B /* common */,
 				73818688171D6BEF009A27B0 /* AppDelegate.h */,
 				73818689171D6BEF009A27B0 /* AppDelegate.m */,
 				7381868B171D6BEF009A27B0 /* MainMenu.xib */,
@@ -109,6 +116,23 @@
 				73818685171D6BEF009A27B0 /* Credits.rtf */,
 			);
 			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		A6E6FE911764F2FA00972D5B /* common */ = {
+			isa = PBXGroup;
+			children = (
+				A6E6FE8D1764F11C00972D5B /* glext.cpp */,
+				A6E6FE8E1764F11C00972D5B /* glext.h */,
+			);
+			name = common;
+			sourceTree = "<group>";
+		};
+		A6E6FE921764F30100972D5B /* media */ = {
+			isa = PBXGroup;
+			children = (
+				A6E6FE931764F31F00972D5B /* teapot.qm */,
+			);
+			name = media;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -165,6 +189,7 @@
 				73818681171D6BEF009A27B0 /* InfoPlist.strings in Resources */,
 				73818687171D6BEF009A27B0 /* Credits.rtf in Resources */,
 				7381868D171D6BEF009A27B0 /* MainMenu.xib in Resources */,
+				A6E6FE941764F31F00972D5B /* teapot.qm in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -178,6 +203,7 @@
 				73818683171D6BEF009A27B0 /* main.m in Sources */,
 				7381868A171D6BEF009A27B0 /* AppDelegate.m in Sources */,
 				73818695171D6CC4009A27B0 /* GLViewController.m in Sources */,
+				A6E6FE8F1764F11C00972D5B /* glext.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -313,6 +339,7 @@
 				73818692171D6BEF009A27B0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
