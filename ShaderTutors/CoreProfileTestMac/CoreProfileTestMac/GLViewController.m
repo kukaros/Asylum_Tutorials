@@ -8,6 +8,8 @@
 
 #import "GLViewController.h"
 #import <OpenGL/gl3.h>
+#import <mach/mach_time.h>
+#import <time.h>
 
 #import "../../common/glext.h"
 
@@ -248,10 +250,8 @@ const char* pscode =
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-	static float time = 0;
-
 	float lightpos[4]	= { 6, 3, 10, 1 };
-	float eye[3]		= { 0, 0, 3 };
+	float eye[3]		= { 0, 0, 10 };
 	float look[3]		= { 0, 0, 0 };
 	float up[3]			= { 0, 1, 0 };
 
@@ -264,7 +264,14 @@ const char* pscode =
 
 	float screenwidth = [self bounds].size.width;
 	float screenheight = [self bounds].size.height;
-
+	
+	uint64_t qwtime = mach_absolute_time();
+	mach_timebase_info_data_t info;
+	mach_timebase_info(&info);
+	
+	float nano = 1e-9 * ((double)info.numer) / ((double)info.denom);
+	float time = (float)qwtime * nano;
+	
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	GLMatrixLookAtRH(view, eye, look, up);
@@ -277,15 +284,27 @@ const char* pscode =
 
 	GLMatrixMultiply(world, tmp1, tmp2);
 
-	time += (1.0f / 60.0f);
-
 	glUseProgram(program);
 	glUniform4fv(uniform_eyePos, 1, eye);
 	glUniform4fv(uniform_lightPos, 1, lightpos);
 	glUniformMatrix4fv(uniform_matWorld, 1, false, world);
 	glUniformMatrix4fv(uniform_matViewProj, 1, false, viewproj);
 	{
-		mesh->DrawSubset(0);
+		for (int i = 0; i < 3; ++i)
+		{
+			for (int j = 0; j < 3; ++j)
+			{
+				world[12] = (i - 1) * 4;
+				world[13] = (j - 1) * 4;
+				
+				glUseProgram(program);
+				glUniformMatrix4fv(uniform_matWorld, 1, false, world);
+				{
+					mesh->DrawSubset(0);
+				}
+				glUseProgram(0);
+			}
+		}
 	}
 	glUseProgram(0);
 
