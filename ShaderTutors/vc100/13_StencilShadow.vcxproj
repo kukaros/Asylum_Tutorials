@@ -10,18 +10,9 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\17_Combiners\main.cpp" />
-    <ClCompile Include="..\17_Combiners\other.cpp" />
-    <ClCompile Include="..\extern\qglextensions.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\extern\glext.h" />
-    <ClInclude Include="..\extern\qglextensions.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{187B807A-0984-4483-82DE-FE4FE056F31F}</ProjectGuid>
-    <RootNamespace>My17_Combiners</RootNamespace>
+    <ProjectGuid>{B79A67CD-FFB3-4B34-B87F-3945BE4C702D}</ProjectGuid>
+    <RootNamespace>My13_StencilShadow</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -100,6 +91,28 @@
       <Command>copy /Y "$(TargetDir)$(ProjectName).exe" "$(SolutionDir)\bin\$(ProjectName).exe"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="..\media\directx.ico" />
+    <None Include="..\media\shaders\blinnphong.fx" />
+    <None Include="..\media\shaders\blurshadow.fx" />
+    <None Include="..\media\shaders\variance.fx" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\media\common.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common\dxext.h" />
+    <ClInclude Include="..\common\orderedarray.hpp" />
+    <ClInclude Include="..\media\resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\13_StencilShadow\main.cpp" />
+    <ClCompile Include="..\13_StencilShadow\other.cpp" />
+    <ClCompile Include="..\common\dxext.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\distance.fx" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

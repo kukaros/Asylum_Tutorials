@@ -3,7 +3,7 @@
   <ItemGroup>
     <ClCompile Include="..\CoreProfileTest\main.cpp" />
     <ClCompile Include="..\CoreProfileTest\other.cpp" />
-    <ClCompile Include="..\IntelTest\qgl2extensions.cpp">
+    <ClCompile Include="..\extern\qglextensions.cpp">
       <Filter>extern</Filter>
     </ClCompile>
   </ItemGroup>
@@ -13,10 +13,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\IntelTest\glext.h">
+    <ClInclude Include="..\extern\qglextensions.h">
       <Filter>extern</Filter>
     </ClInclude>
-    <ClInclude Include="..\IntelTest\qgl2extensions.h">
+    <ClInclude Include="..\extern\glext.h">
       <Filter>extern</Filter>
     </ClInclude>
   </ItemGroup>
