@@ -296,13 +296,9 @@ const char* pscode =
 			{
 				world[12] = (i - 1) * 4;
 				world[13] = (j - 1) * 4;
-				
-				glUseProgram(program);
+
 				glUniformMatrix4fv(uniform_matWorld, 1, false, world);
-				{
-					mesh->DrawSubset(0);
-				}
-				glUseProgram(0);
+				mesh->DrawSubset(0);
 			}
 		}
 	}

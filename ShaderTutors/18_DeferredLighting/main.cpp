@@ -551,7 +551,7 @@ void DrawDeferred(LPDIRECT3DSURFACE9 target, const ViewParams& params)
 
 	DrawScene(rendergbuffer, viewproj, params.eye);
 
-	// STEP 3: deferred pass
+	// STEP 2: deferred pass
 	D3DXMatrixInverse(&inv, NULL, &viewproj);
 
 	deferred->SetVector("eyePos", (D3DXVECTOR4*)&params.eye);
