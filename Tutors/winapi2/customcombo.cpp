@@ -94,7 +94,7 @@ void CustomCombo::RenderItem(LPDRAWITEMSTRUCT ds)
 	COLORREF	fg = 0, bg = 0;
 	int			x, y, i = 0;
 	int			textlen;
-		
+
 	// measure item
 	GetTextMetrics(ds->hDC, &tm);
 

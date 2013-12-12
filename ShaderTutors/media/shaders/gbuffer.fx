@@ -119,9 +119,6 @@ void ps_gbuffer_tbn_dl(
 
 	spec.r = lerp(matShininess.x, spec.r, params.w);
 
-	color0 = tex2D(mytex0, tex);
-	color0.a = 1;
-
 	float3x3 tbn = { wtan, wbin * params.z, wnorm };
 
 	color0.rgb = normalize(mul(tbn, norm));
