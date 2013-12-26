@@ -8,6 +8,12 @@
 #include "../common/dxext.h"
 #include "../common/orderedarray.hpp"
 
+// TODO:
+// - cap back end
+// - something is not ok with zfail
+// - more objects
+// - UI: draw silhouette
+
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
@@ -23,18 +29,6 @@ extern short	mousedy;
 extern short	mousedown;
 
 // tutorial structs
-struct ShadowVertex
-{
-	float x, y, z;
-};
-
-struct NormalVertex
-{
-	float x, y, z;
-	float nx, ny, nz;
-	float u, v;
-};
-
 struct Edge
 {
 	DWORD i1, i2;				// vertex indices
@@ -62,16 +56,20 @@ typedef std::vector<Edge> edgelist;
 
 LPD3DXEFFECT					specular		= NULL;
 LPD3DXEFFECT					extrude			= NULL;
+
 LPD3DXMESH						shadowreceiver	= NULL;
-LPD3DXMESH						shadowcaster	= NULL;		// shadow caster for silhouette determination
-LPD3DXMESH						object			= NULL;		// shadow caster for normal rendering
+LPD3DXMESH						box_object		= NULL;		// for normal rendering
+LPD3DXMESH						box_caster		= NULL;		// for silhouette determination
+LPD3DXMESH						sphere			= NULL;		// sphere is good for both
+
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
 LPDIRECT3DVERTEXBUFFER9			shadowvolume	= NULL;
+LPDIRECT3DINDEXBUFFER9			shadowindices	= NULL;
 LPDIRECT3DVERTEXDECLARATION9	shadowdecl		= NULL;
 
-edgeset					casteredges;
-edgelist				silhouette;
+edgeset					casteredges;	// leak
+edgelist				silhouette;		// leak
 state<D3DXVECTOR2>		cameraangle;
 state<D3DXVECTOR2>		lightangle;
 
@@ -82,20 +80,6 @@ void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const
 HRESULT InitScene()
 {
 	HRESULT hr;
-	
-	D3DVERTEXELEMENT9 elem[] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-		D3DDECL_END()
-	};
-
-	D3DVERTEXELEMENT9 elem2[] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-		{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
-		{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
 
 	MYVALID(D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &shadowreceiver));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
@@ -103,140 +87,23 @@ HRESULT InitScene()
 	MYVALID(DXCreateEffect("../media/shaders/blinnphong.fx", device, &specular));
 	MYVALID(DXCreateEffect("../media/shaders/extrude.fx", device, &extrude));
 
-	//MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &shadowcaster, NULL));
-	//MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &object, NULL));
-
-	MYVALID(D3DXCreateMesh(12, 8, D3DXMESH_MANAGED, elem, device, &shadowcaster));
-	MYVALID(D3DXCreateMesh(12, 24, D3DXMESH_MANAGED, elem2, device, &object));
-
-	// first create object
-	NormalVertex* vdata2 = 0;
-	WORD* idata = 0;
-	DWORD* adata = 0;
-
-	object->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata2);
-	object->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	object->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
-
-	// Z- face
-	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
-	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
-	vdata2[0].z = -0.5f;	vdata2[1].z = -0.5f;	vdata2[2].z = -0.5f;	vdata2[3].z = -0.5f;
-
-	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
-	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
-	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = -1;
-
-	vdata2 += 4;
-
-	// X- face
-	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = -0.5f;	vdata2[3].x = -0.5f;
-	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
-	vdata2[0].z = 0.5f;		vdata2[1].z = 0.5f;		vdata2[2].z = -0.5f;	vdata2[3].z = -0.5f;
-
-	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = -1;
-	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
-	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 0;
-
-	vdata2 += 4;
-
-	// X+ face
-	vdata2[0].x = 0.5f;		vdata2[1].x = 0.5f;		vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
-	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
-	vdata2[0].z = -0.5f;	vdata2[1].z = -0.5f;	vdata2[2].z = 0.5f;		vdata2[3].z = 0.5f;
-
-	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 1;
-	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
-	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 0;
-
-	vdata2 += 4;
-
-	// Z+ face
-	vdata2[0].x = 0.5f;		vdata2[1].x = 0.5f;		vdata2[2].x = -0.5f;	vdata2[3].x = -0.5f;
-	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
-	vdata2[0].z = 0.5f;		vdata2[1].z = 0.5f;		vdata2[2].z = 0.5f;		vdata2[3].z = 0.5f;
-
-	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
-	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
-	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 1;
-
-	vdata2 += 4;
-
-	// Y+ face
-	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
-	vdata2[0].y = 0.5f;		vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = 0.5f;
-	vdata2[0].z = -0.5f;	vdata2[1].z = 0.5f;		vdata2[2].z = 0.5f;		vdata2[3].z = -0.5f;
-
-	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
-	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
-	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 1;
-
-	vdata2 += 4;
-
-	// Y- face
-	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
-	vdata2[0].y = -0.5f;	vdata2[1].y = -0.5f;	vdata2[2].y = -0.5f;	vdata2[3].y = -0.5f;
-	vdata2[0].z = 0.5f;		vdata2[1].z = -0.5f;	vdata2[2].z = -0.5f;	vdata2[3].z = 0.5f;
-
-	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
-	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
-	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 1;
-
-	for( int i = 0; i < 6; ++i )
-	{
-		idata[0] = idata[3] = i * 4;
-		idata[1] = i * 4 + 1;
-		idata[2] = idata[4] = i * 4 + 2;
-		idata[5] = i * 4 + 3;
-
-		idata += 6;
-	}
-
-	memset(adata, 0, 12 * sizeof(DWORD));
-
-	object->UnlockAttributeBuffer();
-	object->UnlockIndexBuffer();
-	object->UnlockVertexBuffer();
-
-	// then shadow object
-	ShadowVertex* vdata = 0;
-
-	shadowcaster->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
-	shadowcaster->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	shadowcaster->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
-
-	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = -0.5f;		vdata[3].x = -0.5f;
-	vdata[0].y = -0.5f;		vdata[1].y = -0.5f;		vdata[2].y = 0.5f;		vdata[3].y = 0.5f;
-	vdata[0].z = -0.5f;		vdata[1].z = 0.5f;		vdata[2].z = -0.5f;		vdata[3].z = 0.5f;
-
-	vdata[4].x = 0.5f;		vdata[5].x = 0.5f;		vdata[6].x = 0.5f;		vdata[7].x = 0.5f;
-	vdata[4].y = -0.5f;		vdata[5].y = -0.5f;		vdata[6].y = 0.5f;		vdata[7].y = 0.5f;
-	vdata[4].z = -0.5f;		vdata[5].z = 0.5f;		vdata[6].z = -0.5f;		vdata[7].z = 0.5f;
-
-	// you dont have to understand...
-	idata[0] = idata[3] = idata[11] = idata[31]					= 0;
-	idata[1] = idata[8] = idata[10] = idata[24] = idata[27]		= 2;
-	idata[2] = idata[4] = idata[13] = idata[29]					= 6;
-	idata[5] = idata[12] = idata[15] = idata[32] = idata[34]	= 4;
-	idata[6] = idata[9] = idata[23] = idata[30] = idata[33]		= 1;
-	idata[7] = idata[20] = idata[22] = idata[25]				= 3;
-	idata[14] = idata[16] = idata[19] = idata[26] = idata[28]	= 7;
-	idata[17] = idata[18] = idata[21] = idata[35]				= 5;
-
-	memset(adata, 0, 12 * sizeof(DWORD));
-
-	shadowcaster->UnlockAttributeBuffer();
-	shadowcaster->UnlockIndexBuffer();
-	shadowcaster->UnlockVertexBuffer();
+	//MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &sphere, NULL));
+	MYVALID(DXCreateTexturedBox(device, &box_object));
+	MYVALID(DXCreateCollisionBox(device, &box_caster));
 
 	// generate edges
 	std::cout << "Generating edge info...\n";
-	GenerateEdges(casteredges, shadowcaster);
+	GenerateEdges(casteredges, box_caster);
 
 	// shadow volume buffer
-	elem[0].Type = D3DDECLTYPE_FLOAT4;
+	D3DVERTEXELEMENT9 elem[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		D3DDECL_END()
+	};
 
-	MYVALID(device->CreateVertexBuffer(casteredges.size() * 6 * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &shadowvolume, NULL));
+	MYVALID(device->CreateIndexBuffer(casteredges.size() * 12 * sizeof(WORD), D3DUSAGE_DYNAMIC, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &shadowindices, NULL));
+	MYVALID(device->CreateVertexBuffer((casteredges.size() * 4 + 2) * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &shadowvolume, NULL));
 	MYVALID(device->CreateVertexDeclaration(elem, &shadowdecl));
 
 	// effect
@@ -252,9 +119,10 @@ void UninitScene()
 {
 	SAFE_RELEASE(shadowdecl);
 	SAFE_RELEASE(shadowvolume);
+	SAFE_RELEASE(shadowindices);
 	SAFE_RELEASE(shadowreceiver);
-	SAFE_RELEASE(shadowcaster);
-	SAFE_RELEASE(object);
+	SAFE_RELEASE(box_caster);
+	SAFE_RELEASE(box_object);
 	SAFE_RELEASE(specular);
 	SAFE_RELEASE(extrude);
 	SAFE_RELEASE(texture1);
@@ -320,7 +188,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
 	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, 0.1f, 100);
 
-	// put farplane to infinity
+	// put far plane to infinity
 	proj._33 = 1;
 	proj._43 = -0.1f;
 
@@ -372,7 +240,7 @@ void Render(float alpha, float elapsedtime)
 		specular->Begin(NULL, 0);
 		specular->BeginPass(0);
 		{
-			object->DrawSubset(0);
+			box_object->DrawSubset(0);
 		}
 		specular->EndPass();
 		specular->End();
@@ -412,25 +280,21 @@ void Render(float alpha, float elapsedtime)
 			DWORD color;
 		} quad[] =
 		{
-			0, 0, 0, 1, 0xaa000000,
-			(float)screenwidth, 0, 0, 1, 0xaa000000,
-			0, (float)screenheight, 0, 1, 0xaa000000,
+			0, 0, 0, 1, 0xff000000,
+			(float)screenwidth, 0, 0, 1, 0xff000000,
+			0, (float)screenheight, 0, 1, 0xff000000,
 
-			0, (float)screenheight, 0, 1, 0xaa000000,
-			(float)screenwidth, 0, 0, 1, 0xaa000000,
-			(float)screenwidth, (float)screenheight, 0, 1, 0xaa000000
+			0, (float)screenheight, 0, 1, 0xff000000,
+			(float)screenwidth, 0, 0, 1, 0xff000000,
+			(float)screenwidth, (float)screenheight, 0, 1, 0xff000000
 		};
 
 		device->SetRenderState(D3DRS_ZENABLE, FALSE);
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
 		device->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);
 		device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, quad, 5 * sizeof(float));
 
 		device->SetRenderState(D3DRS_ZENABLE, TRUE);
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
@@ -495,7 +359,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.n1 = n;
 
 			if( !out.insert(e) )
-				std::cout << "Crack in object (first triangle)\n";
+				std::cout << "Crack in box_object (first triangle)\n";
 		}
 
 		if( i2 < i3 )
@@ -507,7 +371,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.n1 = n;
 
 			if( !out.insert(e) )
-				std::cout << "Crack in object (first triangle)\n";
+				std::cout << "Crack in box_object (first triangle)\n";
 		}
 
 		if( i3 < i1 )
@@ -519,7 +383,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 			e.n1 = n;
 
 			if( !out.insert(e) )
-				std::cout << "Crack in object (first triangle)\n";
+				std::cout << "Crack in box_object (first triangle)\n";
 		}
 	}
 
@@ -559,7 +423,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 				out[ind].n2 = n;
 			}
 			else
-				std::cout << "Crack in object (second triangle)\n";
+				std::cout << "Crack in box_object (second triangle)\n";
 		}
 
 		if( i2 > i3 )
@@ -581,7 +445,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 				out[ind].n2 = n;
 			}
 			else
-				std::cout << "Crack in object (second triangle)\n";
+				std::cout << "Crack in box_object (second triangle)\n";
 		}
 
 		if( i3 > i1 )
@@ -603,7 +467,7 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 				out[ind].n2 = n;
 			}
 			else
-				std::cout << "Crack in object (second triangle)\n";
+				std::cout << "Crack in box_object (second triangle)\n";
 		}
 	}
 
@@ -650,43 +514,112 @@ void FindSilhouette(edgelist& out, const edgeset& edges, const D3DXMATRIX& world
 //*************************************************************************************************************
 void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const D3DXMATRIX& viewproj, const D3DXVECTOR3& lightpos)
 {
-	D3DXVECTOR4* vdata = 0;
-	D3DXMATRIX inv;
-	D3DXVECTOR3 lp;
+	D3DXVECTOR4*	vdata = 0;
+	WORD*			idata = 0;
+	D3DXMATRIX		inv;
+	D3DXVECTOR3		lp;
+	D3DXVECTOR3		ltocenter;
+	D3DXVECTOR3		center(0, 0, 0);
+	float			weight = 0.5f / silhouette.size();
 
 	shadowvolume->Lock(0, 0, (void**)&vdata, D3DLOCK_DISCARD);
+	shadowindices->Lock(0, 0, (void**)&idata, D3DLOCK_DISCARD);
 
 	D3DXMatrixInverse(&inv, NULL, &world);
 	D3DXVec3TransformCoord(&lp, &lightpos, &inv);
 
-	for( size_t i = 0; i < silhouette.size() * 6; i += 6 )
+	for( size_t i = 0; i < silhouette.size() * 4; i += 4 )
 	{
-		const Edge& e = silhouette[i / 6];
+		const Edge& e = silhouette[i / 4];
+
+		vdata[i] = D3DXVECTOR4(e.v1, 1);
+		vdata[i + 1] = D3DXVECTOR4(e.v1 - lp, 0);
+		vdata[i + 2] = D3DXVECTOR4(e.v2, 1);
+		vdata[i + 3] = D3DXVECTOR4(e.v2 - lp, 0);
+
+		center += e.v1 * weight;
+		center += e.v2 * weight;
+	}
+
+	// push in front cap 1 mm
+	ltocenter = center - lp;
+	D3DXVec3Normalize(&ltocenter, &ltocenter);
+
+	vdata[silhouette.size() * 4] = D3DXVECTOR4(center + ltocenter * 1e-3f, 1);
+	vdata[silhouette.size() * 4 + 1] = D3DXVECTOR4(center - lp, 0);
+
+	for( size_t i = 0; i < silhouette.size(); ++i )
+	{
+		const Edge& e = silhouette[i];
 
 		if( e.flip )
 		{
-			vdata[i] = D3DXVECTOR4(e.v1, 1);
-			vdata[i + 1] = D3DXVECTOR4(e.v1 - lp, 0);
-			vdata[i + 2] = D3DXVECTOR4(e.v2, 1);
+			idata[i * 6 + 0] = i * 4 + 0;
+			idata[i * 6 + 1] = i * 4 + 1;
+			idata[i * 6 + 2] = i * 4 + 2;
 
-			vdata[i + 3] = D3DXVECTOR4(e.v2, 1);
-			vdata[i + 4] = D3DXVECTOR4(e.v1 - lp, 0);
-			vdata[i + 5] = D3DXVECTOR4(e.v2 - lp, 0);
+			idata[i * 6 + 3] = i * 4 + 2;
+			idata[i * 6 + 4] = i * 4 + 1;
+			idata[i * 6 + 5] = i * 4 + 3;
 		}
 		else
 		{
-			vdata[i] = D3DXVECTOR4(e.v1, 1);
-			vdata[i + 1] = D3DXVECTOR4(e.v2, 1);
-			vdata[i + 2] = D3DXVECTOR4(e.v1 - lp, 0);
+			idata[i * 6 + 0] = i * 4 + 0;
+			idata[i * 6 + 1] = i * 4 + 2;
+			idata[i * 6 + 2] = i * 4 + 1;
 
-			vdata[i + 3] = D3DXVECTOR4(e.v2, 1);
-			vdata[i + 4] = D3DXVECTOR4(e.v2 - lp, 0);
-			vdata[i + 5] = D3DXVECTOR4(e.v1 - lp, 0);
+			idata[i * 6 + 3] = i * 4 + 2;
+			idata[i * 6 + 4] = i * 4 + 3;
+			idata[i * 6 + 5] = i * 4 + 1;
 		}
 	}
 
+	// front cap
+	idata += silhouette.size() * 6;
+
+	for( size_t i = 0; i < silhouette.size(); ++i )
+	{
+		const Edge& e = silhouette[i];
+
+		if( e.flip )
+		{
+			idata[i * 3 + 0] = i * 4 + 0;
+			idata[i * 3 + 1] = i * 4 + 2;
+			idata[i * 3 + 2] = silhouette.size() * 4;
+		}
+		else
+		{
+			idata[i * 3 + 0] = i * 4 + 2;
+			idata[i * 3 + 1] = i * 4 + 0;
+			idata[i * 3 + 2] = silhouette.size() * 4;
+		}
+	}
+
+	// back cap
+	idata += silhouette.size() * 3;
+
+	for( size_t i = 0; i < silhouette.size(); ++i )
+	{
+		const Edge& e = silhouette[i];
+
+		if( e.flip )
+		{
+			idata[i * 3 + 0] = i * 4 + 3;
+			idata[i * 3 + 1] = i * 4 + 1;
+			idata[i * 3 + 2] = silhouette.size() * 4 + 1;
+		}
+		else
+		{
+			idata[i * 3 + 0] = i * 4 + 1;
+			idata[i * 3 + 1] = i * 4 + 3;
+			idata[i * 3 + 2] = silhouette.size() * 4 + 1;
+		}
+	}
+
+	shadowindices->Unlock();
 	shadowvolume->Unlock();
 
+	extrude->SetTechnique("extrude");
 	extrude->SetMatrix("matWorld", &world);
 	extrude->SetMatrix("matViewProj", &viewproj);
 
@@ -695,7 +628,9 @@ void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const
 	{
 		device->SetVertexDeclaration(shadowdecl);
 		device->SetStreamSource(0, shadowvolume, 0, sizeof(D3DXVECTOR4));
-		device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, silhouette.size() * 2);
+		device->SetIndices(shadowindices);
+
+		device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, silhouette.size() * 4 + 2, 0, silhouette.size() * 4);
 	}
 	extrude->EndPass();
 	extrude->End();

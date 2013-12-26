@@ -1303,3 +1303,159 @@ void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye)
 	D3DXVECTOR3 look = eye + DXCubeForward[i];
 	D3DXMatrixLookAtLH(&out, &eye, &look, &DXCubeUp[i]);
 }
+
+HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* out)
+{
+	D3DVERTEXELEMENT9 elem[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		D3DDECL_END()
+	};
+
+	LPD3DXMESH			mesh	= 0;
+	DXTexturedVertex*	vdata	= 0;
+	WORD*				idata	= 0;
+	DWORD*				adata	= 0;
+	HRESULT				hr		= D3DXCreateMesh(12, 24, D3DXMESH_MANAGED, elem, d3ddevice, &mesh);
+
+	if( FAILED(hr) )
+		return hr;
+
+	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
+	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
+	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+
+	// Z- face
+	vdata[0].x = -0.5f;	vdata[1].x = -0.5f;	vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
+	vdata[0].y = -0.5f;	vdata[1].y = 0.5f;		vdata[2].y = 0.5f;		vdata[3].y = -0.5f;
+	vdata[0].z = -0.5f;	vdata[1].z = -0.5f;	vdata[2].z = -0.5f;	vdata[3].z = -0.5f;
+
+	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
+	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
+	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = -1;
+
+	vdata += 4;
+
+	// X- face
+	vdata[0].x = -0.5f;	vdata[1].x = -0.5f;	vdata[2].x = -0.5f;	vdata[3].x = -0.5f;
+	vdata[0].y = -0.5f;	vdata[1].y = 0.5f;		vdata[2].y = 0.5f;		vdata[3].y = -0.5f;
+	vdata[0].z = 0.5f;		vdata[1].z = 0.5f;		vdata[2].z = -0.5f;	vdata[3].z = -0.5f;
+
+	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = -1;
+	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
+	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	vdata += 4;
+
+	// X+ face
+	vdata[0].x = 0.5f;		vdata[1].x = 0.5f;		vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
+	vdata[0].y = -0.5f;	vdata[1].y = 0.5f;		vdata[2].y = 0.5f;		vdata[3].y = -0.5f;
+	vdata[0].z = -0.5f;	vdata[1].z = -0.5f;	vdata[2].z = 0.5f;		vdata[3].z = 0.5f;
+
+	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 1;
+	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
+	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	vdata += 4;
+
+	// Z+ face
+	vdata[0].x = 0.5f;		vdata[1].x = 0.5f;		vdata[2].x = -0.5f;	vdata[3].x = -0.5f;
+	vdata[0].y = -0.5f;	vdata[1].y = 0.5f;		vdata[2].y = 0.5f;		vdata[3].y = -0.5f;
+	vdata[0].z = 0.5f;		vdata[1].z = 0.5f;		vdata[2].z = 0.5f;		vdata[3].z = 0.5f;
+
+	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
+	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
+	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 1;
+
+	vdata += 4;
+
+	// Y+ face
+	vdata[0].x = -0.5f;	vdata[1].x = -0.5f;	vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
+	vdata[0].y = 0.5f;		vdata[1].y = 0.5f;		vdata[2].y = 0.5f;		vdata[3].y = 0.5f;
+	vdata[0].z = -0.5f;	vdata[1].z = 0.5f;		vdata[2].z = 0.5f;		vdata[3].z = -0.5f;
+
+	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
+	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 1;
+	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	vdata += 4;
+
+	// Y- face
+	vdata[0].x = -0.5f;	vdata[1].x = -0.5f;	vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
+	vdata[0].y = -0.5f;	vdata[1].y = -0.5f;	vdata[2].y = -0.5f;	vdata[3].y = -0.5f;
+	vdata[0].z = 0.5f;		vdata[1].z = -0.5f;	vdata[2].z = -0.5f;	vdata[3].z = 0.5f;
+
+	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
+	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = -1;
+	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	for( int i = 0; i < 6; ++i )
+	{
+		idata[0] = idata[3] = i * 4;
+		idata[1] = i * 4 + 1;
+		idata[2] = idata[4] = i * 4 + 2;
+		idata[5] = i * 4 + 3;
+
+		idata += 6;
+	}
+
+	memset(adata, 0, 12 * sizeof(DWORD));
+
+	mesh->UnlockAttributeBuffer();
+	mesh->UnlockIndexBuffer();
+	mesh->UnlockVertexBuffer();
+
+	*out = mesh;
+	return D3D_OK;
+}
+
+HRESULT DXCreateCollisionBox(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* out)
+{
+	D3DVERTEXELEMENT9 elem[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		D3DDECL_END()
+	};
+
+	LPD3DXMESH			mesh	= 0;
+	DXCollisionVertex*	vdata	= 0;
+	WORD*				idata	= 0;
+	DWORD*				adata	= 0;
+	HRESULT				hr		= D3DXCreateMesh(12, 8, D3DXMESH_MANAGED, elem, d3ddevice, &mesh);
+
+	if( FAILED(hr) )
+		return hr;
+
+	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
+	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
+	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+
+	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = -0.5f;		vdata[3].x = -0.5f;
+	vdata[0].y = -0.5f;		vdata[1].y = -0.5f;		vdata[2].y = 0.5f;		vdata[3].y = 0.5f;
+	vdata[0].z = -0.5f;		vdata[1].z = 0.5f;		vdata[2].z = -0.5f;		vdata[3].z = 0.5f;
+
+	vdata[4].x = 0.5f;		vdata[5].x = 0.5f;		vdata[6].x = 0.5f;		vdata[7].x = 0.5f;
+	vdata[4].y = -0.5f;		vdata[5].y = -0.5f;		vdata[6].y = 0.5f;		vdata[7].y = 0.5f;
+	vdata[4].z = -0.5f;		vdata[5].z = 0.5f;		vdata[6].z = -0.5f;		vdata[7].z = 0.5f;
+
+	// you dont have to understand...
+	idata[0] = idata[3] = idata[11] = idata[31]					= 0;
+	idata[1] = idata[8] = idata[10] = idata[24] = idata[27]		= 2;
+	idata[2] = idata[4] = idata[13] = idata[29]					= 6;
+	idata[5] = idata[12] = idata[15] = idata[32] = idata[34]	= 4;
+	idata[6] = idata[9] = idata[23] = idata[30] = idata[33]		= 1;
+	idata[7] = idata[20] = idata[22] = idata[25]				= 3;
+	idata[14] = idata[16] = idata[19] = idata[26] = idata[28]	= 7;
+	idata[17] = idata[18] = idata[21] = idata[35]				= 5;
+
+	memset(adata, 0, 12 * sizeof(DWORD));
+
+	mesh->UnlockAttributeBuffer();
+	mesh->UnlockIndexBuffer();
+	mesh->UnlockVertexBuffer();
+
+	*out = mesh;
+	return D3D_OK;
+}

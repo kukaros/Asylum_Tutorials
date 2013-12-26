@@ -164,10 +164,24 @@ public:
 	}
 };
 
+struct DXTexturedVertex
+{
+	float x, y, z;
+	float nx, ny, nz;
+	float u, v;
+};
+
+struct DXCollisionVertex
+{
+	float x, y, z;
+};
+
 HRESULT DXLoadMeshFromQM(LPCTSTR file, DWORD options, LPDIRECT3DDEVICE9 d3ddevice, D3DXMATERIAL** materials, DWORD* nummaterials, LPD3DXMESH* mesh);
 HRESULT DXSaveMeshToQM(LPCTSTR file, LPD3DXMESH mesh, D3DXMATERIAL* materials, DWORD nummaterials);
 HRESULT DXCreateEffect(LPCTSTR file, LPDIRECT3DDEVICE9 d3ddevice, LPD3DXEFFECT* out);
 HRESULT DXGenTangentFrame(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* mesh);
+HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* out);
+HRESULT DXCreateCollisionBox(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* out);
 
 void DXRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height);
 void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye);
