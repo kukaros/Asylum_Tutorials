@@ -14,10 +14,26 @@
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
 // external variables
-extern long screenwidth;
-extern long screenheight;
-
 extern LPDIRECT3DDEVICE9 device;
+
+extern long		screenwidth;
+extern long		screenheight;
+extern short	mousedx;
+extern short	mousedy;
+extern short	mousedown;
+
+// tutorial structs
+struct ShadowVertex
+{
+	float x, y, z;
+};
+
+struct NormalVertex
+{
+	float x, y, z;
+	float nx, ny, nz;
+	float u, v;
+};
 
 struct Edge
 {
@@ -28,7 +44,8 @@ struct Edge
 	mutable D3DXVECTOR3 n1, n2;	// triangle normals
 	mutable bool flip;			// flip volume quad
 
-	Edge() {
+	Edge()
+	{
 		i1 = i2 = 0;
 		other = 0xffffffff;
 		flip = false;
@@ -43,17 +60,24 @@ struct Edge
 typedef mystl::orderedarray<Edge> edgeset;
 typedef std::vector<Edge> edgelist;
 
-LPD3DXEFFECT		specular		= NULL;
-LPD3DXMESH			shadowreceiver	= NULL;
-LPD3DXMESH			shadowcaster	= NULL;
-LPDIRECT3DTEXTURE9	texture1		= NULL;
-LPDIRECT3DTEXTURE9	texture2		= NULL;
-edgeset				casteredges;
-edgelist			silhouette;
+LPD3DXEFFECT					specular		= NULL;
+LPD3DXEFFECT					extrude			= NULL;
+LPD3DXMESH						shadowreceiver	= NULL;
+LPD3DXMESH						shadowcaster	= NULL;		// shadow caster for silhouette determination
+LPD3DXMESH						object			= NULL;		// shadow caster for normal rendering
+LPDIRECT3DTEXTURE9				texture1		= NULL;
+LPDIRECT3DTEXTURE9				texture2		= NULL;
+LPDIRECT3DVERTEXBUFFER9			shadowvolume	= NULL;
+LPDIRECT3DVERTEXDECLARATION9	shadowdecl		= NULL;
+
+edgeset					casteredges;
+edgelist				silhouette;
+state<D3DXVECTOR2>		cameraangle;
+state<D3DXVECTOR2>		lightangle;
 
 void GenerateEdges(edgeset& out, LPD3DXMESH mesh);
 void FindSilhouette(edgelist& out, const edgeset& edges, const D3DXMATRIX& world, const D3DXVECTOR3& lightpos);
-void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const D3DXVECTOR3& lightpos);
+void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const D3DXMATRIX& viewproj, const D3DXVECTOR3& lightpos);
 
 HRESULT InitScene()
 {
@@ -61,30 +85,178 @@ HRESULT InitScene()
 	
 	D3DVERTEXELEMENT9 elem[] =
 	{
-		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
-		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		D3DDECL_END()
+	};
+
+	D3DVERTEXELEMENT9 elem2[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
 		D3DDECL_END()
 	};
 
 	MYVALID(D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &shadowreceiver));
-	MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &shadowcaster, NULL));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
 	MYVALID(DXCreateEffect("../media/shaders/blinnphong.fx", device, &specular));
+	MYVALID(DXCreateEffect("../media/shaders/extrude.fx", device, &extrude));
 
-	specular->SetFloat("ambient", 0);
+	//MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &shadowcaster, NULL));
+	//MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &object, NULL));
 
+	MYVALID(D3DXCreateMesh(12, 8, D3DXMESH_MANAGED, elem, device, &shadowcaster));
+	MYVALID(D3DXCreateMesh(12, 24, D3DXMESH_MANAGED, elem2, device, &object));
+
+	// first create object
+	NormalVertex* vdata2 = 0;
+	WORD* idata = 0;
+	DWORD* adata = 0;
+
+	object->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata2);
+	object->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
+	object->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+
+	// Z- face
+	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
+	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
+	vdata2[0].z = -0.5f;	vdata2[1].z = -0.5f;	vdata2[2].z = -0.5f;	vdata2[3].z = -0.5f;
+
+	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
+	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
+	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = -1;
+
+	vdata2 += 4;
+
+	// X- face
+	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = -0.5f;	vdata2[3].x = -0.5f;
+	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
+	vdata2[0].z = 0.5f;		vdata2[1].z = 0.5f;		vdata2[2].z = -0.5f;	vdata2[3].z = -0.5f;
+
+	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = -1;
+	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
+	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 0;
+
+	vdata2 += 4;
+
+	// X+ face
+	vdata2[0].x = 0.5f;		vdata2[1].x = 0.5f;		vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
+	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
+	vdata2[0].z = -0.5f;	vdata2[1].z = -0.5f;	vdata2[2].z = 0.5f;		vdata2[3].z = 0.5f;
+
+	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 1;
+	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
+	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 0;
+
+	vdata2 += 4;
+
+	// Z+ face
+	vdata2[0].x = 0.5f;		vdata2[1].x = 0.5f;		vdata2[2].x = -0.5f;	vdata2[3].x = -0.5f;
+	vdata2[0].y = -0.5f;	vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = -0.5f;
+	vdata2[0].z = 0.5f;		vdata2[1].z = 0.5f;		vdata2[2].z = 0.5f;		vdata2[3].z = 0.5f;
+
+	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
+	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
+	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 1;
+
+	vdata2 += 4;
+
+	// Y+ face
+	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
+	vdata2[0].y = 0.5f;		vdata2[1].y = 0.5f;		vdata2[2].y = 0.5f;		vdata2[3].y = 0.5f;
+	vdata2[0].z = -0.5f;	vdata2[1].z = 0.5f;		vdata2[2].z = 0.5f;		vdata2[3].z = -0.5f;
+
+	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
+	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
+	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 1;
+
+	vdata2 += 4;
+
+	// Y- face
+	vdata2[0].x = -0.5f;	vdata2[1].x = -0.5f;	vdata2[2].x = 0.5f;		vdata2[3].x = 0.5f;
+	vdata2[0].y = -0.5f;	vdata2[1].y = -0.5f;	vdata2[2].y = -0.5f;	vdata2[3].y = -0.5f;
+	vdata2[0].z = 0.5f;		vdata2[1].z = -0.5f;	vdata2[2].z = -0.5f;	vdata2[3].z = 0.5f;
+
+	vdata2[0].nx = vdata2[1].nx = vdata2[2].nx = vdata2[3].nx = 0;
+	vdata2[0].ny = vdata2[1].ny = vdata2[2].ny = vdata2[3].ny = 0;
+	vdata2[0].nz = vdata2[1].nz = vdata2[2].nz = vdata2[3].nz = 1;
+
+	for( int i = 0; i < 6; ++i )
+	{
+		idata[0] = idata[3] = i * 4;
+		idata[1] = i * 4 + 1;
+		idata[2] = idata[4] = i * 4 + 2;
+		idata[5] = i * 4 + 3;
+
+		idata += 6;
+	}
+
+	memset(adata, 0, 12 * sizeof(DWORD));
+
+	object->UnlockAttributeBuffer();
+	object->UnlockIndexBuffer();
+	object->UnlockVertexBuffer();
+
+	// then shadow object
+	ShadowVertex* vdata = 0;
+
+	shadowcaster->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
+	shadowcaster->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
+	shadowcaster->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+
+	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = -0.5f;		vdata[3].x = -0.5f;
+	vdata[0].y = -0.5f;		vdata[1].y = -0.5f;		vdata[2].y = 0.5f;		vdata[3].y = 0.5f;
+	vdata[0].z = -0.5f;		vdata[1].z = 0.5f;		vdata[2].z = -0.5f;		vdata[3].z = 0.5f;
+
+	vdata[4].x = 0.5f;		vdata[5].x = 0.5f;		vdata[6].x = 0.5f;		vdata[7].x = 0.5f;
+	vdata[4].y = -0.5f;		vdata[5].y = -0.5f;		vdata[6].y = 0.5f;		vdata[7].y = 0.5f;
+	vdata[4].z = -0.5f;		vdata[5].z = 0.5f;		vdata[6].z = -0.5f;		vdata[7].z = 0.5f;
+
+	// you dont have to understand...
+	idata[0] = idata[3] = idata[11] = idata[31]					= 0;
+	idata[1] = idata[8] = idata[10] = idata[24] = idata[27]		= 2;
+	idata[2] = idata[4] = idata[13] = idata[29]					= 6;
+	idata[5] = idata[12] = idata[15] = idata[32] = idata[34]	= 4;
+	idata[6] = idata[9] = idata[23] = idata[30] = idata[33]		= 1;
+	idata[7] = idata[20] = idata[22] = idata[25]				= 3;
+	idata[14] = idata[16] = idata[19] = idata[26] = idata[28]	= 7;
+	idata[17] = idata[18] = idata[21] = idata[35]				= 5;
+
+	memset(adata, 0, 12 * sizeof(DWORD));
+
+	shadowcaster->UnlockAttributeBuffer();
+	shadowcaster->UnlockIndexBuffer();
+	shadowcaster->UnlockVertexBuffer();
+
+	// generate edges
 	std::cout << "Generating edge info...\n";
 	GenerateEdges(casteredges, shadowcaster);
+
+	// shadow volume buffer
+	elem[0].Type = D3DDECLTYPE_FLOAT4;
+
+	MYVALID(device->CreateVertexBuffer(casteredges.size() * 6 * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &shadowvolume, NULL));
+	MYVALID(device->CreateVertexDeclaration(elem, &shadowdecl));
+
+	// effect
+	specular->SetFloat("ambient", 0);
+
+	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
+	lightangle = D3DXVECTOR2(2.8f, 0.78f);
 
 	return S_OK;
 }
 //*************************************************************************************************************
 void UninitScene()
 {
+	SAFE_RELEASE(shadowdecl);
+	SAFE_RELEASE(shadowvolume);
 	SAFE_RELEASE(shadowreceiver);
 	SAFE_RELEASE(shadowcaster);
+	SAFE_RELEASE(object);
 	SAFE_RELEASE(specular);
+	SAFE_RELEASE(extrude);
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
 
@@ -96,7 +268,30 @@ void UninitScene()
 //*************************************************************************************************************
 void Update(float delta)
 {
-	// do nothing
+	D3DXVECTOR2 velocity(mousedx, mousedy);
+
+	cameraangle.prev = cameraangle.curr;
+	lightangle.prev = lightangle.curr;
+
+	if( mousedown == 1 )
+		cameraangle.curr += velocity * 0.004f;
+
+	if( mousedown == 2 )
+		lightangle.curr += velocity * 0.004f;
+
+	// clamp to [-pi, pi]
+	if( cameraangle.curr.y >= 1.5f )
+		cameraangle.curr.y = 1.5f;
+
+	if( cameraangle.curr.y <= -1.5f )
+		cameraangle.curr.y = -1.5f;
+
+	// clamp to [0.1, pi]
+	if( lightangle.curr.y >= 1.5f )
+		lightangle.curr.y = 1.5f;
+
+	if( lightangle.curr.y <= 0.1f )
+		lightangle.curr.y = 0.1f;
 }
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
@@ -106,28 +301,37 @@ void Render(float alpha, float elapsedtime)
 	D3DXMATRIX		view, proj, vp;
 	D3DXMATRIX		world[2];
 	D3DXMATRIX		inv;
-	D3DXVECTOR3		lightpos(-1, 6, 5);
-	D3DXVECTOR3		eye(-3, 3, -3);
+	D3DXVECTOR2		orient	= cameraangle.smooth(alpha);
+	D3DXVECTOR2		light	= lightangle.smooth(alpha);
+	D3DXVECTOR3		lightpos(0, 0, -3);
+	D3DXVECTOR3		eye(0, 0, -5.2f);
 	D3DXVECTOR3		look(0, 0.5f, 0);
 	D3DXVECTOR3		up(0, 1, 0);
 	D3DXVECTOR3		p1, p2;
 
+	// setup light
+	D3DXMatrixRotationYawPitchRoll(&view, light.x, light.y, 0);
+	D3DXVec3TransformCoord(&lightpos, &lightpos, &view);
+
 	// setup camera
+	D3DXMatrixRotationYawPitchRoll(&view, orient.x, orient.y, 0);
+	D3DXVec3TransformCoord(&eye, &eye, &view);
+
+	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
 	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, 0.1f, 100);
 
 	// put farplane to infinity
 	proj._33 = 1;
 	proj._43 = -0.1f;
 
-	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
 	D3DXMatrixMultiply(&vp, &view, &proj);
 
 	// setup world matrices
 	D3DXMatrixScaling(&world[1], 5, 0.1f, 5);
-	D3DXMatrixScaling(&world[0], 1.5f, 1.5f, 1.5f);
+	D3DXMatrixScaling(&world[0], 1, 1, 1);
 
 	world[0]._41 = -0.7f;
-	world[0]._42 = 1.3f;
+	world[0]._42 = 0.55f;
 	world[0]._43 = 0.7f;
 
 	time += elapsedtime;
@@ -139,7 +343,7 @@ void Render(float alpha, float elapsedtime)
 
 	if( SUCCEEDED(device->BeginScene()) )
 	{
-		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
+		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, 0xff6694ed, 1.0f, 0);
 
 		// receiver
 		D3DXMatrixInverse(&inv, NULL, &world[1]);
@@ -168,7 +372,7 @@ void Render(float alpha, float elapsedtime)
 		specular->Begin(NULL, 0);
 		specular->BeginPass(0);
 		{
-			shadowcaster->DrawSubset(0);
+			object->DrawSubset(0);
 		}
 		specular->EndPass();
 		specular->End();
@@ -176,12 +380,6 @@ void Render(float alpha, float elapsedtime)
 		device->SetTexture(0, 0);
 
 		// draw shadow with depth fail method
-		D3DXMatrixIdentity(&inv);
-
-		device->SetTransform(D3DTS_WORLD, &inv);
-		device->SetTransform(D3DTS_VIEW, &view);
-		device->SetTransform(D3DTS_PROJECTION, &proj);
-
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
 
@@ -193,15 +391,16 @@ void Render(float alpha, float elapsedtime)
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 
 		FindSilhouette(silhouette, casteredges, world[0], (D3DXVECTOR3&)lightpos);
-		DrawShadowVolume(silhouette, world[0], lightpos);
+		DrawShadowVolume(silhouette, world[0], vp, lightpos);
 
 		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_DECRSAT);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 
-		DrawShadowVolume(silhouette, world[0], lightpos);
+		DrawShadowVolume(silhouette, world[0], vp, lightpos);
 
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);
 		
+		// TODO: a quad nem jo
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_LESSEQUAL);
 		device->SetRenderState(D3DRS_STENCILREF, 1);
 		device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
@@ -245,7 +444,6 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 {
 	bool		is32bit = (mesh->GetOptions() & D3DXMESH_32BIT);
 	DWORD		numindices = mesh->GetNumFaces() * 3;
-	DWORD		normoff = 0;
 	DWORD		stride = mesh->GetNumBytesPerVertex();
 	BYTE*		vdata = 0;
 	WORD*		idata = 0;
@@ -260,30 +458,6 @@ void GenerateEdges(edgeset& out, LPD3DXMESH mesh)
 	if( is32bit )
 	{
 		MYERROR("GenerateEdges(): TODO: 4 byte indices");
-		return;
-	}
-
-	// find the offset of vertex normals
-	D3DVERTEXELEMENT9* decl = new D3DVERTEXELEMENT9[MAX_FVF_DECL_SIZE];
-	mesh->GetDeclaration(decl);
-
-	for( DWORD i = 0; i < MAX_FVF_DECL_SIZE; ++i )
-	{
-		if( decl[i].Usage == D3DDECLUSAGE_NORMAL )
-		{
-			normoff = decl[i].Offset;
-			break;
-		}
-
-		if( decl[i].Stream == 0xff )
-			break;
-	}
-
-	delete[] decl;
-
-	if( normoff == 0 )
-	{
-		MYERROR("GenerateEdges(): Mesh has no normals");
 		return;
 	}
 
@@ -459,9 +633,6 @@ void FindSilhouette(edgelist& out, const edgeset& edges, const D3DXMATRIX& world
 			D3DXVec3TransformNormal(&n1, &e.n1, &invt);
 			D3DXVec3TransformNormal(&n2, &e.n2, &invt);
 
-			D3DXVec3Normalize(&n1, &n1);
-			D3DXVec3Normalize(&n2, &n2);
-
 			a = D3DXVec3Dot(&lightpos, &n1) - D3DXVec3Dot(&n1, &p1);
 			b = D3DXVec3Dot(&lightpos, &n2) - D3DXVec3Dot(&n2, &p1);
 
@@ -477,48 +648,56 @@ void FindSilhouette(edgelist& out, const edgeset& edges, const D3DXMATRIX& world
 	}
 }
 //*************************************************************************************************************
-void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const D3DXVECTOR3& lightpos)
+void DrawShadowVolume(const edgelist& silhouette, const D3DXMATRIX& world, const D3DXMATRIX& viewproj, const D3DXVECTOR3& lightpos)
 {
-	D3DXVECTOR3 p1, p2;
-	size_t floatsperquad = 6 * 4;
-	float* vdata = new float[silhouette.size() * floatsperquad];
+	D3DXVECTOR4* vdata = 0;
+	D3DXMATRIX inv;
+	D3DXVECTOR3 lp;
 
-	for( size_t i = 0; i < silhouette.size() * floatsperquad; i += floatsperquad )
+	shadowvolume->Lock(0, 0, (void**)&vdata, D3DLOCK_DISCARD);
+
+	D3DXMatrixInverse(&inv, NULL, &world);
+	D3DXVec3TransformCoord(&lp, &lightpos, &inv);
+
+	for( size_t i = 0; i < silhouette.size() * 6; i += 6 )
 	{
-		const Edge& e = silhouette[i / floatsperquad];
-
-		D3DXVec3TransformCoord(&p1, &e.v1, &world);
-		D3DXVec3TransformCoord(&p2, &e.v2, &world);
+		const Edge& e = silhouette[i / 6];
 
 		if( e.flip )
 		{
-			vdata[i + 0] = p1.x;	vdata[i + 4] = p1.x - lightpos.x;	vdata[i + 8] = p2.x;
-			vdata[i + 1] = p1.y;	vdata[i + 5] = p1.y - lightpos.y;	vdata[i + 9] = p2.y;
-			vdata[i + 2] = p1.z;	vdata[i + 6] = p1.z - lightpos.z;	vdata[i + 10] = p2.z;
-			vdata[i + 3] = 1;		vdata[i + 7] = 0;					vdata[i + 11] = 1;
+			vdata[i] = D3DXVECTOR4(e.v1, 1);
+			vdata[i + 1] = D3DXVECTOR4(e.v1 - lp, 0);
+			vdata[i + 2] = D3DXVECTOR4(e.v2, 1);
 
-			vdata[i + 12] = p2.x;	vdata[i + 16] = p1.x - lightpos.x;	vdata[i + 20] = p2.x - lightpos.x;
-			vdata[i + 13] = p2.y;	vdata[i + 17] = p1.y - lightpos.y;	vdata[i + 21] = p2.y - lightpos.y;
-			vdata[i + 14] = p2.z;	vdata[i + 18] = p1.z - lightpos.z;	vdata[i + 22] = p2.z - lightpos.z;
-			vdata[i + 15] = 1;		vdata[i + 19] = 0;		vdata[i + 23] = 0;
+			vdata[i + 3] = D3DXVECTOR4(e.v2, 1);
+			vdata[i + 4] = D3DXVECTOR4(e.v1 - lp, 0);
+			vdata[i + 5] = D3DXVECTOR4(e.v2 - lp, 0);
 		}
 		else
 		{
-			vdata[i + 0] = p1.x;	vdata[i + 8] = p1.x - lightpos.x;	vdata[i + 4] = p2.x;
-			vdata[i + 1] = p1.y;	vdata[i + 9] = p1.y - lightpos.y;	vdata[i + 5] = p2.y;
-			vdata[i + 2] = p1.z;	vdata[i + 10] = p1.z - lightpos.z;	vdata[i + 6] = p2.z;
-			vdata[i + 3] = 1;		vdata[i + 11] = 0;					vdata[i + 7] = 1;
+			vdata[i] = D3DXVECTOR4(e.v1, 1);
+			vdata[i + 1] = D3DXVECTOR4(e.v2, 1);
+			vdata[i + 2] = D3DXVECTOR4(e.v1 - lp, 0);
 
-			vdata[i + 12] = p2.x;	vdata[i + 20] = p1.x - lightpos.x;	vdata[i + 16] = p2.x - lightpos.x;
-			vdata[i + 13] = p2.y;	vdata[i + 21] = p1.y - lightpos.y;	vdata[i + 17] = p2.y - lightpos.y;
-			vdata[i + 14] = p2.z;	vdata[i + 22] = p1.z - lightpos.z;	vdata[i + 18] = p2.z - lightpos.z;
-			vdata[i + 15] = 1;		vdata[i + 23] = 0;					vdata[i + 19] = 0;
+			vdata[i + 3] = D3DXVECTOR4(e.v2, 1);
+			vdata[i + 4] = D3DXVECTOR4(e.v2 - lp, 0);
+			vdata[i + 5] = D3DXVECTOR4(e.v1 - lp, 0);
 		}
 	}
 
-	device->SetFVF(D3DFVF_XYZW);
-	device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, silhouette.size() * 2, vdata, sizeof(D3DXVECTOR4));
+	shadowvolume->Unlock();
 
-	delete[] vdata;
+	extrude->SetMatrix("matWorld", &world);
+	extrude->SetMatrix("matViewProj", &viewproj);
+
+	extrude->Begin(0, 0);
+	extrude->BeginPass(0);
+	{
+		device->SetVertexDeclaration(shadowdecl);
+		device->SetStreamSource(0, shadowvolume, 0, sizeof(D3DXVECTOR4));
+		device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, silhouette.size() * 2);
+	}
+	extrude->EndPass();
+	extrude->End();
 }
 //*************************************************************************************************************

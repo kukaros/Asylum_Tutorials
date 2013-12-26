@@ -22,8 +22,12 @@ LPDIRECT3DDEVICE9		device		= NULL;
 
 D3DPRESENT_PARAMETERS	d3dpp;
 RECT					workarea;
-long					screenwidth = 800;
-long					screenheight = 600;
+long					screenwidth = 1360;
+long					screenheight = 768;
+
+short					mousex, mousedx	= 0;
+short					mousey, mousedy	= 0;
+short					mousedown		= 0;
 
 HRESULT InitScene();
 
@@ -80,6 +84,30 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 			SendMessage(hWnd, WM_CLOSE, 0, 0);
 			break;
 		}
+		break;
+
+	case WM_MOUSEMOVE: {
+		short x = (short)(lParam & 0xffff);
+		short y = (short)((lParam >> 16) & 0xffff);
+
+		mousedx += x - mousex;
+		mousedy += y - mousey;
+
+		mousex = x;
+		mousey = y;
+		} break;
+
+	case WM_LBUTTONDOWN:
+		mousedown = 1;
+		break;
+
+	case WM_RBUTTONDOWN:
+		mousedown = 2;
+		break;
+
+	case WM_LBUTTONUP:
+	case WM_RBUTTONUP:
+		mousedown = 0;
 		break;
 
 	default:
@@ -212,6 +240,8 @@ int main(int argc, char* argv[])
 
 		last = current;
 		accum += delta;
+
+		mousedx = mousedy = 0;
 
 		while( accum > 0.0333f )
 		{

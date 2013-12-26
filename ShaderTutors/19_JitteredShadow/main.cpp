@@ -65,22 +65,6 @@ float textvertices[36] =
 	521.5f,	128.0f + 9.5f,	0, 1,	1, 1
 };
 
-template <typename T>
-struct state
-{
-	T prev;
-	T curr;
-
-	state& operator =(const T& t) {
-		prev = curr = t;
-		return *this;
-	}
-
-	T smooth(float alpha) {
-		return prev + alpha * (curr - prev);
-	}
-};
-
 state<D3DXVECTOR2> cameraangle;
 
 HRESULT InitScene()
@@ -140,11 +124,10 @@ void Update(float delta)
 {
 	D3DXVECTOR2 cameravelocity(mousedx, mousedy);
 
+	cameraangle.prev = cameraangle.curr;
+
 	if( mousedown == 1 )
-	{
-		cameraangle.prev = cameraangle.curr;
 		cameraangle.curr += cameravelocity * 0.004f;
-	}
 
 	// clamp to [-pi, pi]
 	if( cameraangle.curr.y >= 1.5f )
