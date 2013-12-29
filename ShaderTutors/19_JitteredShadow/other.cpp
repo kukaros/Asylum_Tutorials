@@ -27,8 +27,8 @@ LPDIRECT3DTEXTURE9				text			= NULL;
 
 D3DPRESENT_PARAMETERS			d3dpp;
 RECT							workarea;
-long							screenwidth		= 1360;
-long							screenheight	= 768;
+long							screenwidth		= 800;
+long							screenheight	= 600;
 
 short							mousex, mousedx	= 0;
 short							mousey, mousedy	= 0;

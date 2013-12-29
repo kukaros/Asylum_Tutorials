@@ -7,6 +7,7 @@ matrix matViewProj;
 
 float4 lightPos = { -10, 10, -10, 1 };
 float4 eyePos;
+float2 uv = { 1, 1 };
 float ambient = 0.2f;
 
 void vs_main(
@@ -24,6 +25,7 @@ void vs_main(
 	vdir = eyePos.xyz - pos.xyz;
 
 	pos = mul(pos, matViewProj);
+	tex *= uv;
 }
 
 void ps_main(
