@@ -22,8 +22,8 @@ LPDIRECT3DDEVICE9		device		= NULL;
 
 D3DPRESENT_PARAMETERS	d3dpp;
 RECT					workarea;
-long					screenwidth = 1360;
-long					screenheight = 768;
+long					screenwidth = 800;
+long					screenheight = 600;
 
 short					mousex, mousedx	= 0;
 short					mousey, mousedy	= 0;
@@ -34,6 +34,7 @@ HRESULT InitScene();
 void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
+void KeyPress(WPARAM wparam);
 
 HRESULT InitDirect3D(HWND hwnd)
 {
@@ -82,6 +83,10 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 		{
 		case VK_ESCAPE:
 			SendMessage(hWnd, WM_CLOSE, 0, 0);
+			break;
+
+		default:
+			KeyPress(wParam);
 			break;
 		}
 		break;

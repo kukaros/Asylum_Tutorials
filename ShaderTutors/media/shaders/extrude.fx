@@ -2,6 +2,8 @@
 matrix matWorld;
 matrix matViewProj;
 
+float4 ambient = { 0, 0, 0, 1 };	// tell me a better name...
+
 void vs_extrude(
 	in out float4 pos : POSITION)
 {
@@ -18,7 +20,7 @@ void vs_zpass(
 void ps_extrude(
 	out float4 color : COLOR0)
 {
-	color = float4(0, 0, 0, 1);
+	color = ambient;
 }
 
 technique extrude

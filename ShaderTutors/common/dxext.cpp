@@ -1323,9 +1323,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	if( FAILED(hr) )
 		return hr;
 
-	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
-	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+	mesh->LockVertexBuffer(0, (void**)&vdata);
+	mesh->LockIndexBuffer(0, (void**)&idata);
+	mesh->LockAttributeBuffer(0, &adata);
 
 	// Z- face
 	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
@@ -1335,6 +1335,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = -1;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
 
 	vdata += 4;
 
@@ -1347,6 +1350,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
 
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
+
 	vdata += 4;
 
 	// X+ face
@@ -1357,6 +1363,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 1;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
 
 	vdata += 4;
 
@@ -1369,6 +1378,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 1;
 
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
+
 	vdata += 4;
 
 	// Y+ face
@@ -1380,6 +1392,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 1;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
 
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
+
 	vdata += 4;
 
 	// Y- face
@@ -1390,6 +1405,9 @@ HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXME
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = -1;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
 
 	for( int i = 0; i < 6; ++i )
 	{
@@ -1428,9 +1446,9 @@ HRESULT DXCreateCollisionBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXM
 	if( FAILED(hr) )
 		return hr;
 
-	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
-	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+	mesh->LockVertexBuffer(0, (void**)&vdata);
+	mesh->LockIndexBuffer(0, (void**)&idata);
+	mesh->LockAttributeBuffer(0, &adata);
 
 	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = -0.5f;		vdata[3].x = -0.5f;
 	vdata[0].y = -0.5f;		vdata[1].y = -0.5f;		vdata[2].y = 0.5f;		vdata[3].y = 0.5f;
@@ -1479,9 +1497,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	if( FAILED(hr) )
 		return hr;
 
-	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
-	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+	mesh->LockVertexBuffer(0, (void**)&vdata);
+	mesh->LockIndexBuffer(0, (void**)&idata);
+	mesh->LockAttributeBuffer(0, &adata);
 
 	// Z- face
 	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
@@ -1491,6 +1509,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = -1;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
 
 	vdata += 4;
 
@@ -1503,6 +1524,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
 
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 1;
+
 	vdata += 4;
 
 	// X+ faces
@@ -1514,6 +1538,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
 
+	vdata[0].u = 0.5f;	vdata[1].u = 0.5f;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;		vdata[1].v = 0;		vdata[2].v = 0;	vdata[3].v = 1;
+
 	vdata += 4;
 
 	vdata[0].x = 0.5f;		vdata[1].x = 0.5f;		vdata[2].x = 0.5f;		vdata[3].x = 0.5f;
@@ -1523,6 +1550,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 1;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 0;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 0.5f;	vdata[3].u = 0.5f;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;		vdata[3].v = 1;
 
 	vdata += 4;
 
@@ -1535,6 +1565,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 1;
 
+	vdata[0].u = 0.5f;	vdata[1].u = 0.5f;	vdata[2].u = 1;	vdata[3].u = 1;
+	vdata[0].v = 1;		vdata[1].v = 0;		vdata[2].v = 0;	vdata[3].v = 1;
+
 	vdata += 4;
 
 	vdata[0].x = 0.5f;		vdata[1].x = 0.5f;		vdata[2].x = 0;			vdata[3].x = 0;
@@ -1544,6 +1577,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = 0;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = 0;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = 1;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 0.5f;	vdata[3].u = 0.5f;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;		vdata[3].v = 1;
 
 	vdata += 4;
 
@@ -1556,6 +1592,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = vdata[4].ny = vdata[5].ny = 1;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = vdata[4].nz = vdata[5].nz = 0;
 
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 0.5f;	vdata[3].u = 0.5f;	vdata[4].u = 1;		vdata[5].u = 1;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;		vdata[3].v = 0.5f;	vdata[4].v = 0.5f;	vdata[5].v = 1;
+
 	vdata += 6;
 
 	// Y- face
@@ -1566,6 +1605,9 @@ HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3D
 	vdata[0].nx = vdata[1].nx = vdata[2].nx = vdata[3].nx = vdata[4].nx = vdata[5].nx = 0;
 	vdata[0].ny = vdata[1].ny = vdata[2].ny = vdata[3].ny = vdata[4].ny = vdata[5].ny = -1;
 	vdata[0].nz = vdata[1].nz = vdata[2].nz = vdata[3].nz = vdata[4].nz = vdata[5].nz = 0;
+
+	vdata[0].u = 0;	vdata[1].u = 0;	vdata[2].u = 1;	vdata[3].u = 1;		vdata[4].u = 0.5f;	vdata[5].u = 0.5f;
+	vdata[0].v = 1;	vdata[1].v = 0;	vdata[2].v = 0;	vdata[3].v = 0.5f;	vdata[4].v = 0.5f;	vdata[5].v = 1;
 
 	for( int i = 0; i < 6; ++i )
 	{
@@ -1620,9 +1662,9 @@ HRESULT DXCreateCollisionLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3
 	if( FAILED(hr) )
 		return hr;
 
-	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
-	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+	mesh->LockVertexBuffer(0, (void**)&vdata);
+	mesh->LockIndexBuffer(0, (void**)&idata);
+	mesh->LockAttributeBuffer(0, &adata);
 
 	vdata[0].x = -0.5f;		vdata[1].x = -0.5f;		vdata[2].x = -0.5f;		vdata[3].x = -0.5f;
 	vdata[0].y = -0.5f;		vdata[1].y = -0.5f;		vdata[2].y = 0.5f;		vdata[3].y = 0.5f;
@@ -1649,6 +1691,128 @@ HRESULT DXCreateCollisionLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3
 	idata[23] = idata[24] = idata[27] = idata[53] = idata[55]							= 8;
 	idata[26] = idata[28] = idata[31] = idata[38] = idata[40]							= 11;
 	idata[29] = idata[30] = idata[33] = idata[56] = idata[58]							= 9;
+
+	memset(adata, 0, 12 * sizeof(DWORD));
+
+	mesh->UnlockAttributeBuffer();
+	mesh->UnlockIndexBuffer();
+	mesh->UnlockVertexBuffer();
+
+	*out = mesh;
+	return D3D_OK;
+}
+
+HRESULT DXCreateTexturedSphere(LPDIRECT3DDEVICE9 d3ddevice, float radius, UINT slices, UINT stacks, DWORD options, LPD3DXMESH* out)
+{
+	// NOTE: this is not correct, must duplicate top and bottom vertices 'slices' times
+
+	D3DVERTEXELEMENT9 elem[] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		D3DDECL_END()
+	};
+
+	LPD3DXMESH			mesh	= 0;
+	DXTexturedVertex*	vdata	= 0;
+	WORD*				idata	= 0;
+	DWORD*				adata	= 0;
+	HRESULT				hr;
+	float				theta, phi;
+
+	if( slices < 4 )
+		slices = 4;
+
+	if( stacks < 4 )
+		stacks = 4;
+
+	UINT numvertices = (stacks - 2) * slices + 2;
+	UINT numindices = (stacks - 2) * (slices - 1) * 6;
+
+	hr = D3DXCreateMesh(numindices / 3, numvertices, options, elem, d3ddevice, &mesh);
+
+	if( FAILED(hr) )
+		return hr;
+
+	mesh->LockVertexBuffer(0, (void**)&vdata);
+	mesh->LockIndexBuffer(0, (void**)&idata);
+	mesh->LockAttributeBuffer(0, &adata);
+
+	// generate vertices
+	for( UINT j = 1; j < stacks - 1; ++j )
+	{
+		for( UINT i = 0; i < slices; ++i )
+		{
+			theta = ((float)j / (float)(stacks - 1)) * D3DX_PI;
+			phi = ((float)i / (float)(slices - 1)) * D3DX_PI * 2;
+
+			vdata->x = sinf(theta) * cosf(phi) * radius;
+			vdata->y = cosf(theta) * radius;
+			vdata->z = -sinf(theta) * sinf(phi) * radius;
+
+			vdata->nx = vdata->x / radius;
+			vdata->ny = vdata->y / radius;
+			vdata->nz = vdata->z / radius;
+
+			vdata->u = phi / (D3DX_PI * 2);
+			vdata->v = theta / D3DX_PI;
+
+			++vdata;
+		}
+	}
+
+	// top
+	vdata->x = vdata->z = 0;
+	vdata->y = radius;
+
+	vdata->nx = vdata->nz = 0;
+	vdata->ny = 1;
+
+	vdata->u = 0.5f;
+	vdata->v = 1;
+
+	++vdata;
+
+	// bottom
+	vdata->x = vdata->z = 0;
+	vdata->y = -radius;
+
+	vdata->nx = vdata->nz = 0;
+	vdata->ny = -1;
+
+	vdata->u = 0.5f;
+	vdata->v = 0;
+
+	// generate indices
+	for( UINT j = 0; j < stacks - 3; ++j )
+	{
+		for( UINT i = 0; i < slices - 1; ++i )
+		{
+			idata[0] = j * slices + i;
+			idata[1] = (j + 1) * slices + i + 1;
+			idata[2] = j * slices + i + 1;
+
+			idata[3] = j * slices + i;
+			idata[4] = (j + 1) * slices + i;
+			idata[5] = (j + 1) * slices + i + 1;
+
+			idata += 6;
+		}
+	}
+
+	for( UINT i = 0; i < slices - 1; ++i )
+	{
+		idata[0] = (stacks - 2) * slices; // top
+		idata[1] = i;
+		idata[2] = i + 1;
+
+		idata[3] = (stacks - 2) * slices + 1; // bottom
+		idata[4] = (stacks - 3) * slices + i + 1;
+		idata[5] = (stacks - 3) * slices + i;
+
+		idata += 6;
+	}
 
 	memset(adata, 0, 12 * sizeof(DWORD));
 
@@ -1689,9 +1853,9 @@ HRESULT DXCreateCollisionSphere(LPDIRECT3DDEVICE9 d3ddevice, float radius, UINT 
 	if( FAILED(hr) )
 		return hr;
 
-	mesh->LockVertexBuffer(D3DLOCK_DISCARD, (void**)&vdata);
-	mesh->LockIndexBuffer(D3DLOCK_DISCARD, (void**)&idata);
-	mesh->LockAttributeBuffer(D3DLOCK_DISCARD, &adata);
+	mesh->LockVertexBuffer(0, (void**)&vdata);
+	mesh->LockIndexBuffer(0, (void**)&idata);
+	mesh->LockAttributeBuffer(0, &adata);
 
 	// generate vertices
 	for( UINT j = 1; j < stacks - 1; ++j )

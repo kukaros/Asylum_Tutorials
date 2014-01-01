@@ -5,10 +5,11 @@ matrix matWorld;
 matrix matWorldInv;
 matrix matViewProj;
 
-float4 lightPos = { -10, 10, -10, 1 };
+float4 lightPos		= { -10, 10, -10, 1 };
 float4 eyePos;
-float2 uv = { 1, 1 };
-float ambient = 0.2f;
+float4 ambient		= { 0.2f, 0.2f, 0.2f, 1 };
+float4 intensity	= { 1, 1, 1, 1 };
+float2 uv			= { 1, 1 };
 
 void vs_main(
 	in out	float4 pos		: POSITION,
@@ -49,7 +50,7 @@ void ps_main(
 	specular = pow(specular, 60);
 
 	// final color
-	color = tex2D(mytex0, tex) * diffuse + specular;
+	color = (tex2D(mytex0, tex) * diffuse + specular) * intensity;
 	color.a = 1;
 }
 

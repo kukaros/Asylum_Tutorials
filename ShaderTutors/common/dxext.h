@@ -183,6 +183,7 @@ HRESULT DXGenTangentFrame(LPDIRECT3DDEVICE9 d3ddevice, LPD3DXMESH* mesh);
 
 HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXMESH* out);
 HRESULT DXCreateTexturedLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXMESH* out);
+HRESULT DXCreateTexturedSphere(LPDIRECT3DDEVICE9 d3ddevice, float radius, UINT slices, UINT stacks, DWORD options, LPD3DXMESH* out);
 
 HRESULT DXCreateCollisionBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXMESH* out);
 HRESULT DXCreateCollisionLShape(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXMESH* out);

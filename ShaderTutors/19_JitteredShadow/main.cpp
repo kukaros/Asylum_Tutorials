@@ -101,7 +101,7 @@ HRESULT InitScene()
 	irregularpcf->SetVector("noisesize", &noisesize);
 	irregularpcf->SetVector("texelsize", &texelsize);
 
-	DXRenderText("Use mouse to rotate camera\n\nButton 0: screen space\nButton 1: world space", text, 512, 128);
+	DXRenderText("Use mouse to rotate camera\n\n1: screen space\n2: world space", text, 512, 128);
 
 	// setup camera
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
@@ -114,9 +114,9 @@ HRESULT InitScene()
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
 {
-	if( wparam == 0x30 )
+	if( wparam == 0x31 )
 		irregularpcf->SetTechnique("irregular_screen");
-	else if( wparam == 0x31 )
+	else if( wparam == 0x32 )
 		irregularpcf->SetTechnique("irregular_light");
 }
 //*************************************************************************************************************

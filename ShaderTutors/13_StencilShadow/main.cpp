@@ -9,13 +9,15 @@
 #include "../common/orderedarray.hpp"
 
 // TODO:
-// - optim
-// - ambient light
-// - UI: draw silhouette
+// - sphere texcoord is not correct
+// - needs tonemap
 
 #define NUM_OBJECTS			3
-#define MAX_NUM_EDGES		1024	// 4096 vert, 64 KB
 #define VOLUME_OFFSET		2e-2f	// to avoid zfight
+
+// not reliable
+#define VOLUME_NUMVERTICES(x)	max(128, x * 2)
+#define VOLUME_NUMINDICES(x)	max(256, x * 3)		// x is numfaces
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -59,51 +61,86 @@ struct ShadowCaster
 	D3DXMATRIX	world;
 	edgeset		edges;
 	edgelist	silhouette;
-	LPD3DXMESH	object;		// for normal rendering
-	LPD3DXMESH	caster;		// for silhouette determination
+	LPD3DXMESH	object;			// for normal rendering
+	LPD3DXMESH	caster;			// for silhouette determination
+	
+	LPDIRECT3DVERTEXBUFFER9	vertices;		// volume vertices
+	LPDIRECT3DINDEXBUFFER9	indices;		// volume indices
+	DWORD					numvertices;	// volume vertices
+	DWORD					numfaces;		// volume faces
+
+	ShadowCaster()
+	{
+		object = caster = 0;
+		vertices = 0;
+		indices = 0;
+	}
+};
+
+float textvertices[36] =
+{
+	9.5f,			9.5f,	0, 1,	0, 0,
+	521.5f,			9.5f,	0, 1,	1, 0,
+	9.5f,	128.0f + 9.5f,	0, 1,	0, 1,
+
+	9.5f,	128.0f + 9.5f,	0, 1,	0, 1,
+	521.5f,			9.5f,	0, 1,	1, 0,
+	521.5f,	128.0f + 9.5f,	0, 1,	1, 1
 };
 
 // tutorial variables
+LPD3DXEFFECT					ambient			= NULL;
 LPD3DXEFFECT					specular		= NULL;
 LPD3DXEFFECT					extrude			= NULL;
 LPD3DXMESH						shadowreceiver	= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
-LPDIRECT3DVERTEXBUFFER9			shadowvolume	= NULL;
-LPDIRECT3DINDEXBUFFER9			shadowindices	= NULL;
+LPDIRECT3DTEXTURE9				text			= NULL;
 LPDIRECT3DVERTEXDECLARATION9	shadowdecl		= NULL;
 
 state<D3DXVECTOR2>				cameraangle;
 state<D3DXVECTOR2>				lightangle;
-
-ShadowCaster objects[NUM_OBJECTS]; // leak
+ShadowCaster					objects[NUM_OBJECTS]; // leak
+bool							drawsilhouette	= false;
+bool							drawvolume		= false;
 
 // tutorial functions
 void GenerateEdges(edgeset& out, LPD3DXMESH mesh);
 void FindSilhouette(ShadowCaster& caster, const D3DXVECTOR3& lightpos);
-void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, const D3DXVECTOR3& lightpos);
+void ExtrudeSilhouette(ShadowCaster& caster, const D3DXVECTOR3& lightpos);
+void DrawScene(LPD3DXEFFECT effect, bool texture);
+void DrawShadowVolume(const ShadowCaster& caster);
 
 HRESULT InitScene()
 {
 	HRESULT hr;
 
-	MYVALID(D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &shadowreceiver)); //
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
+	MYVALID(DXCreateEffect("../media/shaders/ambient.fx", device, &ambient));
 	MYVALID(DXCreateEffect("../media/shaders/blinnphong.fx", device, &specular));
 	MYVALID(DXCreateEffect("../media/shaders/extrude.fx", device, &extrude));
-	
+
+	MYVALID(device->CreateTexture(512, 128, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
+	MYVALID(DXCreateTexturedBox(device, D3DXMESH_MANAGED, &shadowreceiver));
+
 	// box
 	MYVALID(DXCreateTexturedBox(device, D3DXMESH_MANAGED, &objects[0].object));
 	MYVALID(DXCreateCollisionBox(device, D3DXMESH_SYSTEMMEM, &objects[0].caster));
 
 	D3DXMatrixTranslation(&objects[0].world, -1.5f, 0.55f, 1.2f);
 
+	MYVALID(device->CreateVertexBuffer(VOLUME_NUMVERTICES(objects[0].caster->GetNumVertices()) * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &objects[0].vertices, NULL));
+	MYVALID(device->CreateIndexBuffer(VOLUME_NUMINDICES(objects[0].caster->GetNumFaces()) * sizeof(WORD), D3DUSAGE_DYNAMIC, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &objects[0].indices, NULL));
+
 	// sphere
-	MYVALID(D3DXCreateSphere(device, 0.5f, 30, 30, &objects[1].object, NULL));
+	MYVALID(DXCreateTexturedSphere(device, 0.5f, 30, 30, D3DXMESH_SYSTEMMEM, &objects[1].object));
 	MYVALID(DXCreateCollisionSphere(device, 0.5f, 30, 30, D3DXMESH_SYSTEMMEM, &objects[1].caster));
 
 	D3DXMatrixTranslation(&objects[1].world, 1.0f, 0.55f, 0.7f);
+
+	MYVALID(device->CreateVertexBuffer(VOLUME_NUMVERTICES(objects[1].caster->GetNumVertices()) * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &objects[1].vertices, NULL));
+	MYVALID(device->CreateIndexBuffer(VOLUME_NUMINDICES(objects[1].caster->GetNumFaces()) * sizeof(WORD), D3DUSAGE_DYNAMIC, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &objects[1].indices, NULL));
 
 	// L shape
 	MYVALID(DXCreateTexturedLShape(device, D3DXMESH_MANAGED, &objects[2].object));
@@ -111,21 +148,22 @@ HRESULT InitScene()
 
 	D3DXMatrixTranslation(&objects[2].world, 0, 0.55f, -1);
 
+	MYVALID(device->CreateVertexBuffer(VOLUME_NUMVERTICES(objects[2].caster->GetNumVertices()) * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &objects[2].vertices, NULL));
+	MYVALID(device->CreateIndexBuffer(VOLUME_NUMINDICES(objects[2].caster->GetNumFaces()) * sizeof(WORD), D3DUSAGE_DYNAMIC, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &objects[2].indices, NULL));
+
 	// generate edges
 	std::cout << "Generating edge info...\n";
 
 	for( int i = 0; i < NUM_OBJECTS; ++i )
 		GenerateEdges(objects[i].edges, objects[i].caster);
 
-	// shadow volume buffer
+	// shadow volume decl
 	D3DVERTEXELEMENT9 elem[] =
 	{
 		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
 		D3DDECL_END()
 	};
 
-	MYVALID(device->CreateIndexBuffer(MAX_NUM_EDGES * 6 * sizeof(WORD), D3DUSAGE_DYNAMIC, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &shadowindices, NULL));
-	MYVALID(device->CreateVertexBuffer(MAX_NUM_EDGES * 4 * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &shadowvolume, NULL));
 	MYVALID(device->CreateVertexDeclaration(elem, &shadowdecl));
 
 	// effect
@@ -133,6 +171,8 @@ HRESULT InitScene()
 
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
 	lightangle = D3DXVECTOR2(2.8f, 0.78f);
+
+	DXRenderText("Use mouse to rotate camera and light\n\n1: draw silhouette\n2: draw shadow volume", text, 512, 128);
 
 	return S_OK;
 }
@@ -144,6 +184,9 @@ void UninitScene()
 		SAFE_RELEASE(objects[i].object);
 		SAFE_RELEASE(objects[i].caster);
 
+		SAFE_RELEASE(objects[i].vertices);
+		SAFE_RELEASE(objects[i].indices);
+
 		objects[i].edges.clear();
 		objects[i].edges.swap(edgeset());
 
@@ -151,14 +194,22 @@ void UninitScene()
 		objects[i].silhouette.swap(edgelist());
 	}
 
+	SAFE_RELEASE(text);
 	SAFE_RELEASE(shadowdecl);
-	SAFE_RELEASE(shadowvolume);
-	SAFE_RELEASE(shadowindices);
 	SAFE_RELEASE(shadowreceiver);
 	SAFE_RELEASE(specular);
+	SAFE_RELEASE(ambient);
 	SAFE_RELEASE(extrude);
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
+}
+//*************************************************************************************************************
+void KeyPress(WPARAM wparam)
+{
+	if( wparam == 0x31 )
+		drawsilhouette = !drawsilhouette;
+	else if( wparam == 0x32 )
+		drawvolume = !drawvolume;
 }
 //*************************************************************************************************************
 void Update(float delta)
@@ -189,6 +240,51 @@ void Update(float delta)
 		lightangle.curr.y = 0.1f;
 }
 //*************************************************************************************************************
+void DrawScene(LPD3DXEFFECT effect, bool texture)
+{
+	D3DXMATRIX	world;
+	D3DXMATRIX	inv;
+	D3DXVECTOR4	uv(3, 3, 0, 0);
+
+	D3DXMatrixScaling(&world, 5, 0.1f, 5);
+	D3DXMatrixInverse(&inv, NULL, &world);
+
+	effect->SetMatrix("matWorld", &world);
+	effect->SetMatrix("matWorldInv", &inv);
+	effect->SetVector("uv", &uv);
+
+	effect->Begin(0, 0);
+	effect->BeginPass(0);
+	{
+		if( texture )
+			device->SetTexture(0, texture2);
+
+		shadowreceiver->DrawSubset(0);
+
+		if( !drawsilhouette )
+		{
+			if( texture )
+				device->SetTexture(0, texture1);
+
+			uv.x = uv.y = 1;
+			effect->SetVector("uv", &uv);
+
+			for( int i = 0; i < NUM_OBJECTS; ++i )
+			{
+				D3DXMatrixInverse(&inv, NULL, &objects[i].world);
+
+				effect->SetMatrix("matWorld", &objects[i].world);
+				effect->SetMatrix("matWorldInv", &inv);
+				effect->CommitChanges();
+
+				objects[i].object->DrawSubset(0);
+			}
+		}
+	}
+	effect->EndPass();
+	effect->End();
+}
+//*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
 {
 	static float time = 0;
@@ -196,7 +292,11 @@ void Render(float alpha, float elapsedtime)
 	D3DXMATRIX		view, proj, vp;
 	D3DXMATRIX		world;
 	D3DXMATRIX		inv;
-	D3DXVECTOR4		uv(3, 3, 0, 0);
+
+	D3DXVECTOR4		amblight(0.2f, 0.2f, 0.2f, 1);
+	D3DXVECTOR4		intensity(0.8f, 0.8f, 0.8f, 1);
+	D3DXVECTOR4		zero(0, 0, 0, 1);
+
 	D3DXVECTOR3		lightpos(0, 0, -10);
 	D3DXVECTOR3		eye(0, 0, -5.2f);
 	D3DXVECTOR3		look(0, 0.5f, 0);
@@ -211,7 +311,10 @@ void Render(float alpha, float elapsedtime)
 
 	// TODO: no need to calculate every frame
 	for( int i = 0; i < NUM_OBJECTS; ++i )
+	{
 		FindSilhouette(objects[i], (D3DXVECTOR3&)lightpos);
+		ExtrudeSilhouette(objects[i], (D3DXVECTOR3&)lightpos);
+	}
 
 	// setup camera
 	D3DXMatrixRotationYawPitchRoll(&view, orient.x, orient.y, 0);
@@ -233,6 +336,11 @@ void Render(float alpha, float elapsedtime)
 	specular->SetMatrix("matViewProj", &vp);
 	specular->SetVector("eyePos", (D3DXVECTOR4*)&eye);
 	specular->SetVector("lightPos", (D3DXVECTOR4*)&lightpos);
+	specular->SetVector("ambient", &zero); // it's a fuck-up
+	specular->SetVector("intensity", &intensity); // lazy to tonemap
+	
+	ambient->SetMatrix("matViewProj", &vp);
+	ambient->SetVector("ambient", &amblight);
 
 	if( SUCCEEDED(device->BeginScene()) )
 	{
@@ -240,24 +348,9 @@ void Render(float alpha, float elapsedtime)
 
 		// STEP 1: z pass
 		extrude->SetTechnique("zpass");
-		extrude->SetMatrix("matWorld", &world);
 		extrude->SetMatrix("matViewProj", &vp);
 
-		extrude->Begin(0, 0);
-		extrude->BeginPass(0);
-		{
-			shadowreceiver->DrawSubset(0);
-
-			for( int i = 0; i < NUM_OBJECTS; ++i )
-			{
-				extrude->SetMatrix("matWorld", &objects[i].world);
-				extrude->CommitChanges();
-
-				objects[i].object->DrawSubset(0);
-			}
-		}
-		extrude->EndPass();
-		extrude->End();
+		DrawScene(extrude, false);
 
 		// STEP 2: draw shadow with depth fail method
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
@@ -270,77 +363,118 @@ void Render(float alpha, float elapsedtime)
 		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_INCRSAT);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 
-		for( int i = 0; i < NUM_OBJECTS; ++i )
-			DrawShadowVolume(objects[i], vp, lightpos);
+		extrude->SetTechnique("extrude");
+		extrude->SetMatrix("matViewProj", &vp);
 
-		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_DECRSAT);
-		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
+		extrude->Begin(0, 0);
+		extrude->BeginPass(0);
+		{
+			for( int i = 0; i < NUM_OBJECTS; ++i )
+				DrawShadowVolume(objects[i]);
 
-		for( int i = 0; i < NUM_OBJECTS; ++i )
-			DrawShadowVolume(objects[i], vp, lightpos);
+			device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_DECRSAT);
+			device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
+
+			for( int i = 0; i < NUM_OBJECTS; ++i )
+				DrawShadowVolume(objects[i]);
+		}
+		extrude->EndPass();
+		extrude->End();
 
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);
 
 		// STEP 3: multipass lighting
+		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		device->SetRenderState(D3DRS_ZENABLE, TRUE);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);
-		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_GREATER);
-		device->SetRenderState(D3DRS_STENCILREF, 1);
-
 		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
 		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
 
-		// draw receiver
-		D3DXMatrixInverse(&inv, NULL, &world);
+		DrawScene(ambient, true);
 
-		specular->SetMatrix("matWorld", &world);
-		specular->SetMatrix("matWorldInv", &inv);
-		specular->SetVector("uv", &uv);
+		// now point light with shadows
+		device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
+		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);
+		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_GREATER);
+		device->SetRenderState(D3DRS_STENCILREF, 1);
 
-		device->SetTexture(0, texture2);
-
-		specular->Begin(NULL, 0);
-		specular->BeginPass(0);
-		{
-			shadowreceiver->DrawSubset(0);
-		}
-		specular->EndPass();
-		specular->End();
-
-		// draw casters
-		device->SetTexture(0, texture1);
-
-		specular->Begin(NULL, 0);
-		specular->BeginPass(0);
-		{
-			for( int i = 0; i < NUM_OBJECTS; ++i )
-			{
-				D3DXMatrixInverse(&inv, NULL, &objects[i].world);
-
-				specular->SetMatrix("matWorld", &objects[i].world);
-				specular->SetMatrix("matWorldInv", &inv);
-				specular->CommitChanges();
-
-				objects[i].object->DrawSubset(0);
-			}
-		}
-		specular->EndPass();
-		specular->End();
+		DrawScene(specular, true);
 
 		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
-		/*
-		device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+		if( drawsilhouette )
+		{
+			amblight = D3DXVECTOR4(1, 1, 0, 0.5f);
 
-		for( int i = 0; i < NUM_OBJECTS; ++i )
-			DrawShadowVolume(objects[i], vp, lightpos);
+			// reuse whatever we can...
+			extrude->SetVector("ambient", &amblight);
+			extrude->Begin(0, 0);
+			extrude->BeginPass(0);
 
-		device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-		*/
+			device->SetVertexDeclaration(shadowdecl);
+
+			for( int i = 0; i < NUM_OBJECTS; ++i )
+			{
+				const ShadowCaster& caster = objects[i];
+				D3DXVECTOR4* verts = (D3DXVECTOR4*)malloc(caster.silhouette.size() * 2 * sizeof(D3DXVECTOR4));
+
+				for( size_t j = 0; j < caster.silhouette.size(); ++j )
+				{
+					const Edge& e = caster.silhouette[j];
+
+					verts[j * 2 + 0] = D3DXVECTOR4(e.v1, 1);
+					verts[j * 2 + 1] = D3DXVECTOR4(e.v2, 1);
+				}
+
+				extrude->SetMatrix("matWorld", &caster.world);
+				extrude->CommitChanges();
+
+				device->DrawPrimitiveUP(D3DPT_LINELIST, caster.silhouette.size(), verts, sizeof(D3DXVECTOR4));
+				free(verts);
+			}
+
+			extrude->EndPass();
+			extrude->End();
+			extrude->SetVector("ambient", &zero);
+		}
+
+		if( drawvolume )
+		{
+			device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+			device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+			amblight = D3DXVECTOR4(1, 1, 0, 0.5f);
+
+			extrude->SetVector("ambient", &amblight);
+			extrude->Begin(0, 0);
+			extrude->BeginPass(0);
+
+			for( int i = 0; i < NUM_OBJECTS; ++i )
+				DrawShadowVolume(objects[i]);
+
+			extrude->EndPass();
+			extrude->End();
+			extrude->SetVector("ambient", &zero);
+
+			device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		}
+
+		// render text
+		device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
+		device->SetRenderState(D3DRS_ZENABLE, FALSE);
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+		device->SetTexture(0, text);
+		device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, 6 * sizeof(float));
+
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		device->SetRenderState(D3DRS_ZENABLE, TRUE);
 
 		device->SetTexture(0, 0);
 		device->EndScene();
@@ -558,7 +692,7 @@ void FindSilhouette(ShadowCaster& caster, const D3DXVECTOR3& lightpos)
 	}
 }
 //*************************************************************************************************************
-void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, const D3DXVECTOR3& lightpos)
+void ExtrudeSilhouette(ShadowCaster& caster, const D3DXVECTOR3& lightpos)
 {
 	D3DXVECTOR4*	vdata = 0;
 	WORD*			idata = 0;
@@ -568,8 +702,8 @@ void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, co
 	D3DXVECTOR3		ltocenter;
 	float			weight = 0.5f / caster.silhouette.size();
 
-	shadowvolume->Lock(0, 0, (void**)&vdata, D3DLOCK_DISCARD);
-	shadowindices->Lock(0, 0, (void**)&idata, D3DLOCK_DISCARD);
+	caster.vertices->Lock(0, 0, (void**)&vdata, D3DLOCK_DISCARD);
+	caster.indices->Lock(0, 0, (void**)&idata, D3DLOCK_DISCARD);
 
 	D3DXMatrixInverse(&inv, NULL, &caster.world);
 	D3DXVec3TransformCoord(&lp, &lightpos, &inv);
@@ -585,8 +719,6 @@ void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, co
 	ltocenter = center - lp;
 	D3DXVec3Normalize(&ltocenter, &ltocenter);
 	ltocenter *= VOLUME_OFFSET;
-
-	// TODO: test if theres enough room (MAX_NUM_EDGES * 6, MAX_NUM_EDGES * 4)
 
 	for( size_t i = 0; i < caster.silhouette.size(); ++i )
 	{
@@ -628,8 +760,11 @@ void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, co
 	D3DXVECTOR3		*v1, *v2, *v3;
 	D3DXVECTOR3		a, b, n;
 	float			dist;
+	WORD*			added = (WORD*)malloc(caster.caster->GetNumVertices() * sizeof(WORD));
 
-	vdata += caster.silhouette.size() * 4 + 1;
+	memset(added, 0, caster.caster->GetNumVertices() * sizeof(WORD));
+
+	//vdata += caster.silhouette.size() * 4 + 1;
 	idata += caster.silhouette.size() * 3;
 
 	caster.caster->LockVertexBuffer(D3DLOCK_READONLY, (void**)&vdata2);
@@ -645,6 +780,7 @@ void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, co
 		v2 = (vdata2 + i2);
 		v3 = (vdata2 + i3);
 
+		// OPTIM: store normals
 		a = v2->operator -(*v1);
 		b = v3->operator -(*v1);
 
@@ -653,43 +789,69 @@ void DrawShadowVolume(const ShadowCaster& caster, const D3DXMATRIX& viewproj, co
 
 		if( dist > 0 )
 		{
-			// faces light, add it
-			vdata[0] = D3DXVECTOR4(*v1 + ltocenter, 1);
-			vdata[1] = D3DXVECTOR4(*v2 + ltocenter, 1);
-			vdata[2] = D3DXVECTOR4(*v3 + ltocenter, 1);
+			if( !added[i1] )
+			{
+				vdata[verticesadded] = D3DXVECTOR4(*v1 + ltocenter, 1);
+				added[i1] = verticesadded;
+				++verticesadded;
+			}
 
-			idata[0] = verticesadded;
-			idata[1] = verticesadded + 1;
-			idata[2] = verticesadded + 2;
+			if( !added[i2] )
+			{
+				vdata[verticesadded] = D3DXVECTOR4(*v2 + ltocenter, 1);
+				added[i2] = verticesadded;
+				++verticesadded;
+			}
 
-			verticesadded += 3;
+			if( !added[i3] )
+			{
+				vdata[verticesadded] = D3DXVECTOR4(*v3 + ltocenter, 1);
+				added[i3] = verticesadded;
+				++verticesadded;
+			}
+
+			idata[0] = added[i1];
+			idata[1] = added[i2];
+			idata[2] = added[i3];
+
 			indicesadded += 3;
-			vdata += 3;
 			idata += 3;
 		}
 	}
 
+	free(added);
+
 	caster.caster->UnlockIndexBuffer();
 	caster.caster->UnlockVertexBuffer();
 
-	shadowindices->Unlock();
-	shadowvolume->Unlock();
+	caster.indices->Unlock();
+	caster.vertices->Unlock();
 
-	// draw
-	extrude->SetTechnique("extrude");
-	extrude->SetMatrix("matWorld", &caster.world);
-	extrude->SetMatrix("matViewProj", &viewproj);
+	caster.numvertices = verticesadded;
+	caster.numfaces = indicesadded / 3;
 
-	extrude->Begin(0, 0);
-	extrude->BeginPass(0);
+#ifdef _DEBUG
+	// as kissing frogs...
+	DWORD test1 = VOLUME_NUMVERTICES(caster.caster->GetNumVertices());
+	DWORD test2 = VOLUME_NUMINDICES(caster.caster->GetNumFaces());
+
+	if( (verticesadded > test1) ||
+		(indicesadded > test2) )
 	{
-		device->SetVertexDeclaration(shadowdecl);
-		device->SetStreamSource(0, shadowvolume, 0, sizeof(D3DXVECTOR4));
-		device->SetIndices(shadowindices);
-
-		device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, verticesadded, 0, indicesadded / 3);
+		std::cout << "Buffer overflow!\n";
+		::_CrtDbgBreak();
 	}
-	extrude->EndPass();
-	extrude->End();
+#endif
+}
+//*************************************************************************************************************
+void DrawShadowVolume(const ShadowCaster& caster)
+{
+	extrude->SetMatrix("matWorld", &caster.world);
+	extrude->CommitChanges();
+	
+	device->SetVertexDeclaration(shadowdecl);
+	device->SetStreamSource(0, caster.vertices, 0, sizeof(D3DXVECTOR4));
+	device->SetIndices(caster.indices);
+	device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, caster.numvertices, 0, caster.numfaces);
 }
 //*************************************************************************************************************
