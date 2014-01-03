@@ -15,6 +15,9 @@
     <None Include="..\media\shaders10\shadowvolume10.fx">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\media\shaders10\ambient10.fx">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc">

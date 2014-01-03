@@ -24,8 +24,10 @@ extern short	mousedx;
 extern short	mousedy;
 extern short	mousedown;
 
+// external functions
 extern HRESULT LoadMeshFromQM(LPCTSTR file, DWORD options, ID3DX10Mesh** mesh);
 
+// tutorial structures
 struct ShadowCaster
 {
 	D3DXMATRIX		world;
@@ -40,21 +42,36 @@ struct ShadowCaster
 };
 
 // tutorial variables
+ID3D10Effect*				ambient			= 0;
 ID3D10Effect*				specular		= 0;
 ID3D10Effect*				volume			= 0;
 ID3DX10Mesh*				receiver		= 0;
 ID3D10InputLayout*			vertexlayout1	= 0;
 ID3D10InputLayout*			vertexlayout2	= 0;
+
 ID3D10ShaderResourceView*	texture1		= 0;
 ID3D10ShaderResourceView*	texture2		= 0;
 ID3D10EffectTechnique*		technique1		= 0;
 ID3D10EffectTechnique*		technique2		= 0;
+ID3D10EffectTechnique*		technique3		= 0;
+ID3D10EffectTechnique*		technique4		= 0;
+
 ID3D10BlendState*			noblend			= 0;
+ID3D10BlendState*			noblend_nocolor	= 0;
 ID3D10BlendState*			alphablend		= 0;
+ID3D10BlendState*			additive		= 0;
+ID3D10DepthStencilState*	findshadow		= 0;
+ID3D10DepthStencilState*	maskshadow		= 0;
+ID3D10DepthStencilState*	nostencil		= 0;
+ID3D10RasterizerState*		nocull			= 0;
+ID3D10RasterizerState*		backfacecull	= 0;
 
 state<D3DXVECTOR2>			cameraangle;
 state<D3DXVECTOR2>			lightangle;
 ShadowCaster				objects[NUM_OBJECTS];
+
+// tutorial functions
+void DrawShadowVolume(const D3DXVECTOR3& lightpos);
 
 HRESULT InitScene()
 {
@@ -91,8 +108,21 @@ HRESULT InitScene()
 	if( FAILED(hr) )
 		return hr;
 
+	hr = D3DX10CreateEffectFromFile("../media/shaders10/ambient10.fx", 0, 0, "fx_4_0", hlslflags, 0, device, 0, 0, &ambient, &errors, 0);
+
+	if( errors )
+	{
+		char* str = (char*)errors->GetBufferPointer();
+		std::cout << str << "\n";
+	}
+
+	if( FAILED(hr) )
+		return hr;
+
 	technique1 = specular->GetTechniqueByName("specular");
 	technique2 = volume->GetTechniqueByName("extrude");
+	technique3 = ambient->GetTechniqueByName("zonly");
+	//technique4 = ambient->GetTechniqueByName("ambient");
 
 	D3D10_PASS_DESC					passdesc;
 	const D3D10_INPUT_ELEMENT_DESC*	decl = 0;
@@ -122,39 +152,9 @@ HRESULT InitScene()
 	objects[1].caster->GenerateGSAdjacency();
 	objects[2].caster->GenerateGSAdjacency();
 
-	ID3DX10MeshBuffer*	adjbuffer	= 0;
-	WORD*				data		= 0;
-	SIZE_T				datasize	= 0;
-
-	objects[0].caster->GetAdjacencyBuffer(&adjbuffer);
 	objects[0].caster->Discard(D3DX10_MESH_DISCARD_DEVICE_BUFFERS);
-
-	adjbuffer->Map((void**)&data, &datasize);
-	{
-		objects[0].caster->SetIndexData(data, datasize / sizeof(WORD));
-	}
-	adjbuffer->Unmap();
-	adjbuffer->Release();
-
-	objects[1].caster->GetAdjacencyBuffer(&adjbuffer);
 	objects[1].caster->Discard(D3DX10_MESH_DISCARD_DEVICE_BUFFERS);
-
-	adjbuffer->Map((void**)&data, &datasize);
-	{
-		objects[1].caster->SetIndexData(data, datasize / sizeof(WORD));
-	}
-	adjbuffer->Unmap();
-	adjbuffer->Release();
-
-	objects[2].caster->GetAdjacencyBuffer(&adjbuffer);
 	objects[2].caster->Discard(D3DX10_MESH_DISCARD_DEVICE_BUFFERS);
-
-	adjbuffer->Map((void**)&data, &datasize);
-	{
-		objects[2].caster->SetIndexData(data, datasize / sizeof(WORD));
-	}
-	adjbuffer->Unmap();
-	adjbuffer->Release();
 
 	objects[0].caster->CommitToDevice();
 	objects[1].caster->CommitToDevice();
@@ -173,10 +173,14 @@ HRESULT InitScene()
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
 	lightangle = D3DXVECTOR2(2.8f, 0.78f);
 
-	// blend states
-	D3D10_BLEND_DESC blenddesc;
+	// states
+	D3D10_BLEND_DESC			blenddesc;
+	D3D10_DEPTH_STENCIL_DESC	depthdesc;
+	D3D10_RASTERIZER_DESC		rasterdesc;
 
 	memset(&blenddesc, 0, sizeof(D3D10_BLEND_DESC));
+	memset(&depthdesc, 0, sizeof(D3D10_DEPTH_STENCIL_DESC));
+	memset(&rasterdesc, 0, sizeof(D3D10_RASTERIZER_DESC));
 
 	blenddesc.BlendEnable[0]			= 1;
 	blenddesc.BlendOp					= D3D10_BLEND_OP_ADD;
@@ -189,11 +193,74 @@ HRESULT InitScene()
 
 	device->CreateBlendState(&blenddesc, &alphablend);
 
+	blenddesc.DestBlend					= D3D10_BLEND_ONE;
+	blenddesc.SrcBlend					= D3D10_BLEND_ONE;
+
+	device->CreateBlendState(&blenddesc, &additive);
+
 	blenddesc.BlendEnable[0]			= 0;
 	blenddesc.DestBlend					= D3D10_BLEND_ZERO;
 	blenddesc.SrcBlend					= D3D10_BLEND_ONE;
 
 	device->CreateBlendState(&blenddesc, &noblend);
+
+	blenddesc.RenderTargetWriteMask[0]	= 0;
+	device->CreateBlendState(&blenddesc, &noblend_nocolor);
+
+	// increment on back face, decrement on front face
+	depthdesc.DepthEnable					= TRUE;
+	depthdesc.DepthFunc						= D3D10_COMPARISON_LESS;
+	depthdesc.DepthWriteMask				= D3D10_DEPTH_WRITE_MASK_ZERO;
+	depthdesc.StencilEnable					= TRUE;
+	depthdesc.StencilReadMask				= D3D10_DEFAULT_STENCIL_READ_MASK;
+	depthdesc.StencilWriteMask				= D3D10_DEFAULT_STENCIL_WRITE_MASK;
+
+	depthdesc.BackFace.StencilFunc			= D3D10_COMPARISON_ALWAYS;
+	depthdesc.BackFace.StencilDepthFailOp	= D3D10_STENCIL_OP_INCR;
+	depthdesc.BackFace.StencilFailOp		= D3D10_STENCIL_OP_KEEP;
+	depthdesc.BackFace.StencilPassOp		= D3D10_STENCIL_OP_KEEP;
+
+	depthdesc.FrontFace.StencilFunc			= D3D10_COMPARISON_ALWAYS;
+	depthdesc.FrontFace.StencilDepthFailOp	= D3D10_STENCIL_OP_DECR;
+	depthdesc.FrontFace.StencilFailOp		= D3D10_STENCIL_OP_KEEP;
+	depthdesc.FrontFace.StencilPassOp		= D3D10_STENCIL_OP_KEEP;
+
+	device->CreateDepthStencilState(&depthdesc, &findshadow);
+
+	// mask out shadow with stencil
+	depthdesc.DepthFunc						= D3D10_COMPARISON_LESS_EQUAL;
+
+	depthdesc.FrontFace.StencilDepthFailOp	= D3D10_STENCIL_OP_KEEP;
+	depthdesc.FrontFace.StencilFunc			= D3D10_COMPARISON_GREATER;
+
+	depthdesc.BackFace.StencilDepthFailOp	= D3D10_STENCIL_OP_KEEP;
+	depthdesc.BackFace.StencilFunc			= D3D10_COMPARISON_ALWAYS;
+
+	device->CreateDepthStencilState(&depthdesc, &maskshadow);
+
+	// reset
+	depthdesc.DepthFunc						= D3D10_COMPARISON_LESS;
+	depthdesc.DepthWriteMask				= D3D10_DEPTH_WRITE_MASK_ALL;
+	depthdesc.StencilEnable					= FALSE;
+	depthdesc.FrontFace.StencilFunc			= D3D10_COMPARISON_ALWAYS;
+
+	device->CreateDepthStencilState(&depthdesc, &nostencil);
+
+	rasterdesc.AntialiasedLineEnable	= FALSE;
+	rasterdesc.CullMode					= D3D10_CULL_NONE;
+	rasterdesc.DepthBias				= 0;
+	rasterdesc.DepthBiasClamp			= 0;
+	rasterdesc.DepthClipEnable			= TRUE;
+	rasterdesc.FillMode					= D3D10_FILL_SOLID;
+	rasterdesc.FrontCounterClockwise	= FALSE;
+	rasterdesc.MultisampleEnable		= FALSE;
+	rasterdesc.ScissorEnable			= FALSE;
+	
+	device->CreateRasterizerState(&rasterdesc, &nocull);
+
+	rasterdesc.CullMode					= D3D10_CULL_BACK;
+
+	device->CreateRasterizerState(&rasterdesc, &backfacecull);
 
 	return S_OK;
 }
@@ -207,10 +274,20 @@ void UninitScene()
 	}
 
 	SAFE_RELEASE(alphablend);
+	SAFE_RELEASE(additive);
 	SAFE_RELEASE(noblend);
+	SAFE_RELEASE(noblend_nocolor);
+
+	SAFE_RELEASE(findshadow);
+	SAFE_RELEASE(maskshadow);
+	SAFE_RELEASE(nostencil);
+
+	SAFE_RELEASE(backfacecull);
+	SAFE_RELEASE(nocull);
 
 	SAFE_RELEASE(vertexlayout1);
 	SAFE_RELEASE(vertexlayout2);
+	SAFE_RELEASE(ambient);
 	SAFE_RELEASE(specular);
 	SAFE_RELEASE(volume);
 	SAFE_RELEASE(receiver);
@@ -259,9 +336,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXMATRIX		inv;
 
 	D3DXVECTOR4		uvscale(3, 3, 0, 0);
-	D3DXVECTOR4		volumecolor(1, 1, 0, 0.5f);
-	D3DXVECTOR4		lightposos;
-
+	D3DXVECTOR4		volumecolor(0, 0, 0, 1);
 	D3DXVECTOR3		lightpos(0, 0, -10);
 	D3DXVECTOR3		eye(0, 0, -5.2f);
 	D3DXVECTOR3		look(0, 0.5f, 0);
@@ -292,13 +367,47 @@ void Render(float alpha, float elapsedtime)
 	float color[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
 
 	device->ClearRenderTargetView(rendertargetview, color);
-	device->ClearDepthStencilView(depthstencilview, D3D10_CLEAR_DEPTH, 1.0f, 0);
+	device->ClearDepthStencilView(depthstencilview, D3D10_CLEAR_DEPTH|D3D10_CLEAR_STENCIL, 1.0f, 0);
 	{
 		device->IASetInputLayout(vertexlayout1);
 		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		device->OMSetBlendState(noblend, 0, 0xffffffff);
 
-		// draw scene
+		// STEP 1: pre-z pass
+		ambient->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj);
+		ambient->GetVariableByName("matWorld")->AsMatrix()->SetMatrix((float*)&world);
+
+		technique3->GetPassByIndex(0)->Apply(0);
+		receiver->DrawSubset(0);
+
+		for( int i = 0; i < NUM_OBJECTS; ++i )
+		{
+			const ShadowCaster& caster = objects[i];
+
+			ambient->GetVariableByName("matWorld")->AsMatrix()->SetMatrix((float*)&caster.world);
+
+			technique3->GetPassByIndex(0)->Apply(0);
+			caster.object->DrawSubset(0);
+		}
+
+		// STEP 2: Carmack's reverse
+		device->OMSetBlendState(noblend_nocolor, 0, 0xffffffff);
+		device->OMSetDepthStencilState(findshadow, 0);
+		device->RSSetState(nocull);
+
+		volume->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj);
+		volume->GetVariableByName("faceColor")->AsVector()->SetFloatVector((float*)&volumecolor);
+
+		DrawShadowVolume(lightpos);
+
+		device->RSSetState(backfacecull);
+
+		// STEP 3: multipass lighting
+		device->IASetInputLayout(vertexlayout1);
+		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		device->OMSetBlendState(additive, 0, 0xffffffff);
+		device->OMSetDepthStencilState(maskshadow, 1);
+
 		specular->GetVariableByName("basetex")->AsShaderResource()->SetResource(texture2);
 
 		specular->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj);
@@ -330,29 +439,54 @@ void Render(float alpha, float elapsedtime)
 			caster.object->DrawSubset(0);
 		}
 
+		// reset
+		device->OMSetDepthStencilState(nostencil, 0);
+
+		/*
 		// draw shadow volume
-		volume->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj);
+		volumecolor = D3DXVECTOR4(1, 1, 0, 0.5f);
+		volume->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj); //
 		volume->GetVariableByName("faceColor")->AsVector()->SetFloatVector((float*)&volumecolor);
 
-		device->IASetInputLayout(vertexlayout2);
-		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ);
-
 		device->OMSetBlendState(alphablend, 0, 0xffffffff);
+		DrawShadowVolume(lightpos);
 
-		for( int i = 0; i < NUM_OBJECTS; ++i )
-		{
-			const ShadowCaster& caster = objects[i];
+		device->RSSetState(backfacecull);
+		*/
 
-			D3DXMatrixInverse(&inv, 0, &caster.world);
-			D3DXVec3Transform(&lightposos, &lightpos, &inv);
-
-			volume->GetVariableByName("matWorld")->AsMatrix()->SetMatrix((float*)&caster.world);
-			volume->GetVariableByName("lightPos")->AsVector()->SetFloatVector((float*)&lightposos);
-
-			technique2->GetPassByIndex(0)->Apply(0);
-			caster.caster->DrawSubset(0);
-		}
+		// reset
+		device->OMSetBlendState(noblend, 0, 0xffffffff);
 	}
 	swapchain->Present(0, 0);
+}
+//*************************************************************************************************************
+void DrawShadowVolume(const D3DXVECTOR3& lightpos)
+{
+	D3DXMATRIX		inv;
+	D3DXVECTOR4		lightposos;
+	D3DXVECTOR3		offset;
+
+	device->IASetInputLayout(vertexlayout2);
+	device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ);
+
+	for( int i = 0; i < NUM_OBJECTS; ++i )
+	{
+		const ShadowCaster& caster = objects[i];
+
+		D3DXMatrixInverse(&inv, 0, &caster.world);
+		D3DXVec3Transform(&lightposos, &lightpos, &inv);
+
+		// assume object center is the origin
+		offset = D3DXVECTOR3(-lightposos);
+		D3DXVec3Normalize(&offset, &offset);
+		offset *= 2e-2f;
+
+		volume->GetVariableByName("matWorld")->AsMatrix()->SetMatrix((float*)&caster.world);
+		volume->GetVariableByName("lightPos")->AsVector()->SetFloatVector((float*)&lightposos);
+		volume->GetVariableByName("offset")->AsVector()->SetFloatVector((float*)&offset);
+
+		technique2->GetPassByIndex(0)->Apply(0);
+		caster.caster->DrawSubset(0);
+	}
 }
 //*************************************************************************************************************

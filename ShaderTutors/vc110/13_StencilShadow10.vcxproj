@@ -120,6 +120,11 @@
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders10\ambient10.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

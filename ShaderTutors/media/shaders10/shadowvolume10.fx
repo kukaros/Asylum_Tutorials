@@ -2,12 +2,14 @@
 uniform matrix matWorld;
 uniform matrix matViewProj;
 
-uniform float4 lightPos = { -10, 10, -10, 1 };	// object space
-uniform float4 faceColor = { 0, 0, 0, 1 };
+uniform float4 lightPos		= { -10, 10, -10, 1 };	// object space
+uniform float4 faceColor	= { 0, 0, 0, 1 };
+uniform float4 offset		= { 0, 0, 0, 0 };		// light to object center
 
 struct GS_Input
 {
-	float3 pos : TEXCOORD0;
+	float4 pos : SV_Position;
+	float3 origpos : TEXCOORD0;
 };
 
 struct GS_Output
@@ -15,32 +17,7 @@ struct GS_Output
 	float4 opos : SV_Position;
 };
 
-bool IsSilhouetteEdge(
-	in float center,
-	in float3 v0,
-	in float3 v1,
-	in float3 v2)
-{
-	// (v0, v2) is the edge
-	float3 a = v1 - v0;
-	float3 b = v2 - v0;
-	float4 planeeq;
-	float dist;
-
-	planeeq.xyz = cross(a, b);
-	planeeq.w = -dot(planeeq.xyz, v0);
-
-	dist = dot(planeeq, lightPos);
-
-	// no need to extrude them twice
-	if( center < 0 )
-		return false;
-
-	return (dist < 0);
-}
-
 void ExtrudeIfSilhouette(
-	in float dist,
 	in float3 v1,
 	in float3 v2,
 	in float3 v3,
@@ -49,8 +26,17 @@ void ExtrudeIfSilhouette(
 	GS_Output	outvert;
 	float4		extruded1;
 	float4		extruded2;
+	float3		a = v2 - v1;
+	float3		b = v3 - v1;
+	float4		planeeq;
+	float		dist;
 
-	if( IsSilhouetteEdge(dist, v1, v2, v3) )
+	planeeq.xyz = cross(a, b);
+	planeeq.w = -dot(planeeq.xyz, v1);
+
+	dist = dot(planeeq, lightPos);
+
+	if( dist < 0 )
 	{
 		extruded1 = float4(v1 - lightPos.xyz, 0);
 		extruded2 = float4(v3 - lightPos.xyz, 0);
@@ -58,10 +44,10 @@ void ExtrudeIfSilhouette(
 		extruded1 = mul(mul(extruded1, matWorld), matViewProj);
 		extruded2 = mul(mul(extruded2, matWorld), matViewProj);
 
-		outvert.opos = mul(mul(float4(v3, 1), matWorld), matViewProj);
+		outvert.opos = mul(mul(float4(v3 + offset.xyz, 1), matWorld), matViewProj);
 		stream.Append(outvert);
 
-		outvert.opos = mul(mul(float4(v1, 1), matWorld), matViewProj);
+		outvert.opos = mul(mul(float4(v1 + offset.xyz, 1), matWorld), matViewProj);
 		stream.Append(outvert);
 
 		outvert.opos = extruded2;
@@ -82,35 +68,62 @@ void ExtrudeIfSilhouette(
 
 void vs_extrude(
 	in		float3 pos		: POSITION,
-	out		float3 opos		: TEXCOORD0)
+	out		float4 opos		: SV_Position,
+	out		float3 origpos	: TEXCOORD0)
 {
 	// world space won't work!!!
-	opos = pos;
+	origpos = pos;
+	opos = mul(mul(float4(pos + offset.xyz, 1), matWorld), matViewProj);
 }
 
-[maxvertexcount(12)]
+[maxvertexcount(18)]
 void gs_extrude(
 	in triangleadj GS_Input verts[6], 
 	in out TriangleStream<GS_Output> stream)
 {
+	GS_Output	outvert;
 	float4		planeeq;
-	float3		a = verts[2].pos - verts[0].pos;
-	float3		b = verts[4].pos - verts[0].pos;
+	float3		a = verts[2].origpos - verts[0].origpos;
+	float3		b = verts[4].origpos - verts[0].origpos;
 	float		dist;
 
-	// precalculate center triangle's plane equation
+	// calculate center triangle's plane equation
 	planeeq.xyz	= cross(a, b);
-	planeeq.w	= -dot(planeeq.xyz, verts[0].pos);
+	planeeq.w	= -dot(planeeq.xyz, verts[0].origpos);
 	dist		= dot(planeeq, lightPos);
 
-	// extrude volume sides
-	ExtrudeIfSilhouette(dist, verts[0].pos, verts[1].pos, verts[2].pos, stream);
-	ExtrudeIfSilhouette(dist, verts[2].pos, verts[3].pos, verts[4].pos, stream);
-	ExtrudeIfSilhouette(dist, verts[4].pos, verts[5].pos, verts[0].pos, stream);
+	if( dist > 0 )
+	{
+		// extrude volume sides
+		ExtrudeIfSilhouette(verts[0].origpos, verts[1].origpos, verts[2].origpos, stream);
+		ExtrudeIfSilhouette(verts[2].origpos, verts[3].origpos, verts[4].origpos, stream);
+		ExtrudeIfSilhouette(verts[4].origpos, verts[5].origpos, verts[0].origpos, stream);
 
-	// front cap
+		// front cap
+		outvert.opos = verts[0].pos;
+		stream.Append(outvert);
 
-	// back cap
+		outvert.opos = verts[2].pos;
+		stream.Append(outvert);
+
+		outvert.opos = verts[4].pos;
+		stream.Append(outvert);
+
+		stream.RestartStrip();
+
+		// back cap
+		outvert.opos = float4(verts[0].origpos - lightPos.xyz, 1e-5f);
+		outvert.opos = mul(mul(outvert.opos, matWorld), matViewProj);
+		stream.Append(outvert);
+
+		outvert.opos = float4(verts[4].origpos - lightPos.xyz, 1e-5f);
+		outvert.opos = mul(mul(outvert.opos, matWorld), matViewProj);
+		stream.Append(outvert);
+
+		outvert.opos = float4(verts[2].origpos - lightPos.xyz, 1e-5f);
+		outvert.opos = mul(mul(outvert.opos, matWorld), matViewProj);
+		stream.Append(outvert);
+	}
 }
 
 void ps_extrude(

@@ -16,7 +16,7 @@ SamplerState linearSampler
 	AddressV = Wrap;
 };
 
-void vs_main(
+void vs_specular(
 	in		float3 pos		: POSITION,
 	in		float3 norm		: NORMAL,
 	in out	float2 tex		: TEXCOORD0,
@@ -35,7 +35,7 @@ void vs_main(
 	tex *= uvScale;
 }
 
-void ps_main(
+void ps_specular(
 	in	float2 tex		: TEXCOORD0,
 	in	float3 wnorm	: TEXCOORD1,
 	in	float3 ldir		: TEXCOORD2,
@@ -60,8 +60,8 @@ technique10 specular
 {
 	pass p0
 	{
-		SetVertexShader(CompileShader(vs_4_0, vs_main()));
+		SetVertexShader(CompileShader(vs_4_0, vs_specular()));
 		SetGeometryShader(NULL);
-		SetPixelShader(CompileShader(ps_4_0, ps_main()));
+		SetPixelShader(CompileShader(ps_4_0, ps_specular()));
 	}
 }

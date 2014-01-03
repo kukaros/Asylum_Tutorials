@@ -381,7 +381,7 @@ void Render(float alpha, float elapsedtime)
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
 		device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
 		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
-		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_INCRSAT);
+		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_INCR);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 
 		extrude->SetTechnique("extrude");
@@ -393,7 +393,7 @@ void Render(float alpha, float elapsedtime)
 			for( int i = 0; i < NUM_OBJECTS; ++i )
 				DrawShadowVolume(objects[i]);
 
-			device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_DECRSAT);
+			device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_DECR);
 			device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 
 			for( int i = 0; i < NUM_OBJECTS; ++i )
