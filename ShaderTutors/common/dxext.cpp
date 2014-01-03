@@ -1047,8 +1047,8 @@ HRESULT DXSaveMeshToQM(LPCTSTR file, LPD3DXMESH mesh, D3DXMATERIAL* materials, D
 	};
 
 	D3DVERTEXELEMENT9*		decl;
-	D3DXATTRIBUTERANGE*		table;
-	DWORD					tablesize;
+	D3DXATTRIBUTERANGE*		table = 0;
+	DWORD					tablesize = 0;
 	DWORD					declsize;
 	FILE*					outfile = 0;
 	void*					data = 0;
@@ -1064,10 +1064,13 @@ HRESULT DXSaveMeshToQM(LPCTSTR file, LPD3DXMESH mesh, D3DXMATERIAL* materials, D
 
 	mesh->GetAttributeTable(NULL, &tablesize);
 	
-	table = new D3DXATTRIBUTERANGE[tablesize];
-	decl = new D3DVERTEXELEMENT9[MAX_FVF_DECL_SIZE];
+	if( tablesize > 0 )
+	{
+		table = new D3DXATTRIBUTERANGE[tablesize];
+		mesh->GetAttributeTable(table, &tablesize);
+	}
 
-	mesh->GetAttributeTable(table, &tablesize);
+	decl = new D3DVERTEXELEMENT9[MAX_FVF_DECL_SIZE];
 	mesh->GetDeclaration(decl);
 
 	for( declsize = 0; declsize < MAX_FVF_DECL_SIZE; ++declsize )
@@ -1083,6 +1086,18 @@ HRESULT DXSaveMeshToQM(LPCTSTR file, LPD3DXMESH mesh, D3DXMATERIAL* materials, D
 	unsigned int	istride			= ((mesh->GetOptions() & D3DXMESH_32BIT) ? 4 : 2);
 	unsigned short	tmp16;
 	unsigned char	tmp8;
+
+	if( tablesize == 0 )
+	{
+		tablesize = 1;
+		table = new D3DXATTRIBUTERANGE();
+
+		table->AttribId = 0;
+		table->FaceCount = numindices / 3;
+		table->FaceStart = 0;
+		table->VertexCount = numvertices;
+		table->VertexStart = 0;
+	}
 
 	fwrite(&unused, 4, 1, outfile);
 	fwrite(&numindices, 4, 1, outfile);

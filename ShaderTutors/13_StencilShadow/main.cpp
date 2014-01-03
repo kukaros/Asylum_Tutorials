@@ -151,6 +151,27 @@ HRESULT InitScene()
 	MYVALID(device->CreateVertexBuffer(VOLUME_NUMVERTICES(objects[2].caster->GetNumVertices()) * sizeof(D3DXVECTOR4), D3DUSAGE_DYNAMIC, D3DFVF_XYZW, D3DPOOL_DEFAULT, &objects[2].vertices, NULL));
 	MYVALID(device->CreateIndexBuffer(VOLUME_NUMINDICES(objects[2].caster->GetNumFaces()) * sizeof(WORD), D3DUSAGE_DYNAMIC, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &objects[2].indices, NULL));
 
+#if 0
+	D3DXMATERIAL defmat;
+
+	defmat.pTextureFilename = 0;
+	defmat.MatD3D.Ambient = D3DXCOLOR(1, 1, 1, 1);
+	defmat.MatD3D.Diffuse = D3DXCOLOR(1, 1, 1, 1);
+	defmat.MatD3D.Specular = D3DXCOLOR(1, 1, 1, 1);
+	defmat.MatD3D.Emissive = D3DXCOLOR(0, 0, 0, 0);
+	defmat.MatD3D.Power = 20;
+
+	DXSaveMeshToQM("../media/meshes10/box.qm", objects[0].object, &defmat, 1);
+	DXSaveMeshToQM("../media/meshes10/collisionbox.qm", objects[0].caster, &defmat, 1);
+
+	DXSaveMeshToQM("../media/meshes10/sphere.qm", objects[1].object, &defmat, 1);
+	DXSaveMeshToQM("../media/meshes10/collisionsphere.qm", objects[1].caster, &defmat, 1);
+
+	DXSaveMeshToQM("../media/meshes10/lshape.qm", objects[2].object, &defmat, 1);
+	DXSaveMeshToQM("../media/meshes10/collisionlshape.qm", objects[2].caster, &defmat, 1);
+
+#endif
+
 	// generate edges
 	std::cout << "Generating edge info...\n";
 
