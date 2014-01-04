@@ -279,6 +279,11 @@ _end:
 	if( direct3d )
 		direct3d->Release();
 
+	extern ULONG_PTR gdiplustoken;
+
+	if( gdiplustoken )
+		Gdiplus::GdiplusShutdown(gdiplustoken);
+
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();
 

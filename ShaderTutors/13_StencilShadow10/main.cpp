@@ -26,6 +26,7 @@ extern short	mousedown;
 
 // external functions
 extern HRESULT LoadMeshFromQM(LPCTSTR file, DWORD options, ID3DX10Mesh** mesh);
+extern HRESULT RenderText(const std::string& str, ID3D10Texture2D* tex, DWORD width, DWORD height);
 
 // tutorial structures
 struct ShadowCaster
@@ -48,13 +49,16 @@ ID3D10Effect*				volume			= 0;
 ID3DX10Mesh*				receiver		= 0;
 ID3D10InputLayout*			vertexlayout1	= 0;
 ID3D10InputLayout*			vertexlayout2	= 0;
+ID3D10InputLayout*			vertexlayout3	= 0;
 
 ID3D10ShaderResourceView*	texture1		= 0;
 ID3D10ShaderResourceView*	texture2		= 0;
+ID3D10ShaderResourceView*	texture3		= 0;
+ID3D10Texture2D*			text			= 0;
+
 ID3D10EffectTechnique*		technique1		= 0;
 ID3D10EffectTechnique*		technique2		= 0;
 ID3D10EffectTechnique*		technique3		= 0;
-ID3D10EffectTechnique*		technique4		= 0;
 
 ID3D10BlendState*			noblend			= 0;
 ID3D10BlendState*			noblend_nocolor	= 0;
@@ -66,9 +70,11 @@ ID3D10DepthStencilState*	nostencil		= 0;
 ID3D10RasterizerState*		nocull			= 0;
 ID3D10RasterizerState*		backfacecull	= 0;
 
+ID3DX10Sprite*				spritebatch		= 0;
+ShadowCaster				objects[NUM_OBJECTS];
 state<D3DXVECTOR2>			cameraangle;
 state<D3DXVECTOR2>			lightangle;
-ShadowCaster				objects[NUM_OBJECTS];
+bool						drawvolume		= false;
 
 // tutorial functions
 void DrawShadowVolume(const D3DXVECTOR3& lightpos);
@@ -82,6 +88,33 @@ HRESULT InitScene()
 #ifdef _DEBUG
 	hlslflags |= D3D10_SHADER_DEBUG;
 #endif
+
+	D3D10_TEXTURE2D_DESC desc;
+
+	desc.ArraySize			= 1;
+	desc.BindFlags			= D3D10_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags		= D3D10_CPU_ACCESS_WRITE;
+	desc.Format				= DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.Height				= 128;
+	desc.MipLevels			= 1;
+	desc.MiscFlags			= 0;
+	desc.SampleDesc.Count	= 1;
+	desc.SampleDesc.Quality	= 0;
+	desc.Usage				= D3D10_USAGE_DYNAMIC;
+	desc.Width				= 512;
+
+	MYVALID(device->CreateTexture2D(&desc, 0, &text));
+	RenderText("Use mouse to rotate camera and light\n\n1: draw shadow volume", text, 512, 128);
+
+	D3D10_SHADER_RESOURCE_VIEW_DESC rvdesc;
+
+	rvdesc.Format						= DXGI_FORMAT_R8G8B8A8_UNORM;
+	rvdesc.ViewDimension				= D3D10_SRV_DIMENSION_TEXTURE2D;
+	rvdesc.Texture2D.MostDetailedMip	= 0;
+	rvdesc.Texture2D.MipLevels			= 1;
+
+	MYVALID(device->CreateShaderResourceView(text, &rvdesc, &texture3));
+	D3DX10CreateSprite(device, 1, &spritebatch);
 
 	MYVALID(D3DX10CreateShaderResourceViewFromFile(device, "../media/textures/marble.dds", 0, 0, &texture1, 0));
 	MYVALID(D3DX10CreateShaderResourceViewFromFile(device, "../media/textures/wood2.jpg", 0, 0, &texture2, 0));
@@ -121,8 +154,7 @@ HRESULT InitScene()
 
 	technique1 = specular->GetTechniqueByName("specular");
 	technique2 = volume->GetTechniqueByName("extrude");
-	technique3 = ambient->GetTechniqueByName("zonly");
-	//technique4 = ambient->GetTechniqueByName("ambient");
+	technique3 = ambient->GetTechniqueByName("ambient");
 
 	D3D10_PASS_DESC					passdesc;
 	const D3D10_INPUT_ELEMENT_DESC*	decl = 0;
@@ -135,6 +167,10 @@ HRESULT InitScene()
 	technique1->GetPassByIndex(0)->GetDesc(&passdesc);
 
 	MYVALID(device->CreateInputLayout(decl, declsize, passdesc.pIAInputSignature, passdesc.IAInputSignatureSize, &vertexlayout1));
+
+	technique3->GetPassByIndex(0)->GetDesc(&passdesc);
+
+	MYVALID(device->CreateInputLayout(decl, declsize, passdesc.pIAInputSignature, passdesc.IAInputSignatureSize, &vertexlayout3));
 
 	// casters
 	MYVALID(LoadMeshFromQM("../media/meshes10/sphere.qm", 0, &objects[1].object));
@@ -287,16 +323,23 @@ void UninitScene()
 
 	SAFE_RELEASE(vertexlayout1);
 	SAFE_RELEASE(vertexlayout2);
+	SAFE_RELEASE(vertexlayout3);
 	SAFE_RELEASE(ambient);
 	SAFE_RELEASE(specular);
 	SAFE_RELEASE(volume);
 	SAFE_RELEASE(receiver);
+
+	SAFE_RELEASE(spritebatch);
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
+	SAFE_RELEASE(texture3);
+	SAFE_RELEASE(text);
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
 {
+	if( wparam == 0x31 )
+		drawvolume = !drawvolume;
 }
 //*************************************************************************************************************
 void Update(float delta)
@@ -337,6 +380,9 @@ void Render(float alpha, float elapsedtime)
 
 	D3DXVECTOR4		uvscale(3, 3, 0, 0);
 	D3DXVECTOR4		volumecolor(0, 0, 0, 1);
+	D3DXVECTOR4		ambientcolor(0.2f, 0.2f, 0.2f, 1);
+	D3DXVECTOR4		lightcolor(0.8f, 0.8f, 0.8f, 1);
+
 	D3DXVECTOR3		lightpos(0, 0, -10);
 	D3DXVECTOR3		eye(0, 0, -5.2f);
 	D3DXVECTOR3		look(0, 0.5f, 0);
@@ -369,15 +415,23 @@ void Render(float alpha, float elapsedtime)
 	device->ClearRenderTargetView(rendertargetview, color);
 	device->ClearDepthStencilView(depthstencilview, D3D10_CLEAR_DEPTH|D3D10_CLEAR_STENCIL, 1.0f, 0);
 	{
-		device->IASetInputLayout(vertexlayout1);
+		device->IASetInputLayout(vertexlayout3);
 		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		// STEP 1: pre-z pass
 		ambient->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj);
 		ambient->GetVariableByName("matWorld")->AsMatrix()->SetMatrix((float*)&world);
+		ambient->GetVariableByName("lightAmbient")->AsVector()->SetFloatVector((float*)&ambientcolor);
+		ambient->GetVariableByName("basetex")->AsShaderResource()->SetResource(texture2);
+		ambient->GetVariableByName("uvScale")->AsVector()->SetFloatVector((float*)&uvscale);
 
 		technique3->GetPassByIndex(0)->Apply(0);
 		receiver->DrawSubset(0);
+
+		uvscale = D3DXVECTOR4(1, 1, 0, 0);
+
+		ambient->GetVariableByName("basetex")->AsShaderResource()->SetResource(texture1);
+		ambient->GetVariableByName("uvScale")->AsVector()->SetFloatVector((float*)&uvscale);
 
 		for( int i = 0; i < NUM_OBJECTS; ++i )
 		{
@@ -402,6 +456,8 @@ void Render(float alpha, float elapsedtime)
 		device->RSSetState(backfacecull);
 
 		// STEP 3: multipass lighting
+		uvscale = D3DXVECTOR4(3, 3, 0, 0);
+
 		device->IASetInputLayout(vertexlayout1);
 		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -416,6 +472,7 @@ void Render(float alpha, float elapsedtime)
 
 		specular->GetVariableByName("eyePos")->AsVector()->SetFloatVector((float*)&eye);
 		specular->GetVariableByName("lightPos")->AsVector()->SetFloatVector((float*)&lightpos);
+		specular->GetVariableByName("lightColor")->AsVector()->SetFloatVector((float*)&lightcolor);
 		specular->GetVariableByName("uvScale")->AsVector()->SetFloatVector((float*)&uvscale);
 
 		technique1->GetPassByIndex(0)->Apply(0);
@@ -439,22 +496,46 @@ void Render(float alpha, float elapsedtime)
 			caster.object->DrawSubset(0);
 		}
 
-		// reset
 		device->OMSetDepthStencilState(nostencil, 0);
 
-		/*
-		// draw shadow volume
-		volumecolor = D3DXVECTOR4(1, 1, 0, 0.5f);
-		volume->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj); //
-		volume->GetVariableByName("faceColor")->AsVector()->SetFloatVector((float*)&volumecolor);
+		if( drawvolume )
+		{
+			volumecolor = D3DXVECTOR4(1, 1, 0, 0.5f);
+			volume->GetVariableByName("matViewProj")->AsMatrix()->SetMatrix((float*)&viewproj); //
+			volume->GetVariableByName("faceColor")->AsVector()->SetFloatVector((float*)&volumecolor);
+
+			device->OMSetBlendState(alphablend, 0, 0xffffffff);
+			DrawShadowVolume(lightpos);
+		}
+
+
+		// render text
+		D3DX10_SPRITE sprite;
+
+		sprite.ColorModulate	= D3DXCOLOR(1, 1, 1, 1);
+		sprite.pTexture			= texture3;
+		sprite.TexCoord			= D3DXVECTOR2(0, 0);
+		sprite.TexSize			= D3DXVECTOR2(1, 1);
+		sprite.TextureIndex		= 0;
+
+		sprite.matWorld = D3DXMATRIX(
+			512, 0, 0, 0,
+			0, 128, 0, 0,
+			0, 0, 1, 0,
+			10.0f - (screenwidth - 512) * 0.5f,
+			(screenheight - 128) * 0.5f - 10.0f,
+			0, 1);
 
 		device->OMSetBlendState(alphablend, 0, 0xffffffff);
-		DrawShadowVolume(lightpos);
+		D3DXMatrixOrthoLH(&proj, (float)screenwidth, (float)screenheight, 0, 1);
 
-		device->RSSetState(backfacecull);
-		*/
+		spritebatch->SetProjectionTransform(&proj);
+		spritebatch->Begin(D3DX10_SPRITE_SAVE_STATE);
+		{
+			spritebatch->DrawSpritesImmediate(&sprite, 1, 0, 0);
+		}
+		spritebatch->End();
 
-		// reset
 		device->OMSetBlendState(noblend, 0, 0xffffffff);
 	}
 	swapchain->Present(0, 0);

@@ -1,8 +1,13 @@
 //*************************************************************************************************************
 #pragma comment(lib, "d3d10.lib")
-#pragma comment(lib, "d3dx10d.lib")
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "GdiPlus.lib")
+
+#ifdef _DEBUG
+#	pragma comment(lib, "d3dx10d.lib")
+#else
+#	pragma comment(lib, "d3dx10.lib")
+#endif
 
 #include <Windows.h>
 #include <GdiPlus.h>
@@ -18,21 +23,23 @@
 #define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-HWND					hwnd		= NULL;
 DXGI_SWAP_CHAIN_DESC	swapchaindesc;
 DXGI_MODE_DESC			displaymode;
 ID3D10Device*			device;
-ID3D10RenderTargetView*	rendertargetview;
-ID3D10DepthStencilView*	depthstencilview;
-ID3D10Texture2D*		depthstencil;
-IDXGISwapChain*			swapchain;
-RECT					workarea;
-long					screenwidth = 800;
-long					screenheight = 600;
+ID3D10RenderTargetView*	rendertargetview	= NULL;
+ID3D10DepthStencilView*	depthstencilview	= NULL;
+ID3D10Texture2D*		depthstencil		= NULL;
+IDXGISwapChain*			swapchain			= NULL;;
 
-short					mousex, mousedx	= 0;
-short					mousey, mousedy	= 0;
-short					mousedown		= 0;
+HWND					hwnd				= NULL;
+ULONG_PTR				gdiplustoken		= 0;
+RECT					workarea;
+long					screenwidth			= 800;
+long					screenheight		= 600;
+
+short					mousex, mousedx		= 0;
+short					mousey, mousedy		= 0;
+short					mousedown			= 0;
 
 HRESULT InitScene();
 
@@ -409,6 +416,72 @@ _fail:
 	return hr;
 }
 //*************************************************************************************************************
+HRESULT RenderText(const std::string& str, ID3D10Texture2D* tex, DWORD width, DWORD height)
+{
+	if( tex == 0 )
+		return E_FAIL;
+
+	if( gdiplustoken == 0 )
+	{
+		Gdiplus::GdiplusStartupInput gdiplustartup;
+		Gdiplus::GdiplusStartup(&gdiplustoken, &gdiplustartup, NULL);
+	}
+
+	Gdiplus::Color				outline(0xff000000);
+	Gdiplus::Color				fill(0xffffffff);
+
+	Gdiplus::Bitmap*			bitmap;
+	Gdiplus::Graphics*			graphics;
+	Gdiplus::GraphicsPath		path;
+	Gdiplus::FontFamily			family(L"Arial");
+	Gdiplus::StringFormat		format;
+	Gdiplus::Pen				pen(outline, 3);
+	Gdiplus::SolidBrush			brush(fill);
+	std::wstring				wstr(str.begin(), str.end());
+
+	//format.SetAlignment(Gdiplus::StringAlignmentFar);
+
+	bitmap = new Gdiplus::Bitmap(width, height, PixelFormat32bppARGB);
+	graphics = new Gdiplus::Graphics(bitmap);
+
+	// render text
+	graphics->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+	graphics->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+	graphics->SetPageUnit(Gdiplus::UnitPixel);
+
+	path.AddString(wstr.c_str(), wstr.length(), &family, Gdiplus::FontStyleBold, 25, Gdiplus::Point(0, 0), &format);
+	pen.SetLineJoin(Gdiplus::LineJoinRound);
+
+	graphics->DrawPath(&pen, &path);
+	graphics->FillPath(&brush, &path);
+
+	// copy to texture
+	Gdiplus::Rect rc(0, 0, bitmap->GetWidth(), bitmap->GetHeight());
+	Gdiplus::BitmapData data;
+
+	D3D10_TEXTURE2D_DESC desc;
+	D3D10_MAPPED_TEXTURE2D mapped;
+	UINT subres;
+
+	tex->GetDesc(&desc);
+	subres = D3D10CalcSubresource(0, 0, desc.MipLevels);
+
+	memset(&data, 0, sizeof(Gdiplus::BitmapData));
+
+	bitmap->LockBits(&rc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data);
+	tex->Map(subres, D3D10_MAP_WRITE_DISCARD, 0, &mapped);
+	
+	memcpy(mapped.pData, data.Scan0, width * height * 4);
+
+	tex->Unmap(subres);
+	bitmap->UnlockBits(&data);
+
+	delete graphics;
+	delete bitmap;
+
+	return S_OK;
+}
+//*************************************************************************************************************
 LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam)
 {
 	switch( msg )
@@ -630,6 +703,9 @@ _end:
 				MYERROR("You forgot to release something");
 		}
 	}
+
+	if( gdiplustoken )
+		Gdiplus::GdiplusShutdown(gdiplustoken);
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();

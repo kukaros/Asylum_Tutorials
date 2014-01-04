@@ -6,6 +6,7 @@ uniform matrix matWorldInv;
 uniform matrix matViewProj;
 
 uniform float4 lightPos = { -10, 10, -10, 1 };
+uniform float4 lightColor = { 1, 1, 1, 1 };
 uniform float4 eyePos;
 uniform float2 uvScale;
 
@@ -51,8 +52,9 @@ void ps_specular(
 	float specular = saturate(dot(n, h));
 
 	specular = pow(specular, 60);
-
 	color = basetex.Sample(linearSampler, tex) * diffuse + specular;
+
+	color *= lightColor;
 	color.a = 1;
 }
 

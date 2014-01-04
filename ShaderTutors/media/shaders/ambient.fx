@@ -5,6 +5,7 @@ matrix matWorld;
 matrix matViewProj;
 
 float4 ambient;
+float2 uv = { 1, 1 };
 
 void vs_main(
 	in float3 pos	: POSITION,
@@ -13,6 +14,8 @@ void vs_main(
 {
 	opos = mul(float4(pos, 1), matWorld);
 	opos = mul(opos, matViewProj);
+
+	tex *= uv;
 }
 
 void ps_main(

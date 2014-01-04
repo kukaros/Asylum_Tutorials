@@ -10,6 +10,7 @@
 
 // TODO:
 // - sphere texcoord is not correct
+// - two-sided stencil
 // - needs tonemap
 
 #define NUM_OBJECTS			3
@@ -261,7 +262,7 @@ void Update(float delta)
 		lightangle.curr.y = 0.1f;
 }
 //*************************************************************************************************************
-void DrawScene(LPD3DXEFFECT effect, bool texture)
+void DrawScene(LPD3DXEFFECT effect)
 {
 	D3DXMATRIX	world;
 	D3DXMATRIX	inv;
@@ -277,15 +278,12 @@ void DrawScene(LPD3DXEFFECT effect, bool texture)
 	effect->Begin(0, 0);
 	effect->BeginPass(0);
 	{
-		if( texture )
-			device->SetTexture(0, texture2);
-
+		device->SetTexture(0, texture2);
 		shadowreceiver->DrawSubset(0);
 
 		if( !drawsilhouette )
 		{
-			if( texture )
-				device->SetTexture(0, texture1);
+			device->SetTexture(0, texture1);
 
 			uv.x = uv.y = 1;
 			effect->SetVector("uv", &uv);
@@ -368,10 +366,10 @@ void Render(float alpha, float elapsedtime)
 		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, 0xff6694ed, 1.0f, 0);
 
 		// STEP 1: z pass
-		extrude->SetTechnique("zpass");
-		extrude->SetMatrix("matViewProj", &vp);
+		ambient->SetTechnique("ambientlight");
+		ambient->SetMatrix("matViewProj", &vp);
 
-		DrawScene(extrude, false);
+		DrawScene(ambient);
 
 		// STEP 2: draw shadow with depth fail method
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
@@ -405,22 +403,17 @@ void Render(float alpha, float elapsedtime)
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);
 
 		// STEP 3: multipass lighting
-		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		device->SetRenderState(D3DRS_ZENABLE, TRUE);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
 		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
 		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
 
-		DrawScene(ambient, true);
-
-		// now point light with shadows
-		device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
 		device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_GREATER);
 		device->SetRenderState(D3DRS_STENCILREF, 1);
 
-		DrawScene(specular, true);
+		DrawScene(specular);
 
 		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);

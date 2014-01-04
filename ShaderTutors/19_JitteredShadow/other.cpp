@@ -3,8 +3,9 @@
 #define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-#include <d3dx9.h>
 #include <iostream>
+#include <d3dx9.h>
+#include <GdiPlus.h>
 
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
@@ -328,6 +329,11 @@ _end:
 
 	if( direct3d )
 		direct3d->Release();
+
+	extern ULONG_PTR gdiplustoken;
+
+	if( gdiplustoken )
+		Gdiplus::GdiplusShutdown(gdiplustoken);
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();
