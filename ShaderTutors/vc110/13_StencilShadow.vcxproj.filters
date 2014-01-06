@@ -18,13 +18,10 @@
     <None Include="..\media\shaders\blinnphong.fx">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shaders\blurshadow.fx">
+    <None Include="..\media\shaders\extrude.fx">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shaders\variance.fx">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\media\shaders\distance.fx">
+    <None Include="..\media\shaders\ambient.fx">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

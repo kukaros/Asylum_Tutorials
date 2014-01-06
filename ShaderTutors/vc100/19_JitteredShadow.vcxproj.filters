@@ -8,7 +8,7 @@
       <UniqueIdentifier>{32601397-8425-4f2b-b739-4d41d65cc5fd}</UniqueIdentifier>
     </Filter>
     <Filter Include="common">
-      <UniqueIdentifier>{5341cc5b-782b-4e4f-a859-2da67551b04b}</UniqueIdentifier>
+      <UniqueIdentifier>{9748e16b-f31e-4f24-a9fc-d3633e2153e7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -18,10 +18,7 @@
     <None Include="..\media\shaders\blinnphong.fx">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shaders\extrude.fx">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\media\shaders\ambient.fx">
+    <None Include="..\media\shaders\distance.fx">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>
@@ -37,15 +34,17 @@
     <ClInclude Include="..\common\dxext.h">
       <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\orderedarray.hpp">
-      <Filter>common</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\13_StencilShadow\main.cpp" />
-    <ClCompile Include="..\13_StencilShadow\other.cpp" />
+    <ClCompile Include="..\19_JitteredShadow\main.cpp" />
+    <ClCompile Include="..\19_JitteredShadow\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp">
       <Filter>common</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\irregularpcf.fx">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

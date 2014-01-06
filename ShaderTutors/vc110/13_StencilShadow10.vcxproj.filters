@@ -7,21 +7,15 @@
     <Filter Include="resources">
       <UniqueIdentifier>{32601397-8425-4f2b-b739-4d41d65cc5fd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="common">
-      <UniqueIdentifier>{5341cc5b-782b-4e4f-a859-2da67551b04b}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\directx.ico">
-      <Filter>resources</Filter>
-    </None>
-    <None Include="..\media\shaders\blinnphong.fx">
+    <None Include="..\media\shaders10\blinnphong10.fx">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shaders\extrude.fx">
+    <None Include="..\media\shaders10\shadowvolume10.fx">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shaders\ambient.fx">
+    <None Include="..\media\shaders10\ambient10.fx">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>
@@ -34,18 +28,14 @@
     <ClInclude Include="..\media\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\dxext.h">
-      <Filter>common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\orderedarray.hpp">
-      <Filter>common</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\13_StencilShadow\main.cpp" />
-    <ClCompile Include="..\13_StencilShadow\other.cpp" />
-    <ClCompile Include="..\common\dxext.cpp">
-      <Filter>common</Filter>
-    </ClCompile>
+    <ClCompile Include="..\13_StencilShadow10\main.cpp" />
+    <ClCompile Include="..\13_StencilShadow10\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\media\directx10.ico">
+      <Filter>resources</Filter>
+    </Image>
   </ItemGroup>
 </Project>

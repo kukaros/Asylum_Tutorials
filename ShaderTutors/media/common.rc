@@ -54,7 +54,11 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
+#ifdef DX10
+IDI_ICON1               ICON                    "directx10.ico"
+#else
 IDI_ICON1               ICON                    "directx.ico"
+#endif
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 

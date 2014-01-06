@@ -94,8 +94,6 @@
   <ItemGroup>
     <None Include="..\media\directx.ico" />
     <None Include="..\media\shaders\blinnphong.fx" />
-    <None Include="..\media\shaders\blurshadow.fx" />
-    <None Include="..\media\shaders\variance.fx" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -111,7 +109,14 @@
     <ClCompile Include="..\common\dxext.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shaders\distance.fx" />
+    <None Include="..\media\shaders\extrude.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\ambient.fx">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

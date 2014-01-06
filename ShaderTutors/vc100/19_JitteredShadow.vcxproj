@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{4BC5ABDB-F0EE-46FC-8452-FD44CE2E8644}</ProjectGuid>
-    <RootNamespace>My13_StencilShadow</RootNamespace>
+    <ProjectGuid>{8AABDCA1-D213-40AC-976F-1C4178C6A679}</ProjectGuid>
+    <RootNamespace>My19_JitteredShadow</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -93,30 +93,34 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\blinnphong.fx" />
+    <None Include="..\media\shaders\blinnphong.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\dxext.h" />
-    <ClInclude Include="..\common\orderedarray.hpp" />
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\13_StencilShadow\main.cpp" />
-    <ClCompile Include="..\13_StencilShadow\other.cpp" />
+    <ClCompile Include="..\19_JitteredShadow\main.cpp" />
+    <ClCompile Include="..\19_JitteredShadow\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shaders\extrude.fx">
-      <FileType>Document</FileType>
+    <None Include="..\media\shaders\distance.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shaders\ambient.fx">
-      <FileType>Document</FileType>
-    </None>
+    <FxCompile Include="..\media\shaders\irregularpcf.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
