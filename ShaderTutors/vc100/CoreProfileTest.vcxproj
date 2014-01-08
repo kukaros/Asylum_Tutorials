@@ -11,11 +11,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\common\glext.cpp" />
     <ClCompile Include="..\CoreProfileTest\main.cpp" />
     <ClCompile Include="..\CoreProfileTest\other.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\glext.h" />
     <ClInclude Include="..\extern\glext.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>

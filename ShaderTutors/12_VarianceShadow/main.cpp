@@ -93,6 +93,8 @@ void Update(float delta)
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
 {
+	static float time = 0;
+
 	unsigned long flags = D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER;
 
 	D3DXVECTOR4 lightpos(-1, 6, 5, 1);
@@ -105,11 +107,13 @@ void Render(float alpha, float elapsedtime)
 	LPDIRECT3DSURFACE9 oldsurface = NULL;
 	LPDIRECT3DSURFACE9 shadowsurface = NULL;
 
+	time += elapsedtime;
+
 	// specular effect uniforms
 	D3DXMatrixMultiply(&vp, &view, &proj);
 	D3DXMatrixScaling(&world, 0.25f, 0.25f, 0.25f);
 
-	D3DXMatrixRotationYawPitchRoll(&tmp, timeGetTime() / 1000.0f, D3DX_PI / 8, 0);
+	D3DXMatrixRotationYawPitchRoll(&tmp, time, D3DX_PI / 8, 0);
 	//D3DXMatrixRotationYawPitchRoll(&tmp, D3DX_PI / 3, D3DX_PI / 8, 0);
 	D3DXMatrixMultiply(&world, &world, &tmp);
 

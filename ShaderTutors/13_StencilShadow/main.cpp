@@ -324,6 +324,8 @@ void Render(float alpha, float elapsedtime)
 	D3DXVECTOR2		orient	= cameraangle.smooth(alpha);
 	D3DXVECTOR2		light	= lightangle.smooth(alpha);
 
+	time += elapsedtime;
+
 	// setup light
 	D3DXMatrixRotationYawPitchRoll(&view, light.x, light.y, 0);
 	D3DXVec3TransformCoord(&lightpos, &lightpos, &view);
@@ -348,8 +350,6 @@ void Render(float alpha, float elapsedtime)
 
 	D3DXMatrixMultiply(&vp, &view, &proj);
 	D3DXMatrixScaling(&world, 5, 0.1f, 5);
-
-	time += elapsedtime;
 
 	// specular effect uniforms
 	specular->SetMatrix("matViewProj", &vp);
