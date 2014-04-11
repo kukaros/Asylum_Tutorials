@@ -9,6 +9,16 @@ sampler mytex0 : register(s0) = sampler_state // albedo
 	AddressV = wrap;
 };
 
+sampler mytex1 : register(s1) = sampler_state // normalmap
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = linear;
+
+	AddressU = wrap;
+	AddressV = wrap;
+};
+
 sampler mytex2 : register(s2) = sampler_state // shadow
 {
 	MinFilter = linear;
@@ -30,20 +40,50 @@ float4 lightPos;
 float4 eyePos;
 float4 params = { 1, 1, 1, 1 }; // uv multiplier, <unused>, has texture
 
-float attenuate(float3 ldir)
+float attenuate(in float3 ldir)
 {
-	ldir /= lightPos.w;
-
-	float atten = dot(ldir, ldir);
-	float att_s = 15;
-
-	atten = 1.0f / (atten * att_s + 1);
-	att_s = 1.0f / (att_s + 1);
-
-	atten = atten - att_s;
-	atten /= (1.0f - att_s);
-
+	float atten = dot(ldir, ldir) / (lightPos.w * lightPos.w);
+	atten = 1.0 / (atten * 15.0 + 1.0);
+	atten = (atten - 0.0625) * 1.066666;
 	return saturate(atten);
+}
+
+float2 diffuseWithSpecular(
+	in float3 ldir,
+	in float3 vdir,
+	in float3 wnorm,
+	in float power)
+{
+	float3 n = normalize(wnorm);
+	float3 l = normalize(ldir);
+	float3 v = normalize(vdir);
+	float3 h = normalize(l + v);
+	float2 ret;
+
+	ret.x = saturate(dot(l, n));
+	ret.y = pow(saturate(dot(h, n)), power);
+
+	return ret;
+}
+
+float4 pointLight(
+	in float2 tex,
+	in float3 ldir,
+	in float3 vdir,
+	in float3 wldir,
+	in float3 wnorm)
+{
+	float2 diffspec = diffuseWithSpecular(ldir, vdir, wnorm, 80.0f);
+	float4 base = tex2D(mytex0, tex);
+	float atten = attenuate(wldir);
+
+	base.rgb = pow(base.rgb, 2.2f);
+
+	float4 diff = base * lightColor;
+	float4 ret = (diff + diffspec.y) * diffspec.x * atten;
+
+	ret.a = base.a;
+	return ret;
 }
 
 void vs_zonly(
@@ -160,6 +200,48 @@ void ps_forward_point(
 	color.a = base.a;
 }
 
+void vs_forward_point_tbn(
+	in out	float4 pos		: POSITION,
+	in		float3 norm		: NORMAL,
+	in		float3 tang		: TANGENT,
+	in		float3 bin		: BINORMAL,
+	in out	float2 tex		: TEXCOORD0,
+	out		float3 wldir	: TEXCOORD5,
+	out		float3 ldir		: TEXCOORD6,
+	out		float3 vdir		: TEXCOORD7)
+{
+	float4 wpos = mul(float4((pos).xyz, 1.0f), matWorld);
+	wldir = lightPos.xyz - wpos.xyz;
+
+	float3 v = eyePos.xyz - wpos.xyz;
+	float3 wnorm = normalize(mul(matWorldInv, float4(norm, 0.0f)).xyz);
+	float3 wtan = normalize(mul(float4(tang, 0.0f), matWorld).xyz);
+	float3 wbin = normalize(mul(float4(bin, 0.0f), matWorld).xyz);
+	
+	ldir.x = dot(wldir, wtan);
+	ldir.y = dot(wldir, wbin);
+	ldir.z = dot(wldir, wnorm);
+	
+	vdir.x = dot(v, wtan);
+	vdir.y = dot(v, wbin);
+	vdir.z = dot(v, wnorm);
+
+	pos = mul(wpos, matViewProj);
+}
+
+void ps_forward_point_tbn(
+	in	float2 tex		: TEXCOORD0,
+	in	float3 wldir	: TEXCOORD5,
+	in	float3 ldir		: TEXCOORD6,
+	in	float3 vdir		: TEXCOORD7,
+	out	float4 color	: COLOR)
+{
+	float3 norm;
+
+	norm = (tex2D(mytex1, tex) * 2.0f - 1.0f).xyz;
+	color = pointLight(tex, ldir, vdir, wldir, norm);
+}
+
 technique zonly
 {
 	pass p0
@@ -184,5 +266,14 @@ technique forward_point
 	{
 		vertexshader = compile vs_2_0 vs_forward();
 		pixelshader = compile ps_2_0 ps_forward_point();
+	}
+}
+
+technique forward_point_tbn
+{
+	pass p0
+	{
+		vertexshader = compile vs_2_0 vs_forward_point_tbn();
+		pixelshader = compile ps_2_0 ps_forward_point_tbn();
 	}
 }

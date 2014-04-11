@@ -2,7 +2,9 @@
 matrix matWorld;
 matrix matWorldSky;
 matrix matViewProj;
+
 float4 eyePos;
+float degamma = 1.0f;
 
 samplerCUBE mytex0 : register(s0);
 
@@ -22,7 +24,9 @@ void ps_sky(
 	in	float3 view		: TEXCOORD0,
 	out	float4 color	: COLOR)
 {
-	color = float4(texCUBE(mytex0, view).rgb, 1);
+	float4 base = texCUBE(mytex0, view);
+
+	color = float4(pow(base.rgb, degamma), 1);
 }
 
 technique sky
