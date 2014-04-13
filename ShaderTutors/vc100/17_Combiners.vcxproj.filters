@@ -13,7 +13,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\IntelTest\glext.h">
+    <ClInclude Include="..\extern\glext.h">
       <Filter>extern</Filter>
     </ClInclude>
     <ClInclude Include="..\extern\qglextensions.h">

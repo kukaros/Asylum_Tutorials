@@ -11,13 +11,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\common\glext.cpp" />
     <ClCompile Include="..\CoreProfileTest\main.cpp" />
     <ClCompile Include="..\CoreProfileTest\other.cpp" />
-    <ClCompile Include="..\IntelTest\qgl2extensions.cpp" />
+    <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\IntelTest\glext.h" />
-    <ClInclude Include="..\IntelTest\qgl2extensions.h" />
+    <ClInclude Include="..\common\glext.h" />
+    <ClInclude Include="..\extern\glext.h" />
+    <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>

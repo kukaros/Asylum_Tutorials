@@ -78,7 +78,7 @@ HRESULT InitDirect3D(HWND hwnd)
 	swapchaindesc.SampleDesc.Quality	= 0;
 	swapchaindesc.Windowed				= true;
 
-#ifdef _DEBUG
+#if (_MSC_VER > 1600) && defined(_DEBUG)
 	flags |= D3D10_CREATE_DEVICE_DEBUG;
 #endif
 

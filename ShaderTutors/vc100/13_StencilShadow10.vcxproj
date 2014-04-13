@@ -10,18 +10,9 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\17_Combiners\main.cpp" />
-    <ClCompile Include="..\17_Combiners\other.cpp" />
-    <ClCompile Include="..\extern\qglextensions.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\extern\glext.h" />
-    <ClInclude Include="..\extern\qglextensions.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{187B807A-0984-4483-82DE-FE4FE056F31F}</ProjectGuid>
-    <RootNamespace>My17_Combiners</RootNamespace>
+    <ProjectGuid>{00CAEC6D-69F2-40CB-ADAD-6D7FF08485B8}</ProjectGuid>
+    <RootNamespace>My13_StencilShadow10</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -54,9 +45,9 @@
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\$(SolutionName)_$(Configuration)\$(ProjectName)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)/../extern/include/dx9;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSdkDir)include;$(FrameworkSDKDir)\include;$(ProjectDir)/../extern/include/dx10</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)/../extern/lib;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)/../extern/include/dx9;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSdkDir)include;$(FrameworkSDKDir)\include;$(ProjectDir)/../extern/include/dx10</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)/../extern/lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -76,6 +67,9 @@
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>DX10</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -99,7 +93,38 @@
     <PostBuildEvent>
       <Command>copy /Y "$(TargetDir)$(ProjectName).exe" "$(SolutionDir)\bin\$(ProjectName).exe"</Command>
     </PostBuildEvent>
+    <ResourceCompile>
+      <PreprocessorDefinitions>DX10</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\media\common.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\media\resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\13_StencilShadow10\main.cpp" />
+    <ClCompile Include="..\13_StencilShadow10\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders10\blinnphong10.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\media\directx10.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders10\shadowvolume10.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders10\ambient10.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
