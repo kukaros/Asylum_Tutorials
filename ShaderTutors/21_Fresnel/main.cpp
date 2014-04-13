@@ -5,7 +5,15 @@
 
 #include "../common/dxext.h"
 
-#define HELP_TEXT	"Hold left button to rotate camera\nor right button to rotate object\n\n1 - reflection\n2 - single refraction\n3 - chromatic dispersion\n4 - double refraction\n+/- adjust refractive index\n\nRefractive index is: "
+#define HELP_TEXT	\
+	"Hold left button to rotate camera\nor right button to rotate object\n\n" \
+	"1 - reflection\n" \
+	"2 - single refraction\n" \
+	"3 - chromatic dispersion\n" \
+	"4 - double refraction\n\n" \
+	"0 - change object\n" \
+	"+/- adjust refractive index\n\n" \
+	"Refractive index is: "
 
 // helper macros
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -28,6 +36,8 @@ LPD3DXEFFECT					fresnel			= NULL;
 LPDIRECT3DVERTEXDECLARATION9	quaddecl		= NULL;
 
 DXObject*						object1			= NULL;
+DXObject*						object2			= NULL;
+DXObject*						currentobj		= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				normals			= NULL;
 LPDIRECT3DTEXTURE9				positions		= NULL;
@@ -95,13 +105,21 @@ HRESULT InitScene()
 	MYVALID(device->CreateVertexDeclaration(elem, &quaddecl));
 
 	object1 = new DXObject(device);
+	object2 = new DXObject(device);
 
-	//if( !object1->Load("../media/meshes/teapot.X") )
 	if( !object1->Load("../media/meshes/knot.X") )
 	{
 		MYERROR("Could not load object1");
 		return E_FAIL;
 	}
+
+	if( !object2->Load("../media/meshes/teapot.X") )
+	{
+		MYERROR("Could not load object1");
+		return E_FAIL;
+	}
+
+	currentobj = object1;
 
 	MYVALID(D3DXLoadMeshFromXA("../media/meshes/sky.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &skymesh));
 	MYVALID(D3DXCreateCubeTextureFromFileA(device, "../media/textures/sky7.dds", &skytex));
@@ -128,6 +146,7 @@ HRESULT InitScene()
 void UninitScene()
 {
 	delete object1;
+	delete object2;
 	
 	SAFE_RELEASE(normalsurf);
 	SAFE_RELEASE(positionsurf);
@@ -147,6 +166,14 @@ void KeyPress(WPARAM wparam)
 {
 	switch( wparam )
 	{
+	case 0x30:
+		if( currentobj == object1 )
+			currentobj = object2;
+		else
+			currentobj = object1;
+
+		break;
+
 	case 0x31:
 		fresnel->SetTechnique("reflection");
 		isdoublerefract = false;
@@ -224,8 +251,11 @@ void Render(float alpha, float elapsedtime)
 	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
 	D3DXMatrixMultiply(&viewproj, &view, &proj);
 
-	D3DXMatrixScaling(&inv, 0.3f, 0.3f, 0.3f);
-	//D3DXMatrixScaling(&inv, 0.5f, 0.5f, 0.5f);
+	if( currentobj == object1 )
+		D3DXMatrixScaling(&inv, 0.3f, 0.3f, 0.3f);
+	else
+		D3DXMatrixScaling(&inv, 0.5f, 0.5f, 0.5f);
+
 	D3DXMatrixRotationYawPitchRoll(&world, orient2.x, orient2.y, 0);
 	D3DXMatrixMultiply(&world, &inv, &world);
 
@@ -281,7 +311,7 @@ void Render(float alpha, float elapsedtime)
 			fresnel->Begin(0, 0);
 			fresnel->BeginPass(0);
 			{
-				object1->Draw(DXObject::Opaque|DXObject::Transparent);
+				currentobj->Draw(DXObject::Opaque|DXObject::Transparent);
 			}
 			fresnel->EndPass();
 			fresnel->End();
@@ -305,7 +335,7 @@ void Render(float alpha, float elapsedtime)
 				device->SetTexture(2, positions);
 			}
 
-			object1->Draw(DXObject::Opaque|DXObject::Transparent);
+			currentobj->Draw(DXObject::Opaque|DXObject::Transparent);
 		}
 		fresnel->EndPass();
 		fresnel->End();
