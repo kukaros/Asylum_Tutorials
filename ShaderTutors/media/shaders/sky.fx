@@ -6,7 +6,12 @@ matrix matViewProj;
 float4 eyePos;
 float degamma = 1.0f;
 
-samplerCUBE mytex0 : register(s0);
+samplerCUBE mytex0 : register(s0) = sampler_state
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = linear;
+};
 
 void vs_sky(
 	in out	float4 pos	: POSITION,
