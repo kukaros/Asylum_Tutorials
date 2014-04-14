@@ -9,8 +9,9 @@
 	"Hold left button to rotate camera\nor right button to rotate object\n\n" \
 	"1 - reflection\n" \
 	"2 - single refraction\n" \
-	"3 - chromatic dispersion\n" \
-	"4 - double refraction\n\n" \
+	"3 - refraction with normal map\n" \
+	"4 - chromatic dispersion\n" \
+	"5 - double refraction\n\n" \
 	"0 - change object\n" \
 	"+/- adjust refractive index\n\n" \
 	"Refractive index is: "
@@ -39,6 +40,7 @@ DXObject*						object1			= NULL;
 DXObject*						object2			= NULL;
 DXObject*						currentobj		= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
+LPDIRECT3DTEXTURE9				texture2		= NULL;
 LPDIRECT3DTEXTURE9				normals			= NULL;
 LPDIRECT3DTEXTURE9				positions		= NULL;
 LPDIRECT3DCUBETEXTURE9			skytex			= NULL;
@@ -47,7 +49,7 @@ LPDIRECT3DTEXTURE9				text			= NULL;
 LPDIRECT3DSURFACE9				normalsurf		= NULL;
 LPDIRECT3DSURFACE9				positionsurf	= NULL;
 
-bool							isdoublerefract	= false;
+int								tech			= 0;
 state<D3DXVECTOR2>				cameraangle;
 state<D3DXVECTOR2>				objectangle;
 D3DXVECTOR4						refrindices(1.000293f, 1.25f, 0, 0);
@@ -118,12 +120,14 @@ HRESULT InitScene()
 		MYERROR("Could not load object1");
 		return E_FAIL;
 	}
-
+	
+	object2->GenerateTangentFrame();
 	currentobj = object1;
 
 	MYVALID(D3DXLoadMeshFromXA("../media/meshes/sky.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &skymesh));
 	MYVALID(D3DXCreateCubeTextureFromFileA(device, "../media/textures/sky7.dds", &skytex));
-	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
+	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/saint_nh.dds", &texture1));
+	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/stone.jpg", &texture2)); // sucks...
 
 	MYVALID(DXCreateEffect("../media/shaders/fresneleffects.fx", device, &fresnel));
 	MYVALID(DXCreateEffect("../media/shaders/sky.fx", device, &skyeffect));
@@ -156,6 +160,7 @@ void UninitScene()
 	SAFE_RELEASE(skyeffect);
 	SAFE_RELEASE(fresnel);
 	SAFE_RELEASE(texture1);
+	SAFE_RELEASE(texture2);
 	SAFE_RELEASE(normals);
 	SAFE_RELEASE(positions);
 	SAFE_RELEASE(text);
@@ -169,29 +174,35 @@ void KeyPress(WPARAM wparam)
 	case 0x30:
 		if( currentobj == object1 )
 			currentobj = object2;
-		else
+		else if( tech != 2 )
 			currentobj = object1;
 
 		break;
 
 	case 0x31:
 		fresnel->SetTechnique("reflection");
-		isdoublerefract = false;
+		tech = 0;
 		break;
 
 	case 0x32:
 		fresnel->SetTechnique("singlerefraction");
-		isdoublerefract = false;
+		tech = 1;
 		break;
 
 	case 0x33:
-		fresnel->SetTechnique("dispersion");
-		isdoublerefract = false;
+		fresnel->SetTechnique("perturbedrefraction");
+		tech = 2;
+		currentobj = object2;
 		break;
 
 	case 0x34:
+		fresnel->SetTechnique("dispersion");
+		tech = 3;
+		break;
+
+	case 0x35:
 		fresnel->SetTechnique("doublerefraction");
-		isdoublerefract = true;
+		tech = 4;
 		break;
 
 	case VK_ADD:
@@ -296,7 +307,7 @@ void Render(float alpha, float elapsedtime)
 		fresnel->SetVector("eyePos", (D3DXVECTOR4*)&eye);
 		fresnel->SetVector("refractiveindices", &refrindices);
 
-		if( isdoublerefract )
+		if( tech == 4 )
 		{
 			LPDIRECT3DSURFACE9 oldtarget = NULL;
 
@@ -329,7 +340,12 @@ void Render(float alpha, float elapsedtime)
 		{
 			device->SetTexture(0, skytex);
 
-			if( isdoublerefract )
+			if( tech == 2 )
+			{
+				device->SetTexture(1, texture1);
+				device->SetTexture(2, texture2);
+			}
+			if( tech == 4 )
 			{
 				device->SetTexture(1, normals);
 				device->SetTexture(2, positions);

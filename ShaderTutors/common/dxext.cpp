@@ -140,6 +140,11 @@ void DXObject::Clean()
 	materials = NULL;
 }
 
+bool DXObject::GenerateTangentFrame()
+{
+	return SUCCEEDED(DXGenTangentFrame(device, &mesh));
+}
+
 bool DXObject::Load(const std::string& file)
 {
 	HRESULT			hr;

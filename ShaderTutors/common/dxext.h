@@ -42,6 +42,7 @@ public:
 	DXObject(IDirect3DDevice9* d3ddevice);
 	~DXObject();
 
+	bool GenerateTangentFrame();
 	bool Load(const std::string& file);
 	bool Save(const std::string& file);
 

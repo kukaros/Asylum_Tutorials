@@ -18,8 +18,8 @@ samplerCUBE mytex0 : register(s0) = sampler_state
 
 sampler2D mytex1 : register(s1) = sampler_state
 {
-	MinFilter = point;
-	MagFilter = point;
+	MinFilter = linear;
+	MagFilter = linear;
 
 	AddressU = border;
 	AddressV = border;
@@ -32,6 +32,15 @@ sampler2D mytex2 : register(s2) = sampler_state
 
 	AddressU = border;
 	AddressV = border;
+};
+
+sampler2D normalmap : register(s1) = sampler_state
+{
+	MinFilter = linear;
+	MagFilter = linear;
+
+	AddressU = wrap;
+	AddressV = wrap;
 };
 
 // =======================================================================
@@ -127,6 +136,71 @@ void ps_singlerefract(
 	}
 	else
 		color = lerp(matDiffuse, reflcol, R);
+}
+
+// =======================================================================
+//
+// Normal mapped refraction
+//
+// =======================================================================
+
+void vs_perturbedrefract(
+	in out	float4 pos		: POSITION,
+	in		float3 norm		: NORMAL,
+	in		float3 tang		: TANGENT,
+	in		float3 bin		: BINORMAL,
+	in out	float2 tex		: TEXCOORD0,
+	out		float3 incray	: TEXCOORD1,
+	out		float3 wtan		: TEXCOORD2,
+	out		float3 wbin		: TEXCOORD3,
+	out		float3 wnorm	: TEXCOORD4)
+{
+	pos = mul(pos, matWorld);
+
+	wnorm = mul(matWorldInv, float4(norm, 0)).xyz;
+	wtan = mul(float4(tang, 0), matWorld);
+	wbin = mul(float4(bin, 0), matWorld);
+
+	incray = pos.xyz - eyePos.xyz;
+	pos = mul(pos, matViewProj);
+}
+
+void ps_perturbedrefract(
+	in	float2 tex		: TEXCOORD0,
+	in	float3 incray	: TEXCOORD1,
+	in	float3 wtan		: TEXCOORD2,
+	in	float3 wbin		: TEXCOORD3,
+	in	float3 wnorm	: TEXCOORD4,
+	out	float4 color	: COLOR0)
+{
+	float n1 = refractiveindices.x;
+	float n2 = refractiveindices.y;
+	float ratio = n1 / n2;
+	float R;
+
+	float3 tnorm = tex2D(normalmap, tex).xyz * 2 - 1;
+	float3 i = normalize(incray);
+
+	float3 t = normalize(wtan);
+	float3 b = normalize(wbin);
+	float3 n = normalize(wnorm);
+
+	float3x3 tbn = { t, -b, n };
+
+	n = mul(tnorm, tbn);
+
+	float3 reflray = reflect(i, n);
+	float3 refrray = refract(i, n, ratio);
+
+	float4 reflcol = texCUBE(mytex0, reflray);
+	float4 refrcol = texCUBE(mytex0, refrray);
+
+	float R0 = (n1 - n2) / (n1 + n2);
+
+	R0 *= R0;
+	R = saturate(R0 + (1 - R0) * pow(1 + dot(i, n), 5));
+
+	color = lerp(refrcol * matDiffuse, reflcol, R);
 }
 
 // =======================================================================
@@ -322,6 +396,15 @@ technique singlerefraction
 	{
 		vertexshader = compile vs_2_0 vs_singlerefract();
 		pixelshader = compile ps_2_0 ps_singlerefract(true);
+	}
+}
+
+technique perturbedrefraction
+{
+	pass p0
+	{
+		vertexshader = compile vs_3_0 vs_perturbedrefract();
+		pixelshader = compile ps_3_0 ps_perturbedrefract();
 	}
 }
 
