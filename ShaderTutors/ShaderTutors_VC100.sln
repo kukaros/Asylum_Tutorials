@@ -45,6 +45,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "13_StencilShadow", "vc100\1
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "13_StencilShadow10", "vc100\13_StencilShadow10.vcxproj", "{00CAEC6D-69F2-40CB-ADAD-6D7FF08485B8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "21_Fresnel", "vc100\21_Fresnel.vcxproj", "{A589A7A1-CB92-4779-A863-325499B2FC9C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "20_CineLight", "vc100\20_CineLight.vcxproj", "{A8614977-25B3-4DAB-B90D-D1E711D53387}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -139,6 +143,14 @@ Global
 		{00CAEC6D-69F2-40CB-ADAD-6D7FF08485B8}.Debug|Win32.Build.0 = Debug|Win32
 		{00CAEC6D-69F2-40CB-ADAD-6D7FF08485B8}.Release|Win32.ActiveCfg = Release|Win32
 		{00CAEC6D-69F2-40CB-ADAD-6D7FF08485B8}.Release|Win32.Build.0 = Release|Win32
+		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Debug|Win32.Build.0 = Debug|Win32
+		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Release|Win32.ActiveCfg = Release|Win32
+		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Release|Win32.Build.0 = Release|Win32
+		{A8614977-25B3-4DAB-B90D-D1E711D53387}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A8614977-25B3-4DAB-B90D-D1E711D53387}.Debug|Win32.Build.0 = Debug|Win32
+		{A8614977-25B3-4DAB-B90D-D1E711D53387}.Release|Win32.ActiveCfg = Release|Win32
+		{A8614977-25B3-4DAB-B90D-D1E711D53387}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
