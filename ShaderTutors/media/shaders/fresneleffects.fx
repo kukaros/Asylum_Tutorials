@@ -18,8 +18,8 @@ samplerCUBE mytex0 : register(s0) = sampler_state
 
 sampler2D mytex1 : register(s1) = sampler_state
 {
-	MinFilter = point;
-	MagFilter = point;
+	MinFilter = linear;
+	MagFilter = linear;
 
 	AddressU = border;
 	AddressV = border;
