@@ -12,10 +12,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\blinnphong.fx" />
+    <None Include="..\media\shaders\blinnphong.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\04_BlinnPhong\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />

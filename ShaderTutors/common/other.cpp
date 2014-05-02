@@ -1,53 +1,40 @@
 //*************************************************************************************************************
-#define TITLE			"Shader tutorial 7: Relief mapping"
-#define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
-#define SAFE_RELEASE(x)	{ if( (x) ) { (x)->Release(); (x) = NULL; } }
+#pragma comment(lib, "d3d9.lib")
+#pragma comment(lib, "d3dx9.lib")
+#pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "GdiPlus.lib")
 
-#include <d3dx9.h>
 #include <iostream>
+#include <d3dx9.h>
+#include <GdiPlus.h>
 
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
 
-HWND							hwnd			= NULL;
-LPDIRECT3D9						direct3d		= NULL;
-LPDIRECT3DDEVICE9				device			= NULL;
-LPD3DXMESH						mesh			= NULL;
-LPD3DXEFFECT					effect			= NULL;
-LPDIRECT3DTEXTURE9				texture			= NULL;
-LPDIRECT3DTEXTURE9				normalmap		= NULL;
+#define TITLE			"Shader tutorial"
+#define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 
-D3DPRESENT_PARAMETERS			d3dpp;
-RECT							workarea;
-long							screenwidth = 800;
-long							screenheight = 600;
+HWND					hwnd			= NULL;
+LPDIRECT3D9				direct3d		= NULL;
+LPDIRECT3DDEVICE9		device			= NULL;
 
+D3DPRESENT_PARAMETERS	d3dpp;
+RECT					workarea;
+long					screenwidth		= 800;
+long					screenheight	= 600;
+short					mousex, mousedx	= 0;
+short					mousey, mousedy	= 0;
+short					mousedown		= 0;
+
+// must be implemented by tutorial
 HRESULT InitScene();
 
+void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
+void KeyPress(WPARAM wparam);
 
-HRESULT DXCreateEffect(const char* file, LPD3DXEFFECT* out)
-{
-	HRESULT hr;
-	LPD3DXBUFFER errors = NULL;
-
-	if( FAILED(hr = D3DXCreateEffectFromFileA(device, file, NULL, NULL, D3DXSHADER_DEBUG, NULL, out, &errors)) )
-	{
-		if( errors )
-		{
-			char* str = (char*)errors->GetBufferPointer();
-			std::cout << str << "\n\n";
-		}
-	}
-
-	if( errors )
-		errors->Release();
-
-	return hr;
-}
-//*************************************************************************************************************
 HRESULT InitDirect3D(HWND hwnd)
 {
 	if( NULL == (direct3d = Direct3DCreate9(D3D_SDK_VERSION)) )
@@ -74,16 +61,6 @@ HRESULT InitDirect3D(HWND hwnd)
 		return E_FAIL;
 	}
 
-	device->SetRenderState(D3DRS_LIGHTING, false);
-
-	device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-
-	device->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-	device->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-
 	return S_OK;
 }
 //*************************************************************************************************************
@@ -106,7 +83,35 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 		case VK_ESCAPE:
 			SendMessage(hWnd, WM_CLOSE, 0, 0);
 			break;
+
+		default:
+			KeyPress(wParam);
+			break;
 		}
+		break;
+
+	case WM_MOUSEMOVE: {
+		short x = (short)(lParam & 0xffff);
+		short y = (short)((lParam >> 16) & 0xffff);
+
+		mousedx += x - mousex;
+		mousedy += y - mousey;
+
+		mousex = x;
+		mousey = y;
+		} break;
+
+	case WM_LBUTTONDOWN:
+		mousedown = 1;
+		break;
+
+	case WM_RBUTTONDOWN:
+		mousedown = 2;
+		break;
+
+	case WM_LBUTTONUP:
+	case WM_RBUTTONUP:
+		mousedown = 0;
 		break;
 
 	default:
@@ -239,6 +244,8 @@ int main(int argc, char* argv[])
 		last = current;
 		accum += delta;
 
+		mousedx = mousedy = 0;
+
 		while( accum > 0.0333f )
 		{
 			accum -= 0.0333f;
@@ -257,10 +264,7 @@ int main(int argc, char* argv[])
 	}
 
 _end:
-	SAFE_RELEASE(mesh);
-	SAFE_RELEASE(effect);
-	SAFE_RELEASE(texture);
-	SAFE_RELEASE(normalmap);
+	UninitScene();
 
 	if( device )
 	{
@@ -272,6 +276,11 @@ _end:
 
 	if( direct3d )
 		direct3d->Release();
+
+	//extern ULONG_PTR gdiplustoken;
+
+	//if( gdiplustoken )
+	//	Gdiplus::GdiplusShutdown(gdiplustoken);
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();

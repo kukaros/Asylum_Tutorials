@@ -93,7 +93,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\water.fx" />
+    <None Include="..\media\shaders\water.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -103,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\06_Water\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -4,9 +4,9 @@ matrix matWVP;
 void vs_main(
 	in out float4 pos : POSITION)
 {
-	// careful how you multiply
+	// be careful how you multiply
 	pos = mul(pos, matWVP);
-} 
+}
 
 void ps_main(
 	out float4 color : COLOR0)

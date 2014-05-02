@@ -51,7 +51,6 @@ void ps_main(
 	in	float3 vdirts	: TEXCOORD2,
 	out	float4 color	: COLOR0)
 {
-	// to match the texture somewhat
 	float2 t = tex * normuv;
 
 	float3 l = normalize(ldirts);

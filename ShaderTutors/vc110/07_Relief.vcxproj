@@ -93,19 +93,36 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\parallax.fx" />
-    <None Include="..\media\shaders\parallaxocclusion.fx" />
-    <None Include="..\media\shaders\relief.fx" />
+    <None Include="..\media\shaders\parallax.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\parallaxocclusion.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\relief.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\dxext.h" />
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\07_Relief\main.cpp" />
-    <ClCompile Include="..\07_Relief\other.cpp" />
+    <ClCompile Include="..\common\dxext.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\normal.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

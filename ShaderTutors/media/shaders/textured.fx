@@ -12,7 +12,7 @@ void vs_main(
 	in out float2 tex	: TEXCOORD0)
 {
 	pos = mul(pos, matWVP);
-} 
+}
 
 void ps_main(
 	in	float2 tex		: TEXCOORD0,

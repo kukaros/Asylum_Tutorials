@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\01_FixedFunction\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />

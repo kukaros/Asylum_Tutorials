@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\03_Texturing\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc">
