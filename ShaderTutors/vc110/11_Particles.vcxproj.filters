@@ -4,14 +4,31 @@
     <ClInclude Include="..\media\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
-    <ClInclude Include="..\11_Particles\audiostreamer.h" />
-    <ClInclude Include="..\11_Particles\orderedmultiarray.hpp" />
-    <ClInclude Include="..\11_Particles\particlesystem.h" />
-    <ClInclude Include="..\11_Particles\thread.h" />
+    <ClInclude Include="..\common\animatedmesh.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\audiostreamer.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\orderedmultiarray.hpp">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\particlesystem.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\thread.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\dxext.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">
       <UniqueIdentifier>{67cff7b7-ef59-49ef-a437-e3aa71763b37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{b75c95fc-cb44-4423-b4b7-dfe2d4fc8cfa}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -25,10 +42,25 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\11_Particles\audiostreamer.cpp" />
     <ClCompile Include="..\11_Particles\main.cpp" />
-    <ClCompile Include="..\11_Particles\particlesystem.cpp" />
-    <ClCompile Include="..\11_Particles\sound.cpp" />
-    <ClCompile Include="..\11_Particles\thread.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
+    <ClCompile Include="..\common\animatedmesh.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\audiostreamer.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\particlesystem.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\sound.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\thread.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\dxext.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -93,19 +93,30 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\fresnel.fx" />
-    <None Include="..\media\shaders\hdr.fx" />
-    <None Include="..\media\shaders\sky.fx" />
+    <None Include="..\media\shaders\hdrfresnel.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\hdreffects.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\sky.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\dxext.h" />
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\10_HDR\main.cpp" />
-    <ClCompile Include="..\10_HDR\other.cpp" />
+    <ClCompile Include="..\common\dxext.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

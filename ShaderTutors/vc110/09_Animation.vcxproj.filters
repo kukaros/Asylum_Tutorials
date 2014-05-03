@@ -7,6 +7,9 @@
     <Filter Include="resources">
       <UniqueIdentifier>{20e49221-3981-4cda-b361-349b5e7da95c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{047341b7-910c-402e-bba9-60cf70a68a8b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico">
@@ -20,7 +23,9 @@
     <ClInclude Include="..\media\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
-    <ClInclude Include="..\09_Animation\animatedmesh.h" />
+    <ClInclude Include="..\common\animatedmesh.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc">
@@ -28,7 +33,10 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\09_Animation\animatedmesh.cpp" />
     <ClCompile Include="..\09_Animation\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
+    <ClCompile Include="..\common\animatedmesh.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -140,6 +140,8 @@ void UninitScene()
 	SAFE_RELEASE(normalmap);
 	SAFE_RELEASE(text);
 	SAFE_RELEASE(quaddecl);
+
+	DXKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)

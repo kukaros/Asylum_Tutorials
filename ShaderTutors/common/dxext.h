@@ -178,5 +178,6 @@ HRESULT DXCreateCollisionSphere(LPDIRECT3DDEVICE9 d3ddevice, float radius, UINT 
 
 void DXRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height);
 void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye);
+void DXKillAnyRogueObject();
 
 #endif

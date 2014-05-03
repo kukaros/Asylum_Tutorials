@@ -1942,3 +1942,9 @@ HRESULT DXCreateCollisionSphere(LPDIRECT3DDEVICE9 d3ddevice, float radius, UINT 
 	*out = mesh;
 	return D3D_OK;
 }
+
+void DXKillAnyRogueObject()
+{
+	if( gdiplustoken )
+		Gdiplus::GdiplusShutdown(gdiplustoken);
+}

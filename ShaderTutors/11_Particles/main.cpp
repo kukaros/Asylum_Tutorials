@@ -1,7 +1,4 @@
 //*************************************************************************************************************
-#pragma comment(lib, "d3d9.lib")
-#pragma comment(lib, "d3dx9.lib")
-
 #ifdef _DEBUG
 #	if _MSC_VER == 1700
 #		pragma comment(lib, "vorbis_vc110d.lib")
@@ -18,169 +15,73 @@
 
 #include <d3dx9.h>
 #include <iostream>
+#include <string>
 #include <ctime>
 
-#include "particlesystem.h"
-#include "audiostreamer.h"
+#include "../common/common.h"
+#include "../common/particlesystem.h"
+#include "../common/audiostreamer.h"
+#include "../common/animatedmesh.h"
+#include "../common/dxext.h"
 
-#define TITLE		"Shader tutorial 11: Particle systems & audio streaming"
-#define MYERROR(x)	{ std::cout << "* Error: " << x << "!\n"; }
+#define HELP_TEXT			"If you don't like metal, then it's time to... \n...REEVALUATE YOUR LIFE BITCH!!!!!"
+#define NUM_DWARFS			6
 
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
+// helper macros
+#define TITLE				"Shader tutorial 11: Particles & audio streaming"
+#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+#define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
+#define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
-HWND						hwnd			= NULL;
-LPDIRECT3D9					direct3d		= NULL;
-LPDIRECT3DDEVICE9			device			= NULL;
-LPD3DXEFFECT				effect			= NULL;
-LPD3DXMESH					mesh			= NULL;
-LPDIRECT3DTEXTURE9			texture1		= NULL;
-LPDIRECT3DTEXTURE9			texture2		= NULL;
+// external variables
+extern long		screenwidth;
+extern long		screenheight;
+extern short	mousedx;
+extern short	mousedy;
+extern short	mousedown;
 
-IXAudio2*					xaudio2			= NULL;
-IXAudio2MasteringVoice*		masteringvoice	= NULL;
-Sound*						firesound;
-Sound*						music;
-AudioStreamer				streamer;
-Thread						worker;
+extern LPDIRECT3DDEVICE9 device;
+extern HWND hwnd;
 
-D3DPRESENT_PARAMETERS		d3dpp;
-D3DXMATRIX					view, world, proj;
-RECT						workarea;
-long						screenwidth = 800;
-long						screenheight = 600;
+// tutorial variables
+LPD3DXMESH						skymesh			= NULL;
+LPD3DXEFFECT					skyeffect		= NULL;
+LPD3DXEFFECT					effect			= NULL;
+LPD3DXMESH						mesh			= NULL;
+LPDIRECT3DCUBETEXTURE9			skytex			= NULL;
+LPDIRECT3DTEXTURE9				texture1		= NULL;
+LPDIRECT3DTEXTURE9				texture2		= NULL;
+LPDIRECT3DTEXTURE9				text			= NULL;
+LPDIRECT3DVERTEXDECLARATION9	quaddecl		= NULL;
+D3DXMATRIX						dwarfmatrices[NUM_DWARFS];
 
-ParticleSystem				system1;
+IXAudio2*						xaudio2			= NULL;
+IXAudio2MasteringVoice*			masteringvoice	= NULL;
+Sound*							firesound;
+Sound*							music;
 
-HRESULT InitDirect3D(HWND hwnd);
-HRESULT InitXAudio2();
-HRESULT InitScene();
-LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam);
+AudioStreamer					streamer;
+Thread							worker;
+ParticleSystem					system1;
+AnimatedMesh					dwarfs[NUM_DWARFS];
+state<D3DXVECTOR2>				cameraangle;
 
-void Adjust(tagRECT& out, long& width, long& height, DWORD style, DWORD exstyle, bool menu = false);
-void Update(float delta);
-void Render(float alpha, float elapsedtime);
+float textvertices[36] =
+{
+	9.5f,			9.5f,	0, 1,	0, 0,
+	521.5f,			9.5f,	0, 1,	1, 0,
+	9.5f,	512.0f + 9.5f,	0, 1,	0, 1,
 
-HRESULT InitScene()
+	9.5f,	512.0f + 9.5f,	0, 1,	0, 1,
+	521.5f,			9.5f,	0, 1,	1, 0,
+	521.5f,	512.0f + 9.5f,	0, 1,	1, 1
+};
+
+static HRESULT InitXAudio2()
 {
 	HRESULT hr;
-	
-	if( FAILED(hr = D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &mesh)) )
-	{
-		MYERROR("Could not create box");
-		return hr;
-	}
 
-	if( FAILED(hr = D3DXCreateTextureFromFileA(device, "../media/textures/fire.png", &texture1)) )
-	{
-		MYERROR("Could not create texture");
-		return hr;
-	}
-
-	if( FAILED(hr = D3DXCreateTextureFromFileA(device, "../media/textures/stones.jpg", &texture2)) )
-	{
-		MYERROR("Could not create texture");
-		return hr;
-	}
-
-	system1.Initialize(device, 500);
-	system1.ParticleTexture = texture1;
-
-	// load fire sound
-	firesound = streamer.LoadSound(xaudio2, "../media/sound/fire.ogg");
-
-	// create streaming thread and load music
-	worker.Attach<AudioStreamer>(&streamer, &AudioStreamer::Update);
-	worker.Start();
-
-	music = streamer.LoadSoundStream(xaudio2, "../media/sound/angelica.ogg");
-
-	// setup camera
-	D3DXVECTOR3 eye(-3, 3, -3);
-	D3DXVECTOR3 look(0, 0.5f, 0);
-	D3DXVECTOR3 up(0, 1, 0);
-
-	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)d3dpp.BackBufferWidth / (float)d3dpp.BackBufferHeight, 0.1f, 100);
-	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
-	D3DXMatrixIdentity(&world);
-
-	// start playing sounds
-	music->GetVoice()->SetVolume(4);
-	firesound->GetVoice()->SetVolume(0.7f);
-	
-	firesound->Play();
-	music->Play();
-
-	return S_OK;
-}
-//*************************************************************************************************************
-void Update(float delta)
-{
-	system1.Update();
-}
-//*************************************************************************************************************
-void Render(float alpha, float elapsedtime)
-{
-	unsigned long flags = D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER;
-	device->Clear(0, NULL, flags, 0xff6694ed, 1.0f, 0);
-
-	device->SetTransform(D3DTS_VIEW, &view);
-	device->SetTransform(D3DTS_PROJECTION, &proj);
-
-	if( SUCCEEDED(device->BeginScene()) )
-	{
-		D3DXMatrixScaling(&world, 5, 0.1f, 5);
-		device->SetTransform(D3DTS_WORLD, &world);
-
-		device->SetTexture(0, texture2);
-		mesh->DrawSubset(0);
-
-		D3DXMatrixIdentity(&world);
-		device->SetTransform(D3DTS_WORLD, &world);
-
-		system1.Draw(world, view);
-
-		device->EndScene();
-	}
-
-	device->Present(NULL, NULL, NULL, NULL);
-}
-//*************************************************************************************************************
-HRESULT InitDirect3D(HWND hwnd)
-{
-	if( NULL == (direct3d = Direct3DCreate9(D3D_SDK_VERSION)) )
-		return E_FAIL;
-
-	d3dpp.BackBufferFormat				= D3DFMT_X8R8G8B8;
-	d3dpp.BackBufferCount				= 1;
-	d3dpp.BackBufferHeight				= screenheight;
-	d3dpp.BackBufferWidth				= screenwidth;
-	d3dpp.AutoDepthStencilFormat		= D3DFMT_D24S8;
-	d3dpp.hDeviceWindow					= hwnd;
-	d3dpp.Windowed						= true;
-	d3dpp.EnableAutoDepthStencil		= true;
-	d3dpp.PresentationInterval			= D3DPRESENT_INTERVAL_IMMEDIATE;
-	d3dpp.FullScreen_RefreshRateInHz	= D3DPRESENT_RATE_DEFAULT;
-	d3dpp.SwapEffect					= D3DSWAPEFFECT_DISCARD;
-	d3dpp.MultiSampleType				= D3DMULTISAMPLE_NONE;
-	d3dpp.MultiSampleQuality			= 0;
-
-	if( FAILED(direct3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd,
-		D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &device)) )
-	{
-		MYERROR("Could not create Direct3D device");
-		return E_FAIL;
-	}
-
-	device->SetRenderState(D3DRS_LIGHTING, false);
-
-	return S_OK;
-}
-//*************************************************************************************************************
-HRESULT InitXAudio2()
-{
-	HRESULT hr;
+	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	if( FAILED(hr = XAudio2Create(&xaudio2, XAUDIO2_DEBUG_ENGINE)) )
 	{
@@ -196,186 +97,160 @@ HRESULT InitXAudio2()
 
 	return S_OK;
 }
-//*************************************************************************************************************
-LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam)
+
+static void DwarfSkin(int id, char weapon, char shield, char head, char torso, char legs, char lpads, char rpads)
 {
-	switch( msg )
-	{
-	case WM_CLOSE:
-		ShowWindow(hWnd, SW_HIDE);
-		DestroyWindow(hWnd);
-		break;
+#define ENABLE_IF_OK(var, str) \
+	if( var != 1 ) dwarfs[id].EnableFrame(str##"1", false); \
+	if( var != 2 ) dwarfs[id].EnableFrame(str##"2", false); \
+	if( var != 3 ) dwarfs[id].EnableFrame(str##"3", false);
+// end
 
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		return 0;
+	ENABLE_IF_OK(weapon, "LOD0_attachment_weapon");
+	ENABLE_IF_OK(shield, "LOD0_attachment_shield");
+	ENABLE_IF_OK(head, "LOD0_attachment_head");
+	ENABLE_IF_OK(torso, "LOD0_attachment_torso");
+	ENABLE_IF_OK(legs, "LOD0_attachment_legs");
+	ENABLE_IF_OK(lpads, "LOD0_attachment_Lpads");
+	ENABLE_IF_OK(rpads, "LOD0_attachment_Rpads");
 
-	case WM_KEYUP:
-		switch(wParam)
-		{
-		case VK_ESCAPE:
-			SendMessage(hWnd, WM_CLOSE, 0, 0);
-			break;
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	return DefWindowProc(hWnd, msg, wParam, lParam);
+	dwarfs[id].EnableFrame("Rshoulder", false);
 }
-//*************************************************************************************************************
-void Adjust(tagRECT& out, long& width, long& height, DWORD style, DWORD exstyle, bool menu)
+
+HRESULT InitScene()
 {
-	long w = workarea.right - workarea.left;
-	long h = workarea.bottom - workarea.top;
+	HRESULT hr;
 
-	out.left = (w - width) / 2;
-	out.top = (h - height) / 2;
-	out.right = (w + width) / 2;
-	out.bottom = (h + height) / 2;
+	SetWindowText(hwnd, TITLE);
 
-	AdjustWindowRectEx(&out, style, false, 0);
-
-	long windowwidth = out.right - out.left;
-	long windowheight = out.bottom - out.top;
-
-	long dw = windowwidth - width;
-	long dh = windowheight - height;
-
-	if( windowheight > h )
+	D3DVERTEXELEMENT9 elem[] =
 	{
-		float ratio = (float)width / (float)height;
-		float realw = (float)(h - dh) * ratio + 0.5f;
-
-		windowheight = h;
-		windowwidth = (long)floor(realw) + dw;
-	}
-
-	if( windowwidth > w )
-	{
-		float ratio = (float)height / (float)width;
-		float realh = (float)(w - dw) * ratio + 0.5f;
-
-		windowwidth = w;
-		windowheight = (long)floor(realh) + dh;
-	}
-
-	out.left = workarea.left + (w - windowwidth) / 2;
-	out.top = workarea.top + (h - windowheight) / 2;
-	out.right = workarea.left + (w + windowwidth) / 2;
-	out.bottom = workarea.top + (h + windowheight) / 2;
-
-	width = windowwidth - dw;
-	height = windowheight - dh;
-}
-//*************************************************************************************************************
-int main(int argc, char* argv[])
-{
-	LARGE_INTEGER qwTicksPerSec = { 0, 0 };
-	LARGE_INTEGER qwTime;
-	LONGLONG tickspersec;
-	double last, current;
-	double delta, accum = 0;
-
-	// ablak osztály
-	WNDCLASSEX wc =
-	{
-		sizeof(WNDCLASSEX),
-		CS_CLASSDC,
-		(WNDPROC)WndProc,
-		0L,
-		0L,
-		GetModuleHandle(NULL),
-		NULL, NULL, NULL, NULL, "TestClass", NULL
+		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
+		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		D3DDECL_END()
 	};
 
-	CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	MYVALID(device->CreateVertexDeclaration(elem, &quaddecl));
 
-	RegisterClassEx(&wc);
-	SystemParametersInfo(SPI_GETWORKAREA, 0, &workarea, 0);
+	MYVALID(D3DXLoadMeshFromX("../media/meshes/sky.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &skymesh));
+	MYVALID(D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &mesh));
+	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/fire.png", &texture1));
+	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/stones.jpg", &texture2));
+	MYVALID(D3DXCreateCubeTextureFromFileA(device, "../media/textures/sky4.dds", &skytex));
+	MYVALID(device->CreateTexture(512, 512, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
 
-	RECT rect = { 0, 0, screenwidth, screenheight };
-	DWORD style = WS_CLIPCHILDREN|WS_CLIPSIBLINGS;
+	MYVALID(DXCreateEffect("../media/shaders/skinning.fx", device, &effect));
+	MYVALID(DXCreateEffect("../media/shaders/sky.fx", device, &skyeffect));
 
-	// ablakos mód
-	style |= WS_SYSMENU|WS_BORDER|WS_CAPTION;
-	Adjust(rect, screenwidth, screenheight, style, 0);
+	system1.Initialize(device, 500);
+	system1.ParticleTexture = texture1;
 
-	hwnd = CreateWindowA("TestClass", TITLE, style,
-			rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
-			NULL, NULL, wc.hInstance, NULL);
+	MYVALID(InitXAudio2());
 
-	if( !hwnd )
-	{
-		MYERROR("Could not create window");
-		goto _end;
-	}
+	// load fire sound
+	firesound = streamer.LoadSound(xaudio2, "../media/sound/fire.ogg");
 
-	if( FAILED(InitDirect3D(hwnd)) )
-	{
-		MYERROR("Failed to initialize Direct3D");
-		goto _end;
-	}
+	// create streaming thread and load music
+	worker.Attach<AudioStreamer>(&streamer, &AudioStreamer::Update);
+	worker.Start();
 
-	if( FAILED(InitXAudio2()) )
-	{
-		MYERROR("Failed to initialize XAudio2");
-		goto _end;
-	}
+	music = streamer.LoadSoundStream(xaudio2, "../media/sound/painkiller.ogg");
 
-	if( FAILED(InitScene()) )
-	{
-		MYERROR("Failed to initialize scene");
-		goto _end;
-	}
+	// load dwarfs
+	dwarfs[0].Effect = effect;
+	dwarfs[0].Method = SM_Shader;
+	dwarfs[0].Path = "../media/meshes/dwarf/";
+	
+	MYVALID(dwarfs[0].Load(device, "../media/meshes/dwarf/dwarf.X"));
 
-	ShowWindow(hwnd, SW_SHOWDEFAULT);
-	UpdateWindow(hwnd);
+	dwarfs[0].Clone(dwarfs[1]);
+	dwarfs[0].Clone(dwarfs[2]);
+	dwarfs[0].Clone(dwarfs[3]);
+	dwarfs[0].Clone(dwarfs[4]);
+	dwarfs[0].Clone(dwarfs[5]);
 
-	MSG msg;
-	ZeroMemory(&msg, sizeof(msg));
+	D3DXVECTOR3 scale(0.1f, 0.1f, 0.1f);
+	D3DXVECTOR3 trans;
+	D3DXQUATERNION rot;
 
-	POINT p;
-	GetCursorPos(&p);
-	ScreenToClient(hwnd, &p);
+	// dwarf 0
+	trans = D3DXVECTOR3(-1, 0, 1);
 
-	// timer
-	QueryPerformanceFrequency(&qwTicksPerSec);
-	tickspersec = qwTicksPerSec.QuadPart;
+	D3DXQuaternionRotationYawPitchRoll(&rot, -0.785f, 0, 0);
+	D3DXMatrixTransformation(&dwarfmatrices[0], NULL, NULL, &scale, NULL, &rot, &trans);
 
-	QueryPerformanceCounter(&qwTime);
-	last = (double)qwTime.QuadPart / (double)tickspersec;
+	// dwarf 1
+	trans = D3DXVECTOR3(-1, 0, -1);
 
-	while( msg.message != WM_QUIT )
-	{
-		QueryPerformanceCounter(&qwTime);
+	D3DXQuaternionRotationYawPitchRoll(&rot, -2.356f, 0, 0);
+	D3DXMatrixTransformation(&dwarfmatrices[1], NULL, NULL, &scale, NULL, &rot, &trans);
 
-		current = (double)qwTime.QuadPart / (double)tickspersec;
-		delta = (current - last);
+	// dwarf 2
+	trans = D3DXVECTOR3(1, 0, -1);
 
-		last = current;
-		accum += delta;
+	D3DXQuaternionRotationYawPitchRoll(&rot, 2.356f, 0, 0);
+	D3DXMatrixTransformation(&dwarfmatrices[2], NULL, NULL, &scale, NULL, &rot, &trans);
 
-		while( accum > 0.0333f )
-		{
-			accum -= 0.0333f;
+	// dwarf 3
+	trans = D3DXVECTOR3(1, 0, 1);
 
-			while( PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE) )
-			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
+	D3DXQuaternionRotationYawPitchRoll(&rot, 0.785f, 0, 0);
+	D3DXMatrixTransformation(&dwarfmatrices[3], NULL, NULL, &scale, NULL, &rot, &trans);
 
-			Update(0.0333f);
-		}
+	// dwarf 4
+	trans = D3DXVECTOR3(-0.2f, 0, -0.2f);
 
-		if( msg.message != WM_QUIT )
-			Render((float)accum / 0.0333f, (float)delta);
-	}
+	D3DXQuaternionRotationYawPitchRoll(&rot, -1.57f, 0, 0);
+	D3DXMatrixTransformation(&dwarfmatrices[4], NULL, NULL, &scale, NULL, &rot, &trans);
 
-	_end:
+	// dwarf 5
+	trans = D3DXVECTOR3(0.2f, 0, 0);
+
+	D3DXQuaternionRotationYawPitchRoll(&rot, -1.57f, 0, 0);
+	D3DXMatrixTransformation(&dwarfmatrices[5], NULL, NULL, &scale, NULL, &rot, &trans);
+
+	// skins
+	DwarfSkin(0, 1, 1, 3, 1, 1, 3, 0);
+	DwarfSkin(1, 2, 0, 1, 3, 3, 1, 1);
+	DwarfSkin(2, 3, 2, 2, 2, 1, 2, 3);
+	DwarfSkin(3, 1, 3, 2, 1, 3, 0, 2);
+	DwarfSkin(4, 1, 1, 3, 3, 2, 2, 1);
+	DwarfSkin(5, 0, 0, 1, 2, 3, 0, 1);
+
+	// 0, 1, 2 - dead
+	// 3, 5 - stand
+	// 4 - jump
+	// 6 - cheer with weapon
+	// 7 - cheer with one hand
+	// 8 - cheer with both hands
+	dwarfs[0].SetAnimation(6);
+	dwarfs[1].SetAnimation(8);
+	dwarfs[2].SetAnimation(7);
+	dwarfs[3].SetAnimation(4);
+	dwarfs[4].SetAnimation(2);
+	dwarfs[5].SetAnimation(1);
+
+	// other
+	device->SetRenderState(D3DRS_LIGHTING, false);
+	device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+	DXRenderText(HELP_TEXT, text, 512, 512);
+
+	// start playing sounds
+	music->GetVoice()->SetVolume(4);
+	firesound->GetVoice()->SetVolume(0.7f);
+	
+	firesound->Play();
+	music->Play();
+
+	cameraangle = D3DXVECTOR2(0.785f, 0.785f);
+
+	return S_OK;
+}
+//*************************************************************************************************************
+void UninitScene()
+{
 	streamer.Destroy();
 	WaitForSingleObject(worker.GetHandle(), 3000);
 
@@ -387,41 +262,132 @@ int main(int argc, char* argv[])
 	if( xaudio2 )
 		xaudio2->Release();
 
-	// ezt se!
+	// don't do this, ever!!!
 	system1.~ParticleSystem();
 
-	if( mesh )
-		mesh->Release();
+	for( int i = 0; i < NUM_DWARFS; ++i )
+		dwarfs[i].~AnimatedMesh();
 
-	if( effect )
-		effect->Release();
+	SAFE_RELEASE(skyeffect);
+	SAFE_RELEASE(skymesh);
+	SAFE_RELEASE(skytex);
+	SAFE_RELEASE(text);
+	SAFE_RELEASE(quaddecl);
+	SAFE_RELEASE(mesh);
+	SAFE_RELEASE(effect);
+	SAFE_RELEASE(texture1);
+	SAFE_RELEASE(texture2);
 
-	if( texture1 )
-		texture1->Release();
+	//CoUninitialize();
+}
+//*************************************************************************************************************
+void KeyPress(WPARAM wparam)
+{
+}
+//*************************************************************************************************************
+void Update(float delta)
+{
+	D3DXVECTOR2 velocity(mousedx, mousedy);
 
-	if( texture2 )
-		texture2->Release();
+	cameraangle.prev = cameraangle.curr;
 
-	if( device )
+	if( mousedown == 1 )
+		cameraangle.curr += velocity * 0.004f;
+
+	// clamp to [-pi, pi]
+	if( cameraangle.curr.y >= 1.5f )
+		cameraangle.curr.y = 1.5f;
+
+	if( cameraangle.curr.y <= -1.5f )
+		cameraangle.curr.y = -1.5f;
+
+	system1.Update();
+}
+//*************************************************************************************************************
+void Render(float alpha, float elapsedtime)
+{
+	D3DXMATRIX		world, view, proj;
+	D3DXMATRIX		skyworld, viewproj;
+	D3DXVECTOR3		eye(0, 0, -5);
+	D3DXVECTOR3		look(0, 0, 0);
+	D3DXVECTOR3		up(0, 1, 0);
+	D3DXVECTOR2		orient = cameraangle.smooth(alpha);
+
+	D3DXMatrixRotationYawPitchRoll(&view, orient.x, orient.y, 0);
+	D3DXVec3TransformCoord(&eye, &eye, &view);
+
+	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, 0.1f, 50);
+	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
+	D3DXMatrixMultiply(&viewproj, &view, &proj);
+
+	device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
+	device->SetTransform(D3DTS_VIEW, &view);
+	device->SetTransform(D3DTS_PROJECTION, &proj);
+
+	for( int i = 0; i < NUM_DWARFS; ++i )
+		dwarfs[i].Update(elapsedtime, &dwarfmatrices[i]);
+
+	effect->SetMatrix("matViewProj", &viewproj);
+
+	if( SUCCEEDED(device->BeginScene()) )
 	{
-		ULONG rc = device->Release();
+		// render sky
+		device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
 
-		if( rc > 0 )
-			MYERROR("You forgot to release something");
+		D3DXMatrixScaling(&skyworld, 20, 20, 20);
+		skyeffect->SetMatrix("matWorld", &skyworld);
+
+		D3DXMatrixIdentity(&skyworld);
+		skyeffect->SetMatrix("matWorldSky", &skyworld);
+
+		skyeffect->SetMatrix("matViewProj", &viewproj);
+		skyeffect->SetVector("eyePos", (D3DXVECTOR4*)&eye);
+
+		skyeffect->Begin(0, 0);
+		skyeffect->BeginPass(0);
+		{
+			device->SetTexture(0, skytex);
+			skymesh->DrawSubset(0);
+		}
+		skyeffect->EndPass();
+		skyeffect->End();
+
+		device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+
+		// render ground
+		D3DXMatrixScaling(&world, 5, 0.1f, 5);
+		world._42 = -0.05f;
+
+		device->SetTransform(D3DTS_WORLD, &world);
+		device->SetTexture(0, texture2);
+		mesh->DrawSubset(0);
+
+		// dwarfs
+		for( int i = 0; i < NUM_DWARFS; ++i )
+			dwarfs[i].Draw();
+
+		// fire
+		D3DXMatrixTranslation(&world, 0, 0.25f, 0);
+		device->SetTransform(D3DTS_WORLD, &world);
+
+		system1.Draw(world, view);
+
+		// render text
+		device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
+		device->SetRenderState(D3DRS_ZENABLE, FALSE);
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+		device->SetTexture(0, text);
+		device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, 6 * sizeof(float));
+
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		device->SetRenderState(D3DRS_ZENABLE, TRUE);
+
+		device->EndScene();
 	}
 
-	if( direct3d )
-		direct3d->Release();
-
-	UnregisterClass("TestClass", wc.hInstance);
-	_CrtDumpMemoryLeaks();
-
-	CoUninitialize();
-
-#ifdef _DEBUG
-	system("pause");
-#endif
-
-	return 0;
+	device->Present(NULL, NULL, NULL, NULL);
 }
 //*************************************************************************************************************

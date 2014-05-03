@@ -54,17 +54,6 @@ state<D3DXVECTOR2>				cameraangle;
 state<D3DXVECTOR2>				objectangle;
 D3DXVECTOR4						refrindices(1.000293f, 1.25f, 0, 0);
 
-float quadvertices[36] =
-{
-						-0.5f,						-0.5f, 0, 1,	0, 0,
-	(float)screenwidth - 0.5f,						-0.5f, 0, 1,	1, 0,
-						-0.5f, (float)screenheight - 0.5f, 0, 1,	0, 1,
-
-						-0.5f, (float)screenheight - 0.5f, 0, 1,	0, 1,
-	(float)screenwidth - 0.5f,						-0.5f, 0, 1,	1, 0,
-	(float)screenwidth - 0.5f, (float)screenheight - 0.5f, 0, 1,	1, 1
-};
-
 float textvertices[36] =
 {
 	9.5f,			9.5f,	0, 1,	0, 0,
@@ -135,7 +124,7 @@ HRESULT InitScene()
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &normals, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &positions, NULL));
 	MYVALID(device->CreateTexture(512, 512, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
-	
+
 	normals->GetSurfaceLevel(0, &normalsurf);
 	positions->GetSurfaceLevel(0, &positionsurf);
 
