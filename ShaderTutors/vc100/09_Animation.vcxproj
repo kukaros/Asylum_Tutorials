@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{4123AFF9-9A52-4497-9DBA-8A0CF81186FF}</ProjectGuid>
+    <ProjectGuid>{4FFF427E-1D9D-4660-8A3F-E78BE8F9FCBB}</ProjectGuid>
     <RootNamespace>My09_Animation</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
@@ -93,18 +93,22 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\skinning.fx" />
+    <None Include="..\media\shaders\skinning.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\09_Animation\animatedmesh.h" />
+    <ClInclude Include="..\common\animatedmesh.h" />
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\09_Animation\animatedmesh.cpp" />
     <ClCompile Include="..\09_Animation\main.cpp" />
+    <ClCompile Include="..\common\animatedmesh.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

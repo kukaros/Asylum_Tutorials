@@ -107,8 +107,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\19_JitteredShadow\main.cpp" />
-    <ClCompile Include="..\19_JitteredShadow\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\shaders\distance.fx">

@@ -31,10 +31,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\15_DeferredShading\main.cpp" />
-    <ClCompile Include="..\15_DeferredShading\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\shaders\deferred.fx">

@@ -1,12 +1,12 @@
 //*************************************************************************************************************
 #ifdef _DEBUG
-#	if _MSC_VER == 1700
+#	if _MSC_VER >= 1700
 #		pragma comment(lib, "vorbis_vc110d.lib")
 #	elif _MSC_VER == 1600
 #		pragma comment(lib, "vorbis_vc100d.lib")
 #	endif
 #else
-#	if _MSC_VER == 1700
+#	if _MSC_VER >= 1700
 #		pragma comment(lib, "vorbis_vc110.lib")
 #	elif _MSC_VER == 1600
 #		pragma comment(lib, "vorbis_vc100.lib")
@@ -24,7 +24,7 @@
 #include "../common/animatedmesh.h"
 #include "../common/dxext.h"
 
-#define HELP_TEXT			"If you don't like metal, then it's time to... \n...REEVALUATE YOUR LIFE BITCH!!!!!"
+#define HELP_TEXT			"If you don't like metal, then it's time to...\n...REEVALUATE YOUR LIFE BITCH!!!!!\n\n(Tip: the dwarfs in the fire\ndidn't like metal either...)"
 #define NUM_DWARFS			6
 
 // helper macros
@@ -57,8 +57,8 @@ D3DXMATRIX						dwarfmatrices[NUM_DWARFS];
 
 IXAudio2*						xaudio2			= NULL;
 IXAudio2MasteringVoice*			masteringvoice	= NULL;
-Sound*							firesound;
-Sound*							music;
+Sound*							firesound		= NULL;
+Sound*							music			= NULL;
 
 AudioStreamer					streamer;
 Thread							worker;
@@ -81,6 +81,7 @@ static HRESULT InitXAudio2()
 {
 	HRESULT hr;
 
+	// this is important!!!
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	if( FAILED(hr = XAudio2Create(&xaudio2, XAUDIO2_DEBUG_ENGINE)) )
@@ -144,17 +145,6 @@ HRESULT InitScene()
 
 	system1.Initialize(device, 500);
 	system1.ParticleTexture = texture1;
-
-	MYVALID(InitXAudio2());
-
-	// load fire sound
-	firesound = streamer.LoadSound(xaudio2, "../media/sound/fire.ogg");
-
-	// create streaming thread and load music
-	worker.Attach<AudioStreamer>(&streamer, &AudioStreamer::Update);
-	worker.Start();
-
-	music = streamer.LoadSoundStream(xaudio2, "../media/sound/painkiller.ogg");
 
 	// load dwarfs
 	dwarfs[0].Effect = effect;
@@ -236,15 +226,31 @@ HRESULT InitScene()
 	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 
 	DXRenderText(HELP_TEXT, text, 512, 512);
-
-	// start playing sounds
-	music->GetVoice()->SetVolume(4);
-	firesound->GetVoice()->SetVolume(0.7f);
-	
-	firesound->Play();
-	music->Play();
-
 	cameraangle = D3DXVECTOR2(0.785f, 0.785f);
+
+	// sound
+	if( SUCCEEDED(InitXAudio2()) )
+	{
+		firesound = streamer.LoadSound(xaudio2, "../media/sound/fire.ogg");
+
+		// create streaming thread and load music
+		worker.Attach<AudioStreamer>(&streamer, &AudioStreamer::Update);
+		worker.Start();
+
+		music = streamer.LoadSoundStream(xaudio2, "../media/sound/painkiller.ogg");
+	}
+
+	if( music )
+	{
+		music->GetVoice()->SetVolume(4);
+		music->Play();
+	}
+
+	if( firesound )
+	{
+		firesound->GetVoice()->SetVolume(0.7f);
+		firesound->Play();
+	}
 
 	return S_OK;
 }
@@ -278,6 +284,7 @@ void UninitScene()
 	SAFE_RELEASE(texture1);
 	SAFE_RELEASE(texture2);
 
+	DXKillAnyRogueObject();
 	//CoUninitialize();
 }
 //*************************************************************************************************************

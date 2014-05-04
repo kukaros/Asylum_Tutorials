@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{CDBC11B3-1F5C-4AE1-87A7-8FA764B96F6B}</ProjectGuid>
+    <ProjectGuid>{755512AA-51CE-4A17-92BD-6D0C31F20F16}</ProjectGuid>
     <RootNamespace>My06_Water</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
@@ -93,7 +93,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\water.fx" />
+    <None Include="..\media\shaders\water.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -103,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\06_Water\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

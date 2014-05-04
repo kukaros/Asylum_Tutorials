@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A92983DD-4643-4911-90B3-51C9261DABF7}</ProjectGuid>
+    <ProjectGuid>{4148DCF6-1F1D-41EE-914D-704407F778FB}</ProjectGuid>
     <RootNamespace>My08_CelShading</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
@@ -93,7 +93,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\celshading.fx" />
+    <None Include="..\media\shaders\celshading.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -103,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\08_CelShading\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

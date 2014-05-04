@@ -4,6 +4,7 @@
 #include "../common/dxext.h"
 
 // helper macros
+#define TITLE				"Shader tutorial 15: Deferred shading"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
@@ -14,8 +15,8 @@
 // external variables
 extern long screenwidth;
 extern long screenheight;
-
 extern LPDIRECT3DDEVICE9 device;
+extern HWND hwnd;
 
 // tutorial variables
 LPD3DXEFFECT					rendergbuffer	= NULL;
@@ -94,6 +95,8 @@ HRESULT InitScene()
 {
 	HRESULT hr;
 	D3DCAPS9 caps;
+
+	SetWindowText(hwnd, TITLE);
 
 	device->GetDeviceCaps(&caps);
 
@@ -182,6 +185,8 @@ void UninitScene()
 	SAFE_RELEASE(rendergbuffer);
 	SAFE_RELEASE(deferred);
 	SAFE_RELEASE(distance);
+
+	DXKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)

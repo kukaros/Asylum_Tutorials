@@ -1,47 +1,41 @@
 //*************************************************************************************************************
-#pragma comment(lib, "d3d9.lib")
-#pragma comment(lib, "d3dx9.lib")
-#pragma comment(lib, "winmm.lib")
-#pragma comment(lib, "GdiPlus.lib")
-
-#include <d3dx9.h>
 #include <iostream>
+#include <string>
 
 #include "../common/dxext.h"
 
-#define SHADOWMAP_SIZE  256
+#define SHADOWMAP_SIZE	512
 
 // helper macros
-#define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
-#define MYVALID(x)		{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
+#define TITLE				"Shader tutorial 19: Irregular PCF"
+#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+#define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
+#define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
 // external variables
-extern long screenwidth;
-extern long screenheight;
+extern long		screenwidth;
+extern long		screenheight;
+extern short	mousedx;
+extern short	mousedy;
+extern short	mousedown;
 
-extern LPDIRECT3DDEVICE9				device;
-extern D3DPRESENT_PARAMETERS			d3dpp;
-extern LPD3DXEFFECT						irregularpcf;
-extern LPD3DXEFFECT						distance;
-extern LPD3DXEFFECT						specular;
-extern LPDIRECT3DVERTEXDECLARATION9		vertexdecl;
-extern LPD3DXMESH						shadowreceiver;
-extern LPD3DXMESH						shadowcaster;
-extern LPDIRECT3DTEXTURE9				texture1;
-extern LPDIRECT3DTEXTURE9				texture2;
-extern LPDIRECT3DTEXTURE9				shadowmap;
-extern LPDIRECT3DTEXTURE9				noise;
-extern LPDIRECT3DTEXTURE9				text;
-
-extern short							mousedx;
-extern short							mousedy;
-extern short							mousedown;
-
-// external functions
-HRESULT DXCreateEffect(const char* file, LPD3DXEFFECT* out);
+extern LPDIRECT3DDEVICE9 device;
+extern HWND hwnd;
 
 // tutorial variables
-D3DXMATRIX view, world, proj;
+LPD3DXEFFECT					irregularpcf;
+LPD3DXEFFECT					distance;
+LPD3DXEFFECT					specular;
+LPDIRECT3DVERTEXDECLARATION9	vertexdecl;
+LPD3DXMESH						shadowreceiver;
+LPD3DXMESH						shadowcaster;
+LPDIRECT3DTEXTURE9				texture1;
+LPDIRECT3DTEXTURE9				texture2;
+LPDIRECT3DTEXTURE9				shadowmap;
+LPDIRECT3DTEXTURE9				noise;
+LPDIRECT3DTEXTURE9				text;
+D3DXMATRIX						world, view, proj;
+state<D3DXVECTOR2>				cameraangle;
 
 float vertices[36] =
 {
@@ -65,8 +59,6 @@ float textvertices[36] =
 	521.5f,	128.0f + 9.5f,	0, 1,	1, 1
 };
 
-state<D3DXVECTOR2> cameraangle;
-
 HRESULT InitScene()
 {
 	HRESULT hr;
@@ -78,6 +70,8 @@ HRESULT InitScene()
 		D3DDECL_END()
 	};
 
+	SetWindowText(hwnd, TITLE);
+
 	MYVALID(D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &shadowreceiver));
 	MYVALID(D3DXLoadMeshFromX("../media/meshes/skullocc3.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &shadowcaster));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
@@ -88,9 +82,9 @@ HRESULT InitScene()
 	MYVALID(device->CreateTexture(512, 128, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
 	MYVALID(device->CreateVertexDeclaration(elem, &vertexdecl));
 
-	MYVALID(DXCreateEffect("../media/shaders/blinnphong.fx", &specular));
-	MYVALID(DXCreateEffect("../media/shaders/distance.fx", &distance));
-	MYVALID(DXCreateEffect("../media/shaders/irregularpcf.fx", &irregularpcf));
+	MYVALID(DXCreateEffect("../media/shaders/blinnphong.fx", device, &specular));
+	MYVALID(DXCreateEffect("../media/shaders/distance.fx", device, &distance));
+	MYVALID(DXCreateEffect("../media/shaders/irregularpcf.fx", device, &irregularpcf));
 
 	distance->SetTechnique("distance_point");
 
@@ -106,10 +100,27 @@ HRESULT InitScene()
 	// setup camera
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
 
-	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)d3dpp.BackBufferWidth / (float)d3dpp.BackBufferHeight, 0.1f, 100);
+	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, 0.1f, 100);
 	D3DXMatrixIdentity(&world);
 	
 	return S_OK;
+}
+//*************************************************************************************************************
+void UninitScene()
+{
+	SAFE_RELEASE(irregularpcf);
+	SAFE_RELEASE(distance);
+	SAFE_RELEASE(specular);
+	SAFE_RELEASE(vertexdecl);
+	SAFE_RELEASE(shadowreceiver);
+	SAFE_RELEASE(shadowcaster);
+	SAFE_RELEASE(shadowmap);
+	SAFE_RELEASE(text);
+	SAFE_RELEASE(noise);
+	SAFE_RELEASE(texture1);
+	SAFE_RELEASE(texture2);
+
+	DXKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
@@ -145,8 +156,6 @@ void Update(float delta)
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
 {
-	unsigned long flags = D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER;
-
 	D3DXVECTOR2 orient = cameraangle.smooth(alpha);
 	D3DXVECTOR4 lightpos(-1, 6, 5, 1);
 	D3DXVECTOR3 look(0, 0.5f, 0), up(0, 1, 0);
@@ -212,7 +221,7 @@ void Render(float alpha, float elapsedtime)
 
 		device->GetRenderTarget(0, &oldsurface);
 		device->SetRenderTarget(0, shadowsurface);
-		device->Clear(0, NULL, flags, 0x00000000, 1.0f, 0);
+		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0x00000000, 1.0f, 0);
 
 		shadowsurface->Release();
 		shadowsurface = NULL;
@@ -227,7 +236,7 @@ void Render(float alpha, float elapsedtime)
 
 		// STEP 3: render scene
 		device->SetRenderTarget(0, oldsurface);
-		device->Clear(0, NULL, flags, 0xff6694ed, 1.0f, 0);
+		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
 
 		oldsurface->Release();
 

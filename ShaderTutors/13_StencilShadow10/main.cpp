@@ -8,6 +8,7 @@
 #define NUM_OBJECTS			3
 
 // helper macros
+#define TITLE				"Shader tutorial 13: Stencil shadow volume (GPU)"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
@@ -17,6 +18,7 @@ extern ID3D10Device* device;
 extern IDXGISwapChain* swapchain;
 extern ID3D10RenderTargetView* rendertargetview;
 extern ID3D10DepthStencilView* depthstencilview;
+extern HWND hwnd;
 
 extern long		screenwidth;
 extern long		screenheight;
@@ -84,6 +86,8 @@ HRESULT InitScene()
 	ID3D10Blob*	errors		= NULL;
 	UINT		hlslflags	= D3D10_SHADER_ENABLE_STRICTNESS;
 	HRESULT		hr;
+
+	SetWindowText(hwnd, TITLE);
 
 #ifdef _DEBUG
 	hlslflags |= D3D10_SHADER_DEBUG;

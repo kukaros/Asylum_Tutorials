@@ -43,9 +43,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\13_StencilShadow\main.cpp" />
-    <ClCompile Include="..\13_StencilShadow\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
 </Project>

@@ -21,12 +21,14 @@
 #define VOLUME_NUMINDICES(x)	max(256, x * 3)		// x is numfaces
 
 // helper macros
+#define TITLE				"Shader tutorial 13: Stencil shadow volume (CPU)"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
 // external variables
 extern LPDIRECT3DDEVICE9 device;
+extern HWND hwnd;
 
 extern long		screenwidth;
 extern long		screenheight;
@@ -116,6 +118,8 @@ HRESULT InitScene()
 {
 	HRESULT hr;
 
+	SetWindowText(hwnd, TITLE);
+
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/marble.dds", &texture1));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
 	MYVALID(DXCreateEffect("../media/shaders/ambient.fx", device, &ambient));
@@ -170,7 +174,6 @@ HRESULT InitScene()
 
 	DXSaveMeshToQM("../media/meshes10/lshape.qm", objects[2].object, &defmat, 1);
 	DXSaveMeshToQM("../media/meshes10/collisionlshape.qm", objects[2].caster, &defmat, 1);
-
 #endif
 
 	// generate edges

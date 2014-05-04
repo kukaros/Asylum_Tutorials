@@ -37,10 +37,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\19_JitteredShadow\main.cpp" />
-    <ClCompile Include="..\19_JitteredShadow\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\media\shaders\irregularpcf.fx">

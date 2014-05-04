@@ -12,10 +12,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\textured.fx" />
+    <None Include="..\media\shaders\textured.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\03_Texturing\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -24,7 +28,7 @@
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{7F5C1D46-946E-4C1A-8047-E949163928D5}</ProjectGuid>
+    <ProjectGuid>{422B7DA0-04E2-44AA-9D9A-B920653281BD}</ProjectGuid>
     <RootNamespace>My03_Texturing</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>

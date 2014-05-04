@@ -28,5 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\02_BasicShader\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
 </Project>

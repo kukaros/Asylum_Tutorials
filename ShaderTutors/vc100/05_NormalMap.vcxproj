@@ -12,10 +12,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\normal.fx" />
+    <None Include="..\media\shaders\normal.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\05_NormalMap\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -24,7 +28,7 @@
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A534F345-1A30-410C-A6EC-6BAD9C34F401}</ProjectGuid>
+    <ProjectGuid>{05DF158A-7668-41EF-BD4F-2E9FB50CA0AA}</ProjectGuid>
     <RootNamespace>My05_NormalMap</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>

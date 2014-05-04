@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{65CB3D73-9FC6-4908-A8E5-0F9A0C4C7BAF}</ProjectGuid>
+    <ProjectGuid>{756B80B1-BF26-4086-9028-F0D222BB78EF}</ProjectGuid>
     <RootNamespace>My11_Particles</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
@@ -96,10 +96,12 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\11_Particles\audiostreamer.h" />
-    <ClInclude Include="..\11_Particles\orderedmultiarray.hpp" />
-    <ClInclude Include="..\11_Particles\particlesystem.h" />
-    <ClInclude Include="..\11_Particles\thread.h" />
+    <ClInclude Include="..\common\animatedmesh.h" />
+    <ClInclude Include="..\common\audiostreamer.h" />
+    <ClInclude Include="..\common\dxext.h" />
+    <ClInclude Include="..\common\orderedmultiarray.hpp" />
+    <ClInclude Include="..\common\particlesystem.h" />
+    <ClInclude Include="..\common\thread.h" />
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -109,11 +111,21 @@
     <None Include="..\media\directx.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\11_Particles\audiostreamer.cpp" />
     <ClCompile Include="..\11_Particles\main.cpp" />
-    <ClCompile Include="..\11_Particles\particlesystem.cpp" />
-    <ClCompile Include="..\11_Particles\sound.cpp" />
-    <ClCompile Include="..\11_Particles\thread.cpp" />
+    <ClCompile Include="..\common\animatedmesh.cpp" />
+    <ClCompile Include="..\common\audiostreamer.cpp" />
+    <ClCompile Include="..\common\dxext.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
+    <ClCompile Include="..\common\particlesystem.cpp" />
+    <ClCompile Include="..\common\sound.cpp" />
+    <ClCompile Include="..\common\thread.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\skinning.fx">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

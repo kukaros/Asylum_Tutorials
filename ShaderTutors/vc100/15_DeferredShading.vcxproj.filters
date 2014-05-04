@@ -8,7 +8,7 @@
       <UniqueIdentifier>{ae226a9f-855a-4b77-a9d9-ad4efbc348f3}</UniqueIdentifier>
     </Filter>
     <Filter Include="common">
-      <UniqueIdentifier>{47f6526a-65e2-4d5c-91a3-5ab8fadce02c}</UniqueIdentifier>
+      <UniqueIdentifier>{d02f6ee4-f660-431e-a0a7-8b4b6717058d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -31,10 +31,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\15_DeferredShading\main.cpp" />
-    <ClCompile Include="..\15_DeferredShading\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\shaders\deferred.fx">

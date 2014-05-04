@@ -925,6 +925,7 @@ HRESULT DXLoadMeshFromQM(LPCTSTR file, DWORD options, LPDIRECT3DDEVICE9 d3ddevic
 		fread(&subset.VertexStart, 4, 1, infile);
 		fread(&subset.VertexCount, 4, 1, infile);
 		fread(&subset.FaceCount, 4, 1, infile);
+		fread(&unused, 4, 1, infile);
 
 		subset.FaceCount /= 3;
 		subset.FaceStart /= 3;

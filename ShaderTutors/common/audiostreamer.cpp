@@ -161,7 +161,7 @@ Sound* AudioStreamer::LoadSoundStream(IXAudio2* xaudio2, const std::string& file
 
 void AudioStreamer::Update()
 {
-	// runs on separate thread!!!
+	// this method must run on separate thread!!!
 
 	XAUDIO2_VOICE_STATE state;
 
@@ -172,6 +172,9 @@ void AudioStreamer::Update()
 	long		totalread;
 	long		toread;
 	bool		play;
+
+	// must be called in every thread
+	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	while( running )
 	{
@@ -251,4 +254,6 @@ void AudioStreamer::Update()
 		else
 			Sleep(100);
 	}
+
+	CoUninitialize();
 }

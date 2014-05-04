@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\01_FixedFunction\main.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -23,7 +24,7 @@
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{78A6573E-33BA-4988-ABF9-C7DE1E9006E6}</ProjectGuid>
+    <ProjectGuid>{F7EA0641-8334-4F3B-BB7F-AE29DAE85FEA}</ProjectGuid>
     <RootNamespace>My01_FixedFunction</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>

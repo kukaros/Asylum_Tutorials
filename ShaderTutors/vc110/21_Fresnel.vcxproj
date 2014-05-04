@@ -22,8 +22,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\21_Fresnel\main.cpp" />
-    <ClCompile Include="..\21_Fresnel\other.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\shaders\sky.fx">

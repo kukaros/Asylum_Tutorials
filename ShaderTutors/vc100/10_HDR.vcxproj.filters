@@ -7,18 +7,21 @@
     <Filter Include="resources">
       <UniqueIdentifier>{b3b555e7-f151-4781-8da6-758b210320af}</UniqueIdentifier>
     </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{c9182fa1-48f8-49ca-9a5b-85630632b32a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico">
       <Filter>resources</Filter>
     </None>
-    <None Include="..\media\shaders\fresnel.fx">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\media\shaders\hdr.fx">
-      <Filter>shaders</Filter>
-    </None>
     <None Include="..\media\shaders\sky.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\hdrfresnel.fx">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\hdreffects.fx">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>
@@ -31,9 +34,15 @@
     <ClInclude Include="..\media\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\dxext.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\10_HDR\main.cpp" />
-    <ClCompile Include="..\10_HDR\other.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
+    <ClCompile Include="..\common\dxext.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

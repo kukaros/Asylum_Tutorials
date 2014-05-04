@@ -7,6 +7,9 @@
     <Filter Include="resources">
       <UniqueIdentifier>{a6f8e8cf-99ec-48d0-be65-3227dcecf62b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{bb6f4465-2981-45a0-b333-105808b5909a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico">
@@ -31,9 +34,20 @@
     <ClInclude Include="..\media\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\dxext.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\07_Relief\main.cpp" />
-    <ClCompile Include="..\07_Relief\other.cpp" />
+    <ClCompile Include="..\common\other.cpp" />
+    <ClCompile Include="..\common\dxext.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\normal.fx">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

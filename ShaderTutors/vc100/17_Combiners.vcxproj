@@ -10,17 +10,8 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\17_Combiners\main.cpp" />
-    <ClCompile Include="..\17_Combiners\other.cpp" />
-    <ClCompile Include="..\extern\qglextensions.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\extern\glext.h" />
-    <ClInclude Include="..\extern\qglextensions.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{187B807A-0984-4483-82DE-FE4FE056F31F}</ProjectGuid>
+    <ProjectGuid>{12761B18-CE28-41C6-82BF-422CB546428B}</ProjectGuid>
     <RootNamespace>My17_Combiners</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
@@ -100,6 +91,15 @@
       <Command>copy /Y "$(TargetDir)$(ProjectName).exe" "$(SolutionDir)\bin\$(ProjectName).exe"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\extern\qglextensions.h" />
+    <ClInclude Include="..\IntelTest\glext.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\17_Combiners\main.cpp" />
+    <ClCompile Include="..\17_Combiners\other.cpp" />
+    <ClCompile Include="..\extern\qglextensions.cpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

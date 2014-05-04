@@ -1,5 +1,4 @@
 //*************************************************************************************************************
-#include <d3dx9.h>
 #include <iostream>
 #include <string>
 
@@ -18,13 +17,14 @@
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
 
 // external variables
-extern LPDIRECT3DDEVICE9 device;
-extern HWND		hwnd;
 extern long		screenwidth;
 extern long		screenheight;
 extern short	mousedx;
 extern short	mousedy;
 extern short	mousedown;
+
+extern LPDIRECT3DDEVICE9 device;
+extern HWND		hwnd;
 
 // tutorial variables
 LPD3DXMESH						mesh				= NULL;

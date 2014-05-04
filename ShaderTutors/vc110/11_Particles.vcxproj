@@ -120,6 +120,13 @@
     <ClCompile Include="..\common\sound.cpp" />
     <ClCompile Include="..\common\thread.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\skinning.fx">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </FxCompile>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

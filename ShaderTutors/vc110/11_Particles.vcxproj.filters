@@ -30,6 +30,9 @@
     <Filter Include="common">
       <UniqueIdentifier>{b75c95fc-cb44-4423-b4b7-dfe2d4fc8cfa}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{9bb88f6f-dfea-4836-8d30-822d5d9c1dca}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc">
@@ -62,5 +65,10 @@
     <ClCompile Include="..\common\dxext.cpp">
       <Filter>common</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\media\shaders\skinning.fx">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

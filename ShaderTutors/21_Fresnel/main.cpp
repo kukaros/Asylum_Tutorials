@@ -1,5 +1,4 @@
 //*************************************************************************************************************
-#include <d3dx9.h>
 #include <iostream>
 #include <string>
 
@@ -17,6 +16,7 @@
 	"Refractive index is: "
 
 // helper macros
+#define TITLE				"Shader tutorial 21: Fresnel effects"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
@@ -29,6 +29,7 @@ extern short	mousedy;
 extern short	mousedown;
 
 extern LPDIRECT3DDEVICE9 device;
+extern HWND hwnd;
 
 // tutorial variables
 LPD3DXMESH						skymesh			= NULL;
@@ -77,6 +78,8 @@ HRESULT InitScene()
 {
 	HRESULT hr;
 	D3DCAPS9 caps;
+
+	SetWindowText(hwnd, TITLE);
 
 	device->GetDeviceCaps(&caps);
 
@@ -154,6 +157,8 @@ void UninitScene()
 	SAFE_RELEASE(positions);
 	SAFE_RELEASE(text);
 	SAFE_RELEASE(quaddecl);
+
+	DXKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)

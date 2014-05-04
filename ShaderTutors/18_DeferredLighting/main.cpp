@@ -9,6 +9,7 @@
 // - depth envelope: B-be max, ha b < d akkor shadow
 
 // helper macros
+#define TITLE				"Shader tutorial 18: Deferred lighting"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define MYVALID(x)			{ if( FAILED(hr = x) ) { MYERROR(#x); return hr; } }
 #define SAFE_RELEASE(x)		{ if( (x) ) { (x)->Release(); (x) = NULL; } }
@@ -22,8 +23,8 @@
 // external variables
 extern long screenwidth;
 extern long screenheight;
-
 extern LPDIRECT3DDEVICE9 device;
+extern HWND hwnd;
 
 // tutorial variables
 LPD3DXMESH						skymesh			= NULL;
@@ -125,6 +126,8 @@ HRESULT InitScene()
 {
 	HRESULT hr;
 	D3DCAPS9 caps;
+
+	SetWindowText(hwnd, TITLE);
 
 	device->GetDeviceCaps(&caps);
 
@@ -243,6 +246,8 @@ void UninitScene()
 	SAFE_RELEASE(distance);
 	SAFE_RELEASE(finalpass);
 	SAFE_RELEASE(forward);
+
+	DXKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
