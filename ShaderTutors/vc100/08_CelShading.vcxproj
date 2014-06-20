@@ -102,10 +102,12 @@
     <ResourceCompile Include="..\media\common.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\dxext.h" />
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\08_CelShading\main.cpp" />
+    <ClCompile Include="..\common\dxext.cpp" />
     <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

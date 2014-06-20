@@ -24,7 +24,7 @@
 #include "../common/animatedmesh.h"
 #include "../common/dxext.h"
 
-#define HELP_TEXT			"If you don't like metal, then it's time to...\n...REEVALUATE YOUR LIFE BITCH!!!!!\n\n(Tip: the dwarfs in the fire\ndidn't like metal either...)"
+#define HELP_TEXT			"If you don't like metal, then it's time to...\n...REEVALUATE YOUR LIFE, BITCH!!!!!\n\n(Tip: the dwarfs in the fire\ndidn't like metal either...)"
 #define NUM_DWARFS			6
 
 // helper macros
@@ -52,7 +52,6 @@ LPDIRECT3DCUBETEXTURE9			skytex			= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
 LPDIRECT3DTEXTURE9				text			= NULL;
-LPDIRECT3DVERTEXDECLARATION9	quaddecl		= NULL;
 D3DXMATRIX						dwarfmatrices[NUM_DWARFS];
 
 IXAudio2*						xaudio2			= NULL;
@@ -123,15 +122,6 @@ HRESULT InitScene()
 	HRESULT hr;
 
 	SetWindowText(hwnd, TITLE);
-
-	D3DVERTEXELEMENT9 elem[] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
-		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
-
-	MYVALID(device->CreateVertexDeclaration(elem, &quaddecl));
 
 	MYVALID(D3DXLoadMeshFromX("../media/meshes/sky.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &skymesh));
 	MYVALID(D3DXLoadMeshFromX("../media/meshes/box.X", D3DXMESH_MANAGED, device, NULL, NULL, NULL, NULL, &mesh));
@@ -278,7 +268,6 @@ void UninitScene()
 	SAFE_RELEASE(skymesh);
 	SAFE_RELEASE(skytex);
 	SAFE_RELEASE(text);
-	SAFE_RELEASE(quaddecl);
 	SAFE_RELEASE(mesh);
 	SAFE_RELEASE(effect);
 	SAFE_RELEASE(texture1);
