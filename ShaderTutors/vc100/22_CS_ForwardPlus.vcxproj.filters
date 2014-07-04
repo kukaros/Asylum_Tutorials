@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\22_CS_ForwardPlus\main.cpp" />
+    <ClCompile Include="..\22_CS_ForwardPlus\other.cpp" />
+    <ClCompile Include="..\extern\qglextensions.cpp">
+      <Filter>extern</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\glext.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="extern">
+      <UniqueIdentifier>{638c7da3-24dc-4d2f-b688-9283f29be83e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{ca697c53-88a7-4f0d-b3f4-529b3133419b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{210bbaa9-fc58-4e55-bf0d-676498748ce9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\extern\qglextensions.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\glext.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\glcorearb.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\coloredtexture.comp">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\simplelight.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\simplelight.vert">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>

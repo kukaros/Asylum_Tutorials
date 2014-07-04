@@ -3,6 +3,7 @@
 #define _GLEXT_H_
 
 #include "../extern/qglextensions.h"
+#include "../common/orderedarray.hpp"
 
 // NOTE: don't freak out. It was easier to copy-paste...
 
@@ -82,8 +83,7 @@ struct OpenGLMaterial
 };
 
 /**
- * Not too clever in the sense that it
- * works only with core profile.
+ * \brief Similar to ID3DXMesh. Core profile only.
  */
 class OpenGLMesh
 {
@@ -123,9 +123,65 @@ public:
 	void SetAttributeTable(const OpenGLAttributeRange* table, GLuint size);
 };
 
+/**
+ * \brief Similar to ID3DXEffect. One technique, core profile only.
+ */
+class OpenGLEffect
+{
+	friend bool GLCreateEffectFromFile(const char*, const char*, OpenGLEffect**);
+	friend bool GLCreateComputeProgramFromFile(const char*, OpenGLEffect**);
+
+	struct Uniform
+	{
+		char	Name[32];
+		GLint	StartRegister;
+		GLint	RegisterCount;
+		GLint	Location;
+		GLenum	Type;
+
+		mutable bool Changed;
+
+		inline bool operator <(const Uniform& other) const {
+			return (0 > strcmp(Name, other.Name));
+		}
+	};
+
+	typedef mystl::orderedarray<Uniform> uniformtable;
+
+private:
+	uniformtable	uniforms;
+	GLuint			program;
+	float*			floatvalues;
+	int*			intvalues;
+	unsigned int	floatcap;
+	unsigned int	floatsize;
+	unsigned int	intcap;
+	unsigned int	intsize;
+
+	OpenGLEffect();
+
+	void AddUniform(const char* name, GLuint location, GLuint count, GLenum type);
+	void BindAttributes();
+	void Destroy();
+	void QueryUniforms();
+
+public:
+	~OpenGLEffect();
+
+	void Begin();
+	void CommitChanges();
+	void End();
+	void SetMatrix(const char* name, float* value);
+	void SetVector(const char* name, float* value);
+	void SetFloat(const char* name, float value);
+	void SetInt(const char* name, int value);
+};
+
 // content functions
 bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
 bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
+bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect);
+bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect);
 
 // math functions
 float GLVec3Dot(float a[3], float b[3]);
