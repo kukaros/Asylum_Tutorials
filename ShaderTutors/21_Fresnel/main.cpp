@@ -35,7 +35,6 @@ extern HWND hwnd;
 LPD3DXMESH						skymesh			= NULL;
 LPD3DXEFFECT					skyeffect		= NULL;
 LPD3DXEFFECT					fresnel			= NULL;
-LPDIRECT3DVERTEXDECLARATION9	quaddecl		= NULL;
 
 DXObject*						object1			= NULL;
 DXObject*						object2			= NULL;
@@ -88,15 +87,6 @@ HRESULT InitScene()
 		MYERROR("This demo requires Shader Model 3.0 capable video card");
 		return E_FAIL;
 	}
-
-	D3DVERTEXELEMENT9 elem[] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
-		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
-
-	MYVALID(device->CreateVertexDeclaration(elem, &quaddecl));
 
 	object1 = new DXObject(device);
 	object2 = new DXObject(device);
@@ -156,7 +146,6 @@ void UninitScene()
 	SAFE_RELEASE(normals);
 	SAFE_RELEASE(positions);
 	SAFE_RELEASE(text);
-	SAFE_RELEASE(quaddecl);
 
 	DXKillAnyRogueObject();
 }

@@ -3,6 +3,12 @@
 #include <iostream>
 #include <string>
 
+#include "../common/dxext.h"
+
+#define HELP_TEXT	\
+	"1 - Sobel filter\n" \
+	"2 - Stencil contours\n"
+
 // helper macros
 #define TITLE				"Shader tutorial 8: Cel shading"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
@@ -23,11 +29,13 @@ LPDIRECT3DTEXTURE9				intensity		= NULL;
 LPDIRECT3DTEXTURE9				colortarget		= NULL;
 LPDIRECT3DTEXTURE9				normaltarget	= NULL;
 LPDIRECT3DTEXTURE9				edgetarget		= NULL;
+LPDIRECT3DTEXTURE9				text			= NULL;
 LPDIRECT3DSURFACE9				colorsurface	= NULL;
 LPDIRECT3DSURFACE9				normalsurface	= NULL;
 LPDIRECT3DSURFACE9				edgesurface		= NULL;
 LPDIRECT3DVERTEXDECLARATION9	vertexdecl		= NULL;
 D3DXMATRIX						world, view, proj;
+bool							useedgedetect	= true;
 
 float vertices[36] =
 {
@@ -38,6 +46,17 @@ float vertices[36] =
 	-0.5f, (float)screenheight - 0.5f, 0, 1, 0, 1,
 	(float)screenwidth - 0.5f, -0.5f, 0, 1, 1, 0,
 	(float)screenwidth - 0.5f, (float)screenheight - 0.5f, 0, 1, 1, 1
+};
+
+float textvertices[36] =
+{
+	9.5f,			9.5f,	0, 1,	0, 0,
+	521.5f,			9.5f,	0, 1,	1, 0,
+	9.5f,	512.0f + 9.5f,	0, 1,	0, 1,
+
+	9.5f,	512.0f + 9.5f,	0, 1,	0, 1,
+	521.5f,			9.5f,	0, 1,	1, 0,
+	521.5f,	512.0f + 9.5f,	0, 1,	1, 1
 };
 
 static HRESULT CreateColorTex(LPDIRECT3DDEVICE9 device, DWORD color, LPDIRECT3DTEXTURE9* texture)
@@ -71,7 +90,7 @@ HRESULT InitScene()
 	HRESULT hr;
 	LPD3DXBUFFER errors = NULL;
 
-	D3DVERTEXELEMENT9 elem[] =
+	D3DVERTEXELEMENT9 decl[] =
 	{
 		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
 		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
@@ -87,28 +106,16 @@ HRESULT InitScene()
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &colortarget, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &normaltarget, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &edgetarget, NULL));
-
-	MYVALID(device->CreateVertexDeclaration(elem, &vertexdecl));
+	MYVALID(device->CreateVertexDeclaration(decl, &vertexdecl));
 
 	edgetarget->GetSurfaceLevel(0, &edgesurface);
 	colortarget->GetSurfaceLevel(0, &colorsurface);
 	normaltarget->GetSurfaceLevel(0, &normalsurface);
 
-	hr = D3DXCreateEffectFromFileA(device, "../media/shaders/celshading.fx", NULL, NULL, D3DXSHADER_DEBUG, NULL, &effect, &errors);
+	MYVALID(device->CreateTexture(512, 512, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
+	MYVALID(DXCreateEffect("../media/shaders/celshading.fx", device, &effect));
 
-	if( FAILED(hr) )
-	{
-		if( errors )
-		{
-			char* str = (char*)errors->GetBufferPointer();
-			std::cout << str << "\n\n";
-
-			errors->Release();
-		}
-
-		MYERROR("Could not create effect");
-		return hr;
-	}
+	DXRenderText(HELP_TEXT, text, 512, 512);
 
 	D3DXVECTOR3 eye(0.5f, 0.5f, -1.5f);
 	D3DXVECTOR3 look(0, 0, 0);
@@ -135,11 +142,25 @@ void UninitScene()
 	SAFE_RELEASE(mesh);
 	SAFE_RELEASE(effect);
 	SAFE_RELEASE(texture);
+	SAFE_RELEASE(text);
 	SAFE_RELEASE(intensity);
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
 {
+	switch( wparam )
+	{
+	case 0x31:
+		useedgedetect = true;
+		break;
+
+	case 0x32:
+		useedgedetect = false;
+		break;
+
+	default:
+		break;
+	}
 }
 //*************************************************************************************************************
 void Update(float delta)
@@ -172,10 +193,14 @@ void Render(float alpha, float elapsedtime)
 	effect->SetMatrix("matView", &view);
 	effect->SetMatrix("matProj", &proj);
 
-	device->GetRenderTarget(0, &oldtarget);
-	device->SetRenderTarget(0, colorsurface);
-	device->SetRenderTarget(1, normalsurface);
-	device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
+	if( useedgedetect )
+	{
+		device->GetRenderTarget(0, &oldtarget);
+		device->SetRenderTarget(0, colorsurface);
+		device->SetRenderTarget(1, normalsurface);
+	}
+
+	device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, 0xff6694ed, 1.0f, 0);
 
 	if( SUCCEEDED(device->BeginScene()) )
 	{
@@ -190,44 +215,119 @@ void Render(float alpha, float elapsedtime)
 		effect->EndPass();
 		effect->End();
 
-		// edge detection
-		device->SetVertexDeclaration(vertexdecl);
-		device->SetRenderTarget(0, edgesurface);
-		device->SetRenderTarget(1, NULL);
-		device->SetTexture(0, normaltarget);
-		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
-
-		effect->SetTechnique("edgedetect");
-		effect->SetVector("texelSize", &texelsize);
-
-		effect->Begin(NULL, 0);
-		effect->BeginPass(0);
+		if( useedgedetect )
 		{
-			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
+			// edge detection
+			device->SetVertexDeclaration(vertexdecl);
+			device->SetRenderTarget(0, edgesurface);
+			device->SetRenderTarget(1, NULL);
+			device->SetTexture(0, normaltarget);
+			device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
+
+			effect->SetTechnique("edgedetect");
+			effect->SetVector("texelSize", &texelsize);
+
+			effect->Begin(NULL, 0);
+			effect->BeginPass(0);
+			{
+				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
+			}
+			effect->EndPass();
+			effect->End();
+
+			// put together
+			device->SetRenderTarget(0, oldtarget);
+			device->SetTexture(0, colortarget);
+			device->SetTexture(2, edgetarget);
+			device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
+
+			oldtarget->Release();
+			effect->SetTechnique("final");
+
+			effect->Begin(NULL, 0);
+			effect->BeginPass(0);
+			{
+				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
+			}
+			effect->EndPass();
+			effect->End();
 		}
-		effect->EndPass();
-		effect->End();
-
-		// put together
-		device->SetRenderTarget(0, oldtarget);
-		device->SetTexture(0, colortarget);
-		device->SetTexture(2, edgetarget);
-		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
-
-		oldtarget->Release();
-		effect->SetTechnique("final");
-
-		effect->Begin(NULL, 0);
-		effect->BeginPass(0);
+		else
 		{
-			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
-		}
-		effect->EndPass();
-		effect->End();
+			D3DXMATRIX offproj;
 
-		device->SetTexture(0, NULL);
+			// use the stencil buffer
+			device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
+			device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+			device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
+			device->SetRenderState(D3DRS_ZENABLE, FALSE);
+
+			device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
+			device->SetRenderState(D3DRS_STENCILREF, 1);
+			device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_REPLACE);
+
+			device->SetTransform(D3DTS_WORLD, &world);
+			device->SetTransform(D3DTS_VIEW, &view);
+
+			float thickness = 3.5f;
+
+			// render object 4 times with offseted frustum
+			for( float i = -thickness; i < thickness + 1; i += 2 * thickness )
+			{
+				for( float j = -thickness; j < thickness + 1; j += 2 * thickness )
+				{
+					D3DXMatrixTranslation(&offproj, i / (float)screenwidth, j / (float)screenheight, 0);
+					D3DXMatrixMultiply(&offproj, &proj, &offproj);
+
+					device->SetTransform(D3DTS_PROJECTION, &offproj);
+					mesh->DrawSubset(0);
+				}
+			}
+
+			// erase area in the center
+			device->SetRenderState(D3DRS_STENCILREF, 0);
+			device->SetTransform(D3DTS_PROJECTION, &proj);
+
+			mesh->DrawSubset(0);
+
+			// now render outlines
+			device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);
+			device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_NOTEQUAL);
+			device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
+			device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
+
+			device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
+
+			device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+			device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_CONSTANT);
+			device->SetTextureStageState(0, D3DTSS_CONSTANT, 0);
+			{
+				device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, vertices, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
+			}
+			device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+			device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+
+			device->SetRenderState(D3DRS_ZENABLE, TRUE);
+			device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+			device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+		}
+
 		device->SetTexture(2, NULL);
 
+		// render text
+		device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
+		device->SetRenderState(D3DRS_ZENABLE, FALSE);
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+		device->SetTexture(0, text);
+		device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, 6 * sizeof(float));
+
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		device->SetRenderState(D3DRS_ZENABLE, TRUE);
+
+		device->SetTexture(0, NULL);
 		device->EndScene();
 	}
 

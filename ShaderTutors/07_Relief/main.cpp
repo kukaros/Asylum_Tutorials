@@ -32,7 +32,6 @@ LPD3DXEFFECT					effect		= NULL;
 LPDIRECT3DTEXTURE9				texture		= NULL;
 LPDIRECT3DTEXTURE9				normalmap	= NULL;
 LPDIRECT3DTEXTURE9				text		= NULL;
-LPDIRECT3DVERTEXDECLARATION9	quaddecl	= NULL;
 D3DXMATRIX						world, view, proj;
 
 float textvertices[36] =
@@ -92,16 +91,6 @@ HRESULT InitScene()
 		return hr;
 	}
 
-	// vertex declaration for text
-	D3DVERTEXELEMENT9 elem[] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
-		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
-
-	MYVALID(device->CreateVertexDeclaration(elem, &quaddecl));
-
 	// other
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood.jpg", &texture));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/four_nh.dds", &normalmap));
@@ -138,7 +127,6 @@ void UninitScene()
 	SAFE_RELEASE(texture);
 	SAFE_RELEASE(normalmap);
 	SAFE_RELEASE(text);
-	SAFE_RELEASE(quaddecl);
 
 	DXKillAnyRogueObject();
 }

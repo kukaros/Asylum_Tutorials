@@ -32,9 +32,9 @@ void vs_main(
 	out		float3 wbin		: TEXCOORD3,
 	out		float3 wnorm	: TEXCOORD4)
 {
-	wnorm = normalize(mul(matWorldInv, float4(norm, 0)).xyz);
-	wtan = normalize(mul(float4(tang, 0), matWorld).xyz);
-	wbin = normalize(mul(float4(bin, 0), matWorld).xyz);
+	wnorm = mul(matWorldInv, float4(norm, 0)).xyz;
+	wtan = mul(float4(tang, 0), matWorld).xyz;
+	wbin = mul(float4(bin, 0), matWorld).xyz;
 
 	pos = mul(pos, matWorld);
 	vdir = pos.xyz - eyePos.xyz;
@@ -50,6 +50,28 @@ void ps_main(
 	in	float3 wnorm	: TEXCOORD4,
 	out	float4 color	: COLOR0)
 {
+#ifdef KANEKO
+	float3 t = normalize(wtan);
+	float3 b = normalize(wbin);
+	float3 n = normalize(wnorm);
+
+	float2 newtex;
+	float depth = tex2D(mytex1, tex).a;
+	float tan1, tan2;
+
+	float3 eu = normalize(vdir - dot(vdir, b) * b);
+	float3 ev = normalize(vdir - dot(vdir, t) * t);
+
+	tan1 = length(cross(eu, n)) / -dot(eu, n);
+	tan2 = length(cross(ev, n)) / -dot(ev, n);
+
+	newtex.x = tex.x + tan1 * depth;
+	newtex.y = tex.y + tan2 * depth;
+
+	// TODO: make it good...
+	float3 norm = tex2D(mytex1, newtex) * 2 - 1;
+	color = float4(norm, 1);
+#else
 	float3x3 tbn = { wtan, -wbin, wnorm };
 
 	// view direction
@@ -83,9 +105,10 @@ void ps_main(
 	diffuse = diffuse * 0.8f + 0.2f;
 	specular = pow(specular, 80);
 
-	// final colors
+	// final color
 	color = tex2D(mytex0, tex) * diffuse + specular;
 	color.a = 1;
+#endif
 }
 
 technique prallax
