@@ -2,6 +2,8 @@
 #include "glext.h"
 
 #include <iostream>
+#include <map>
+#include <string>
 #include <cstdio>
 #include <cmath>
 
@@ -139,6 +141,319 @@ void OpenGLMesh::SetAttributeTable(const OpenGLAttributeRange* table, GLuint siz
 
 	subsettable = (OpenGLAttributeRange*)malloc(size * sizeof(OpenGLAttributeRange));
 	memcpy(subsettable, table, size * sizeof(OpenGLAttributeRange));
+}
+
+// *****************************************************************************************************************************
+//
+// OpenGLEffect impl
+//
+// *****************************************************************************************************************************
+
+OpenGLEffect::OpenGLEffect()
+{
+	floatvalues	= 0;
+	intvalues	= 0;
+	floatcap	= 0;
+	floatsize	= 0;
+	intcap		= 0;
+	intsize		= 0;
+	program		= 0;
+}
+
+OpenGLEffect::~OpenGLEffect()
+{
+	Destroy();
+}
+
+void OpenGLEffect::Destroy()
+{
+	if( floatvalues )
+		delete[] floatvalues;
+
+	if( intvalues )
+		delete[] intvalues;
+
+	floatvalues = 0;
+	intvalues = 0;
+
+	if( program )
+		glDeleteProgram(program);
+
+	program = 0;
+}
+
+void OpenGLEffect::AddUniform(const char* name, GLuint location, GLuint count, GLenum type)
+{
+	Uniform uni;
+
+	if( strlen(name) >= sizeof(uni.Name) )
+		throw 1;
+
+	strcpy(uni.Name, name);
+
+	if( type == GL_FLOAT_MAT4 )
+		count = 4;
+
+	uni.Type = type;
+	uni.RegisterCount = count;
+	uni.Location = location;
+	uni.Changed = true;
+
+	if( type == GL_FLOAT || (type >= GL_FLOAT_VEC2 && type <= GL_FLOAT_VEC4) || type == GL_FLOAT_MAT4 )
+	{
+		uni.StartRegister = floatsize;
+
+		if( floatsize + count > floatcap )
+		{
+			unsigned int newcap = max(floatsize + count, floatsize + 8);
+
+			floatvalues = (float*)realloc(floatvalues, newcap * 4 * sizeof(float));
+			floatcap = newcap;
+		}
+
+		float* reg = (floatvalues + uni.StartRegister * 4);
+		memset(reg, 0, uni.RegisterCount * 4 * sizeof(float));
+
+		floatsize += count;
+	}
+	else if( type == GL_INT || (type >= GL_INT_VEC2 && type <= GL_INT_VEC4) || type == GL_SAMPLER_2D || type == GL_IMAGE_2D )
+	{
+		uni.StartRegister = intsize;
+
+		if( intsize + count > intcap )
+		{
+			unsigned int newcap = max(intsize + count, intsize + 8);
+
+			intvalues = (int*)realloc(intvalues, newcap * 4 * sizeof(int));
+			intcap = newcap;
+		}
+
+		int* reg = (intvalues + uni.StartRegister * 4);
+		memset(reg, 0, uni.RegisterCount * 4 * sizeof(int));
+
+		intsize += count;
+	}
+	else
+		// not handled
+		throw 1;
+
+	uniforms.insert(uni);
+}
+
+void OpenGLEffect::BindAttributes()
+{
+	typedef std::map<std::string, GLuint> semanticmap;
+
+	if( program == 0 )
+		return;
+
+	semanticmap	attribmap;
+	GLint		count;
+	GLenum		type;
+	GLint		size, loc;
+	GLchar		attribname[256];
+
+	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &count);
+
+	attribmap["my_Position"]	= GLDECLUSAGE_POSITION;
+	attribmap["my_Normal"]		= GLDECLUSAGE_NORMAL;
+	attribmap["my_Tangent"]		= GLDECLUSAGE_TANGENT;
+	attribmap["my_Binormal"]	= GLDECLUSAGE_BINORMAL;
+	attribmap["my_Color"]		= GLDECLUSAGE_COLOR;
+	attribmap["my_Texcoord0"]	= GLDECLUSAGE_TEXCOORD;
+	attribmap["my_Texcoord1"]	= GLDECLUSAGE_TEXCOORD + 10;
+	attribmap["my_Texcoord2"]	= GLDECLUSAGE_TEXCOORD + 11;
+	attribmap["my_Texcoord3"]	= GLDECLUSAGE_TEXCOORD + 12;
+	attribmap["my_Texcoord4"]	= GLDECLUSAGE_TEXCOORD + 13;
+	attribmap["my_Texcoord5"]	= GLDECLUSAGE_TEXCOORD + 14;
+	attribmap["my_Texcoord6"]	= GLDECLUSAGE_TEXCOORD + 15;
+	attribmap["my_Texcoord7"]	= GLDECLUSAGE_TEXCOORD + 16;
+
+	for( int i = 0; i < count; ++i )
+	{
+		memset(attribname, 0, sizeof(attribname));
+
+		glGetActiveAttrib(program, i, 256, NULL, &size, &type, attribname);
+		loc = glGetAttribLocation(program, attribname);
+
+		semanticmap::iterator it = attribmap.find(qstring(attribname));
+
+		if( loc == -1 || it == attribmap.end() )
+		{
+			//Console().Error(
+			//	"Invalid attribute found. Note that Quadron needs to know the semantic "
+			//	"of an attribute to set it automatically. Please use the q_<semantic> syntax");
+		}
+		else
+			glBindAttribLocation(program, it->second, attribname);
+	}
+
+	// bind fragment shader output
+	GLint numrts;
+
+	glGetIntegerv(GL_MAX_DRAW_BUFFERS, &numrts);
+	glBindFragDataLocation(program, 0, "my_FragColor0");
+
+	if( numrts > 1 )
+		glBindFragDataLocation(program, 1, "my_FragColor1");
+
+	if( numrts > 2 )
+		glBindFragDataLocation(program, 2, "my_FragColor2");
+		
+	if( numrts > 3 )
+		glBindFragDataLocation(program, 3, "my_FragColor3");
+
+	// relink
+	glLinkProgram(program);
+}
+
+void OpenGLEffect::QueryUniforms()
+{
+	GLint		count;
+	GLenum		type;
+	GLsizei		length;
+	GLint		size, loc;
+	GLchar		uniname[256];
+
+	if( program == 0 )
+		return;
+
+	memset(uniname, 0, sizeof(uniname));
+	uniforms.clear();
+
+	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &count);
+
+	// uniforms
+	for( int i = 0; i < count; ++i )
+	{
+		memset(uniname, 0, sizeof(uniname));
+
+		glGetActiveUniform(program, i, 256, &length, &size, &type, uniname);
+		loc = glGetUniformLocation(program, uniname);
+
+		for( int j = 0; j < length; ++j )
+		{
+			if( uniname[j] == '[' )
+				uniname[j] = '\0';
+		}
+
+		if( loc == -1 )
+			continue;
+
+		AddUniform(uniname, loc, size, type);
+	}
+}
+
+void OpenGLEffect::Begin()
+{
+	glUseProgram(program);
+	CommitChanges();
+}
+
+void OpenGLEffect::CommitChanges()
+{
+	for( size_t i = 0; i < uniforms.size(); ++i )
+	{
+		const Uniform& uni = uniforms[i];
+		float* floatdata = (floatvalues + uni.StartRegister * 4);
+		int* intdata = (intvalues + uni.StartRegister * 4);
+
+		if( !uni.Changed )
+			continue;
+
+		uni.Changed = false;
+
+		switch( uni.Type )
+		{
+		case GL_FLOAT:
+			glUniform1fv(uni.Location, uni.RegisterCount, floatdata);
+			break;
+
+		case GL_FLOAT_VEC2:
+			glUniform2fv(uni.Location, uni.RegisterCount, floatdata);
+			break;
+
+		case GL_FLOAT_VEC3:
+			glUniform3fv(uni.Location, uni.RegisterCount, floatdata);
+			break;
+
+		case GL_FLOAT_VEC4:
+			glUniform4fv(uni.Location, uni.RegisterCount, floatdata);
+			break;
+
+		case GL_FLOAT_MAT4:
+			glUniformMatrix4fv(uni.Location, uni.RegisterCount / 4, false, floatdata);
+			break;
+
+		case GL_SAMPLER_2D:
+			glUniform1i(uni.Location, intdata[0]);
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
+void OpenGLEffect::End()
+{
+	// do nothing
+}
+
+void OpenGLEffect::SetMatrix(const char* name, float* value)
+{
+	SetVector(name, value);
+}
+
+void OpenGLEffect::SetVector(const char* name, float* value)
+{
+	Uniform test;
+	strcpy(test.Name, name);
+
+	size_t id = uniforms.find(test);
+
+	if( id < uniforms.size() )
+	{
+		const Uniform& uni = uniforms[id];
+		float* reg = (floatvalues + uni.StartRegister * 4);
+
+		memcpy(reg, value, uni.RegisterCount * 4 * sizeof(float));
+		uni.Changed = true;
+	}
+}
+
+void OpenGLEffect::SetFloat(const char* name, float value)
+{
+	Uniform test;
+	strcpy(test.Name, name);
+
+	size_t id = uniforms.find(test);
+
+	if( id < uniforms.size() )
+	{
+		const Uniform& uni = uniforms[id];
+		float* reg = (floatvalues + uni.StartRegister * 4);
+
+		reg[0] = value;
+		uni.Changed = true;
+	}
+}
+
+void OpenGLEffect::SetInt(const char* name, int value)
+{
+	Uniform test;
+	strcpy(test.Name, name);
+
+	size_t id = uniforms.find(test);
+
+	if( id < uniforms.size() )
+	{
+		const Uniform& uni = uniforms[id];
+		int* reg = (intvalues + uni.StartRegister * 4);
+
+		reg[0] = value;
+		uni.Changed = true;
+	}
 }
 
 // *****************************************************************************************************************************
@@ -461,6 +776,166 @@ _fail:
 	fclose(infile);
 	return success;
 }
+
+bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect)
+{
+	OpenGLEffect*	neweffect;
+	GLuint			vertexshader = 0;
+	GLuint			fragmentshader = 0;
+	FILE*			infile = 0;
+	GLint			success;
+	GLint			length;
+	char*			source;
+
+	// vertex shader
+	if( !(infile = fopen(vsfile, "rb")) )
+		return false;
+
+	fseek(infile, 0, SEEK_END);
+	length = ftell(infile);
+	fseek(infile, 0, SEEK_SET);
+
+	source = new char[length];
+	vertexshader = glCreateShader(GL_VERTEX_SHADER);
+
+	fread(source, 1, length, infile);
+	fclose(infile);
+
+	glShaderSource(vertexshader, 1, (const GLcharARB**)&source, &length);
+	glCompileShader(vertexshader);
+	glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		delete[] source;
+		glDeleteShader(vertexshader);
+
+		return false;
+	}
+
+	delete[] source;
+
+	// fragment shader
+	if( !(infile = fopen(psfile, "rb")) )
+		return false;
+
+	fseek(infile, 0, SEEK_END);
+	length = ftell(infile);
+	fseek(infile, 0, SEEK_SET);
+
+	source = new char[length];
+	fragmentshader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	fread(source, 1, length, infile);
+	fclose(infile);
+
+	glShaderSource(fragmentshader, 1, (const GLcharARB**)&source, &length);
+	glCompileShader(fragmentshader);
+	glGetShaderiv(fragmentshader, GL_COMPILE_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		delete[] source;
+		glDeleteShader(vertexshader);
+		glDeleteShader(fragmentshader);
+
+		return false;
+	}
+
+	delete[] source;
+
+	// program
+	neweffect = new OpenGLEffect();
+	neweffect->program = glCreateProgram();
+
+	glAttachShader(neweffect->program, vertexshader);
+	glAttachShader(neweffect->program, fragmentshader);
+	glLinkProgram(neweffect->program);
+	glGetProgramiv(neweffect->program, GL_LINK_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		glDeleteProgram(neweffect->program);
+		delete neweffect;
+
+		return false;
+	}
+
+	neweffect->BindAttributes();
+	neweffect->QueryUniforms();
+
+	glDeleteShader(vertexshader);
+	glDeleteShader(fragmentshader);
+
+	(*effect) = neweffect;
+	return true;
+}
+
+bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect)
+{
+	OpenGLEffect*	neweffect;
+	GLuint			shader = 0;
+	FILE*			infile = 0;
+	GLint			success;
+	GLint			length;
+	char*			source;
+
+	if( !(infile = fopen(csfile, "rb")) )
+		return false;
+
+	fseek(infile, 0, SEEK_END);
+	length = ftell(infile);
+	fseek(infile, 0, SEEK_SET);
+
+	source = new char[length];
+	shader = glCreateShader(GL_COMPUTE_SHADER);
+
+	fread(source, 1, length, infile);
+	fclose(infile);
+
+	glShaderSource(shader, 1, (const GLcharARB**)&source, &length);
+	glCompileShader(shader);
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		delete[] source;
+		glDeleteShader(shader);
+
+		return false;
+	}
+
+	delete[] source;
+
+	// program
+	neweffect = new OpenGLEffect();
+	neweffect->program = glCreateProgram();
+
+	glAttachShader(neweffect->program, shader);
+	glLinkProgram(neweffect->program);
+	glGetProgramiv(neweffect->program, GL_LINK_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		glDeleteProgram(neweffect->program);
+		delete neweffect;
+
+		return false;
+	}
+
+	neweffect->QueryUniforms();
+	glDeleteShader(shader);
+
+	(*effect) = neweffect;
+	return true;
+}
+
+// *****************************************************************************************************************************
+//
+// Math functions impl
+//
+// *****************************************************************************************************************************
+
 
 float GLVec3Dot(float a[3], float b[3])
 {

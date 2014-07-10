@@ -88,6 +88,10 @@ PFNGLGENVERTEXARRAYSPROC				glGenVertexArrays = 0;
 PFNGLBINDVERTEXARRAYPROC				glBindVertexArray = 0;
 PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays = 0;
 
+PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = 0;
+PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = 0;
+PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = 0;
+
 PFNWGLSWAPINTERVALFARPROC				wglSwapInterval = 0;
 WGLCREATECONTEXTATTRIBSARBPROC			wglCreateContextAttribs = 0;
 WGLGETEXTENSIONSSTRINGARBPROC			wglGetExtensionsString = 0;
@@ -112,6 +116,7 @@ namespace Quadron
 	bool qGLExtensions::ARB_texture_compression = false;
 	bool qGLExtensions::ARB_draw_buffers = false;
 	bool qGLExtensions::ARB_vertex_array_object = false;
+	bool qGLExtensions::ARB_compute_shader = false;
 
 	bool qGLExtensions::EXT_texture_compression_s3tc = false;
 	bool qGLExtensions::EXT_texture_cube_map = false;
@@ -220,6 +225,8 @@ namespace Quadron
 			EXT_framebuffer_multisample		= true;
 			EXT_framebuffer_blit			= true;
 			EXT_packed_depth_stencil		= true;
+
+			ARB_compute_shader				= IsSupported("GL_ARB_compute_shader");
 		}
 		else
 		{
@@ -350,6 +357,14 @@ namespace Quadron
 			GET_ADDRESS(glEnableVertexAttribArray, PFNGLENABLEVERTEXATTRIBARRAYARBPROC, "glEnableVertexAttribArrayARB");
 			GET_ADDRESS(glDisableVertexAttribArray, PFNGLDISABLEVERTEXATTRIBARRAYARBPROC, "glDisableVertexAttribArrayARB");
 			GET_ADDRESS(glVertexAttribPointer, PFNGLVERTEXATTRIBPOINTERARBPROC, "glVertexAttribPointerARB");
+		}
+
+		// core profile only
+		if( ARB_compute_shader )
+		{
+			GET_ADDRESS(glDispatchCompute, PFNGLDISPATCHCOMPUTEPROC, "");
+			GET_ADDRESS(glDispatchComputeIndirect, PFNGLDISPATCHCOMPUTEINDIRECTPROC, "");
+			GET_ADDRESS(glBindImageTexture, PFNGLBINDIMAGETEXTUREPROC, "");
 		}
 #endif
 		

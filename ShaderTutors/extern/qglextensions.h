@@ -20,6 +20,7 @@
 #	include <Windows.h>
 #	include <gl/gl.h>
 #	include "../extern/glext.h"
+#	include "../extern/glcorearb.h"
 #elif defined(_Q_IOS)
 #	include <OpenGLES/ES2/gl.h>
 #	include <OpenGLES/ES2/glext.h>
@@ -183,9 +184,15 @@ extern PFNGLCOMPRESSEDTEXIMAGE1DPROC			glCompressedTexImage1D;
 extern PFNGLDRAWBUFFERSARBPROC					glDrawBuffers;
 extern PFNGLDRAWRANGEELEMENTSPROC				glDrawRangeElements;
 
+// 3.2
 extern PFNGLGENVERTEXARRAYSPROC					glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC					glBindVertexArray;
 extern PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays;
+
+// 4.3
+extern PFNGLDISPATCHCOMPUTEPROC					glDispatchCompute;
+extern PFNGLDISPATCHCOMPUTEINDIRECTPROC			glDispatchComputeIndirect;
+extern PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture;
 
 // WGL specific
 typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
@@ -240,6 +247,7 @@ namespace Quadron
 			GL_4_1 = MAKE_VERSION(4, 1),
 			GL_4_2 = MAKE_VERSION(4, 2),
 			GL_4_3 = MAKE_VERSION(4, 3),
+			GL_4_4 = MAKE_VERSION(4, 4)
 		};
 
 		enum glslversion
@@ -253,7 +261,8 @@ namespace Quadron
 			GLSL_400 = MAKE_VERSION(4, 0),
 			GLSL_410 = MAKE_VERSION(4, 10),
 			GLSL_420 = MAKE_VERSION(4, 20),
-			GLSL_430 = MAKE_VERSION(4, 30)
+			GLSL_430 = MAKE_VERSION(4, 30),
+			GLSL_440 = MAKE_VERSION(4, 40)
 		};
 
 		static quint16 GLVersion;
@@ -272,6 +281,7 @@ namespace Quadron
 		static bool ARB_texture_compression;
 		static bool ARB_draw_buffers;
 		static bool ARB_vertex_array_object;
+		static bool ARB_compute_shader;
 
 		static bool EXT_texture_compression_s3tc;
 		static bool EXT_texture_cube_map;

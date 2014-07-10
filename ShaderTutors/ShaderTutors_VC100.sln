@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01_FixedFunction", "vc100\01_FixedFunction.vcxproj", "{F7EA0641-8334-4F3B-BB7F-AE29DAE85FEA}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "02_BasicShader", "vc100\02_BasicShader.vcxproj", "{079789BB-1D84-43D4-96B8-C54CE3952570}"
@@ -34,6 +34,12 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "13_StencilShadow10", "vc100\13_StencilShadow10.vcxproj", "{00CAEC6D-69F2-40CB-ADAD-6D7FF08485B8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "21_Fresnel", "vc100\21_Fresnel.vcxproj", "{A589A7A1-CB92-4779-A863-325499B2FC9C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_Compute", "vc100\22_Compute.vcxproj", "{EA562003-C608-4251-9229-37331A0C4F5D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "16_CoreProfile", "vc100\16_CoreProfile.vcxproj", "{4EFF735A-1151-4060-B03C-5E6AD223D804}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_CS_ForwardPlus", "vc100\22_CS_ForwardPlus.vcxproj", "{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -109,6 +115,18 @@ Global
 		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Debug|Win32.Build.0 = Debug|Win32
 		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Release|Win32.ActiveCfg = Release|Win32
 		{A589A7A1-CB92-4779-A863-325499B2FC9C}.Release|Win32.Build.0 = Release|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Debug|Win32.Build.0 = Debug|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Release|Win32.ActiveCfg = Release|Win32
+		{EA562003-C608-4251-9229-37331A0C4F5D}.Release|Win32.Build.0 = Release|Win32
+		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Debug|Win32.Build.0 = Debug|Win32
+		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Release|Win32.ActiveCfg = Release|Win32
+		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Release|Win32.Build.0 = Release|Win32
+		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Debug|Win32.Build.0 = Debug|Win32
+		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Release|Win32.ActiveCfg = Release|Win32
+		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -120,13 +120,13 @@ namespace mystl
 				return false;
 
 			size_t count = (mysize - i);
-			new(data + mysize) value_type();
+			new(data + mysize) value_type;
 
 			for( size_t j = count; j > 0; --j )
 				data[i + j] = data[i + j - 1];
 		}
 		else
-			new(data) value_type();
+			new(data) value_type;
 
 		data[i] = value;
 		++mysize;

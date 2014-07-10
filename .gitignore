@@ -24,3 +24,5 @@
 *.psess
 *.unsuccessfulbuild
 *.nativecodeanalysis.xml
+*.rc
+*.cache
