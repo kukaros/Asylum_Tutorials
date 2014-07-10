@@ -676,7 +676,9 @@ void AnimatedMesh::DrawMeshContainer(LPD3DXMESHCONTAINER meshContainerBase, LPD3
 
 			meshContainer->MeshData.pMesh->LockVertexBuffer(D3DLOCK_READONLY, (void**)&srcPtr);
 			meshContainer->exSkinMesh->LockVertexBuffer(0, (void**)&destPtr);
-			meshContainer->pSkinInfo->UpdateSkinnedMesh(bonetransforms, NULL, srcPtr, destPtr);
+			{
+				meshContainer->pSkinInfo->UpdateSkinnedMesh(bonetransforms, NULL, srcPtr, destPtr);
+			}
 			meshContainer->exSkinMesh->UnlockVertexBuffer();
 			meshContainer->MeshData.pMesh->UnlockVertexBuffer();
 

@@ -10,8 +10,19 @@ float roughness = 0.2f;
 sampler2D mytex0	: register(s0);
 sampler2D mytex1	: register(s1);
 
-samplerCUBE mytex2	: register(s2);
-samplerCUBE mytex3	: register(s3);
+samplerCUBE mytex2	: register(s2) = sampler_state
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = linear;
+};
+
+samplerCUBE mytex3	: register(s3) = sampler_state
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = linear;
+};
 
 void vs_fresnel(
 	in out	float4 pos		: POSITION,

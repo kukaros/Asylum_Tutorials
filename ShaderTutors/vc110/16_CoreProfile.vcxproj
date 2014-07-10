@@ -20,8 +20,8 @@
     <ClInclude Include="..\common\glext.h" />
     <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.h" />
     <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.h" />
+    <ClInclude Include="..\extern\glext.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
-    <ClInclude Include="..\IntelTest\glext.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.m" />

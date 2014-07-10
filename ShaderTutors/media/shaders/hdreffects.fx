@@ -212,6 +212,25 @@ void ps_blurcombine(
 
 // =======================================================================
 //
+// Afterimage
+//
+// =======================================================================
+
+void ps_afterimage(
+	in	float2 tex		: TEXCOORD0,
+	out	float4 color0	: COLOR)
+{
+	float4 prev = tex2D(sampler0, tex);
+	float4 current = tex2D(sampler1, tex);
+
+	color0 = prev * 0.998f + current * 0.011f;
+	color0 = min(max(color0, 0), 256);
+
+	color0.a = 1;
+}
+
+// =======================================================================
+//
 // Star
 //
 // =======================================================================
@@ -311,11 +330,11 @@ void ps_final(
 	float4 bloom = tex2D(sampler1, tex);
 	float4 star = tex2D(sampler2, tex);
 	float4 ghost = tex2D(sampler3, tex);
+	float4 after = tex2D(sampler4, tex);
 
 	float exposure = targetluminance / tex2D(sampler5, float2(0.5f, 0.5f)).r;
 
-	//float4 r1 = saturate((bloom + star + ghost) * 3); // when using a8r8g8b8
-	float4 r1 = (bloom + star + ghost) * 6;
+	float4 r1 = (bloom + star + ghost + after) * 6;
 	float4 r0 = base * exposure + r1;
 
 	tex -= 0.5f;
@@ -418,6 +437,14 @@ technique ghost
 	pass p0
 	{
 		pixelshader = compile ps_2_0 ps_ghost();
+	}
+}
+
+technique afterimage
+{
+	pass p0
+	{
+		pixelshader = compile ps_2_0 ps_afterimage();
 	}
 }
 

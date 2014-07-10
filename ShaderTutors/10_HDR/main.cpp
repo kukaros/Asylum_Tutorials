@@ -6,7 +6,9 @@
 
 #define HELP_TEXT	\
 	"Hold left button to rotate camera\nor right button to rotate object\n\n" \
+	"H - Toggle help text\n" \
 	"0 - change object\n" \
+	"1 - toggle afterimage\n" \
 	"+/- adjust target luminance\n\n" \
 	"Target luminance is: "
 
@@ -23,8 +25,9 @@ extern short	mousedx;
 extern short	mousedy;
 extern short	mousedown;
 
+extern LPDIRECT3D9 direct3d;
 extern LPDIRECT3DDEVICE9 device;
-extern HWND		hwnd;
+extern HWND hwnd;
 
 // tutorial variables
 LPD3DXMESH						mesh				= NULL;
@@ -44,6 +47,7 @@ LPDIRECT3DCUBETEXTURE9			roughspecular		= NULL;
 LPDIRECT3DVERTEXDECLARATION9	vertexdecl			= NULL;
 
 LPDIRECT3DTEXTURE9				scenetarget			= NULL;
+LPDIRECT3DTEXTURE9				afterimages[2]		= { 0, 0 };				// ping-pong between them
 LPDIRECT3DTEXTURE9				dstargets[5]		= { 0, 0, 0, 0, 0 };	// [0] is bright pass
 LPDIRECT3DTEXTURE9				blurtargets[5]		= { 0, 0, 0, 0, 0 };	// [0] is final blur
 LPDIRECT3DTEXTURE9				startargets[4][2];
@@ -55,6 +59,7 @@ LPDIRECT3DSURFACE9				dssurfaces[5]		= { 0, 0, 0, 0, 0 };
 LPDIRECT3DSURFACE9				blursurfaces[5]		= { 0, 0, 0, 0, 0 };
 LPDIRECT3DSURFACE9				starsurfaces[4][2];
 LPDIRECT3DSURFACE9				ghostsurfaces[2]	= { 0, 0 };
+LPDIRECT3DSURFACE9				aftersurfaces[2]	= { 0, 0 };
 LPDIRECT3DSURFACE9				avglumsurfaces[6]	= { 0, 0, 0, 0, 0, 0 };
 
 // tutorial variables
@@ -73,7 +78,11 @@ float				tmpvert[48];
 float				exposurevelocity;
 float				destexposurevelocity;
 float				targetluminance;
-short				adapttex = 4;	// ping-pong between 1x1 textures
+short				adapttex = 4;		// ping-pong between 1x1 textures
+short				afterimagetex = 0;
+bool				drawhelp = true;
+bool				firstframe = true;	// must clear some textures
+bool				afterimage = false;
 
 float quadvertices[36] =
 {
@@ -108,6 +117,26 @@ void UpdateText()
 HRESULT InitScene()
 {
 	HRESULT hr;
+	D3DDISPLAYMODE mode;
+
+	if( FAILED(hr = direct3d->GetAdapterDisplayMode(0, &mode)) )
+	{
+		MYERROR("Could not get adapter mode");
+		return hr;
+	}
+	
+	if( FAILED(hr = direct3d->CheckDeviceFormat( 0, D3DDEVTYPE_HAL, mode.Format, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_A16B16G16R16F)) )
+	{
+		MYERROR("No floating point rendertarget support");
+		return hr;
+	}
+	
+	// más depth/stencil-el még müködhet
+	if( FAILED(hr = direct3d->CheckDepthStencilMatch( 0, D3DDEVTYPE_HAL, mode.Format, D3DFMT_A16B16G16R16F, D3DFMT_D24S8)) )
+	{
+		MYERROR("D3DFMT_A16B16G16R16F does not support D3DFMT_D24S8");
+		return hr;
+	}
 
 	D3DVERTEXELEMENT9 elem[] =
 	{
@@ -129,6 +158,10 @@ HRESULT InitScene()
 	//MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/altar_rough.dds", &roughspecular));
 	MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/grace.dds", &skytexture));
 	MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/grace_rough.dds", &roughspecular));
+	//MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/beach.dds", &skytexture));
+	//MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/beach_rough.dds", &roughspecular));
+	//MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/stpeters.dds", &skytexture));
+	//MYVALID(D3DXCreateCubeTextureFromFile(device, "../media/textures/stpeters_rough.dds", &roughspecular));
 
 	MYVALID(D3DXCreateTextureFromFile(device, "../media/textures/gold.jpg", &texture));
 	MYVALID(D3DXCreateTextureFromFile(device, "../media/textures/fresnel.png", &fresneltexture));
@@ -146,7 +179,7 @@ HRESULT InitScene()
 		MYVALID(dstargets[i]->GetSurfaceLevel(0, &dssurfaces[i]));
 	}
 
-	// star textures
+	// star textures (8x 1 MB @ 1080p)
 	for( int i = 0; i < 4; ++i )
 	{
 		for( int j = 0; j < 2; ++j )
@@ -158,7 +191,7 @@ HRESULT InitScene()
 		}
 	}
 
-	// lens flare textures
+	// lens flare textures (2x 4 MB @ 1080p)
 	for( int i = 0; i < 2; ++i )
 	{
 		MYVALID(device->CreateTexture(screenwidth / 2, screenheight / 2, 1, D3DUSAGE_RENDERTARGET,
@@ -185,11 +218,22 @@ HRESULT InitScene()
 	MYVALID(avglumtargets[4]->GetSurfaceLevel(0, &avglumsurfaces[4]));
 	MYVALID(avglumtargets[5]->GetSurfaceLevel(0, &avglumsurfaces[5]));
 
+	// afterimage textures (2x 4 MB @ 1080p)
+	MYVALID(device->CreateTexture(screenwidth / 2, screenheight / 2, 1, D3DUSAGE_RENDERTARGET,
+		D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &afterimages[0], NULL));
+
+	MYVALID(device->CreateTexture(screenwidth / 2, screenheight / 2, 1, D3DUSAGE_RENDERTARGET,
+		D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &afterimages[1], NULL));
+
+	MYVALID(afterimages[0]->GetSurfaceLevel(0, &aftersurfaces[0]));
+	MYVALID(afterimages[1]->GetSurfaceLevel(0, &aftersurfaces[1]));
+
 	// other
 	MYVALID(device->CreateTexture(512, 512, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &text, NULL));
 	MYVALID(device->CreateTexture(screenwidth, screenheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &scenetarget, NULL));
 	MYVALID(device->CreateVertexDeclaration(elem, &vertexdecl));
 
+	// other
 	MYVALID(scenetarget->GetSurfaceLevel(0, &scenesurface));
 
 	MYVALID(DXCreateEffect("../media/shaders/hdreffects.fx", device, &hdreffect));
@@ -263,10 +307,16 @@ void UninitScene()
 
 	SAFE_RELEASE(scenesurface);
 	SAFE_RELEASE(scenetarget);
+
 	SAFE_RELEASE(ghostsurfaces[0]);
 	SAFE_RELEASE(ghostsurfaces[1]);
 	SAFE_RELEASE(ghosttargets[0]);
 	SAFE_RELEASE(ghosttargets[1]);
+
+	SAFE_RELEASE(aftersurfaces[0]);
+	SAFE_RELEASE(aftersurfaces[1]);
+	SAFE_RELEASE(afterimages[0]);
+	SAFE_RELEASE(afterimages[1]);
 
 	for( int i = 0; i < 6; ++i )
 	{
@@ -307,6 +357,14 @@ void KeyPress(WPARAM wparam)
 		else
 			mesh = mesh1;
 
+		break;
+
+	case 0x31:
+		afterimage = !afterimage;
+		break;
+
+	case 0x48:
+		drawhelp = !drawhelp;
 		break;
 
 	case VK_ADD:
@@ -499,6 +557,29 @@ void BrightPass()
 	}
 	hdreffect->EndPass();
 	hdreffect->End();
+
+	// generate afterimage now
+	device->SetRenderTarget(0, aftersurfaces[afterimagetex]);
+
+	if( afterimage )
+	{
+		device->SetTexture(0, afterimages[1 - afterimagetex]);
+		device->SetTexture(1, dstargets[0]);
+
+		hdreffect->SetTechnique("afterimage");
+
+		hdreffect->Begin(NULL, 0);
+		hdreffect->BeginPass(0);
+		{
+			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, tmpvert, sizeof(D3DXVECTOR4) + sizeof(D3DXVECTOR2));
+		}
+		hdreffect->EndPass();
+		hdreffect->End();
+	}
+	else
+		device->Clear(0, NULL, D3DCLEAR_TARGET, 0, 1, 0);
+
+	afterimagetex = 1 - afterimagetex;
 }
 //*************************************************************************************************************
 void DownSample()
@@ -753,6 +834,24 @@ void Render(float alpha, float elapsedtime)
 
 		// STEP 1: render sky
 		device->GetRenderTarget(0, &oldtarget);
+
+		if( firstframe )
+		{
+			device->SetRenderTarget(0, aftersurfaces[0]);
+			device->Clear(0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0);
+
+			device->SetRenderTarget(0, aftersurfaces[1]);
+			device->Clear(0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0);
+
+			device->SetRenderTarget(0, avglumsurfaces[4]);
+			device->Clear(0, NULL, D3DCLEAR_TARGET, 0x11111111, 1.0f, 0);
+
+			device->SetRenderTarget(0, avglumsurfaces[5]);
+			device->Clear(0, NULL, D3DCLEAR_TARGET, 0x11111111, 1.0f, 0);
+
+			firstframe = false;
+		}
+
 		device->SetRenderTarget(0, scenesurface);
 		device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
 		device->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -815,6 +914,7 @@ void Render(float alpha, float elapsedtime)
 		device->SetTexture(1, blurtargets[0]);		// blur
 		device->SetTexture(2, blurtargets[1]);		// star
 		device->SetTexture(3, ghosttargets[0]);		// ghost
+		device->SetTexture(4, afterimages[1 - afterimagetex]);
 
 		device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 		device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
@@ -830,18 +930,21 @@ void Render(float alpha, float elapsedtime)
 		hdreffect->EndPass();
 		hdreffect->End();
 
-		// render text
-		device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
-		device->SetRenderState(D3DRS_ZENABLE, FALSE);
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		if( drawhelp )
+		{
+			// render text
+			device->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);
+			device->SetRenderState(D3DRS_ZENABLE, FALSE);
+			device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+			device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
-		device->SetTexture(0, text);
-		device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, 6 * sizeof(float));
+			device->SetTexture(0, text);
+			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, textvertices, 6 * sizeof(float));
 
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-		device->SetRenderState(D3DRS_ZENABLE, TRUE);
+			device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+			device->SetRenderState(D3DRS_ZENABLE, TRUE);
+		}
 
 		// clean up
 		device->SetTexture(1, NULL);
