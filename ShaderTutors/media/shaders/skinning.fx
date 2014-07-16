@@ -33,7 +33,7 @@ void vs_main(
 		bnorm += mul(norm, matBones[blendindices[i]]) * blendweights[i];
 	}
 
-	// must sum to 1
+	// must always sum up to 1
 	last = 1 - last;
 
 	bpos += mul(pos, matBones[blendindices[bones - 1]]) * last;

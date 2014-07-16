@@ -22,9 +22,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\IntelTest\glext.h">
-      <Filter>extern</Filter>
-    </ClInclude>
     <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.h">
       <Filter>osx</Filter>
     </ClInclude>
@@ -36,6 +33,9 @@
     </ClInclude>
     <ClInclude Include="..\common\glext.h">
       <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\glext.h">
+      <Filter>extern</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
