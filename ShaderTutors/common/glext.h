@@ -34,6 +34,24 @@ enum OpenGLDeclUsage
 	GLDECLUSAGE_SAMPLE
 };
 
+enum OpenGLFormat
+{
+	GLFMT_UNKNOWN = 0,
+	GLFMT_R8G8B8,
+	GLFMT_A8R8G8B8,
+	GLFMT_sA8R8G8B8,
+	GLFMT_D24S8,
+	GLFMT_D32F,
+
+	GLFMT_R16F,
+	GLFMT_G16R16F,
+	GLFMT_A16B16G16R16F,
+
+	GLFMT_R32F,
+	GLFMT_G32R32F,
+	GLFMT_A32B32G32R32F
+};
+
 struct OpenGLColor
 {
 	float r, g, b, a;
@@ -96,16 +114,16 @@ class OpenGLMesh
 	};
 
 private:
-	OpenGLAttributeRange* subsettable;
-	OpenGLVertexDeclaration vertexdecl;
-	GLuint numvertices;
-	GLuint numindices;
-	GLuint vertexbuffer;
-	GLuint indexbuffer;
-	GLuint vertexlayout;
+	OpenGLAttributeRange*		subsettable;
+	OpenGLVertexDeclaration		vertexdecl;
+	GLuint						numvertices;
+	GLuint						numindices;
+	GLuint						vertexbuffer;
+	GLuint						indexbuffer;
+	GLuint						vertexlayout;
 
-	locked_data vertexdata_locked;
-	locked_data indexdata_locked;
+	locked_data					vertexdata_locked;
+	locked_data					indexdata_locked;
 
 	OpenGLMesh();
 
@@ -121,6 +139,14 @@ public:
 	void UnlockVertexBuffer();
 	void UnlockIndexBuffer();
 	void SetAttributeTable(const OpenGLAttributeRange* table, GLuint size);
+
+	inline GLuint GetVertexBuffer() const {
+		return vertexbuffer;
+	}
+
+	inline GLuint GetIndexBuffer() const {
+		return indexbuffer;
+	}
 };
 
 /**
@@ -129,7 +155,7 @@ public:
 class OpenGLEffect
 {
 	friend bool GLCreateEffectFromFile(const char*, const char*, OpenGLEffect**);
-	friend bool GLCreateComputeProgramFromFile(const char*, OpenGLEffect**);
+	friend bool GLCreateComputeProgramFromFile(const char*, const char*, OpenGLEffect**);
 
 	struct Uniform
 	{
@@ -177,11 +203,41 @@ public:
 	void SetInt(const char* name, int value);
 };
 
+/**
+ * brief FBO with attachments
+ */
+class OpenGLFramebuffer
+{
+	struct Attachment
+	{
+		GLuint id;
+		int type;
+
+		Attachment()
+			: id(0), type(0) {}
+	};
+
+private:
+	GLuint		fboid;
+	GLuint		sizex;
+	GLuint		sizey;
+	Attachment	rendertargets[8];
+	Attachment	depthstencil;
+
+public:
+	OpenGLFramebuffer(GLuint width, GLuint height);
+	~OpenGLFramebuffer();
+
+	bool AttachRenderbuffer(GLenum target, OpenGLFormat format);
+	bool AttachTexture(GLenum target, OpenGLFormat format);
+	bool Validate();
+};
+
 // content functions
 bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
 bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
 bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect);
-bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect);
+bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
 
 // math functions
 float GLVec3Dot(float a[3], float b[3]);

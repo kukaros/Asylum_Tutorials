@@ -21,6 +21,17 @@
     <ClInclude Include="..\extern\glcorearb.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\coloredtexture.comp">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\media\shadersGL\simplelight.frag">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\media\shadersGL\simplelight.vert">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>

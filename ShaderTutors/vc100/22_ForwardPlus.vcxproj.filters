@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\22_CS_ForwardPlus\main.cpp" />
-    <ClCompile Include="..\22_CS_ForwardPlus\other.cpp" />
+    <ClCompile Include="..\22_ForwardPlus\main.cpp" />
+    <ClCompile Include="..\22_ForwardPlus\other.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp">
       <Filter>extern</Filter>
     </ClCompile>
@@ -33,13 +33,19 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shadersGL\coloredtexture.comp">
+    <None Include="..\media\shadersGL\forward.frag">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shadersGL\simplelight.frag">
+    <None Include="..\media\shadersGL\forward.vert">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shadersGL\simplelight.vert">
+    <None Include="..\media\shadersGL\lightcull.comp">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\lightaccum.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\lightaccum.vert">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

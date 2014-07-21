@@ -7,6 +7,58 @@
 #include <cstdio>
 #include <cmath>
 
+#ifdef _MSC_VER
+#	pragma warning (disable:4996)
+#endif
+
+GLint map_Format_Internal[12] =
+{
+	0,
+	GL_RGB8,
+	GL_RGBA8,
+	GL_SRGB8_ALPHA8,
+	GL_DEPTH_STENCIL,
+	GL_DEPTH_COMPONENT,
+	GL_R16F,
+	GL_RG16F,
+	GL_RGBA16F_ARB,
+	GL_R32F,
+	GL_RG32F,
+	GL_RGBA32F_ARB
+};
+
+GLenum map_Format_Format[12] =
+{
+	0,
+	GL_RGB,
+	GL_RGBA,
+	GL_RGBA,
+	GL_DEPTH_STENCIL,
+	GL_DEPTH_COMPONENT,
+	GL_RED,
+	GL_RG,
+	GL_RGBA,
+	GL_RED,
+	GL_RG,
+	GL_RGBA
+};
+
+GLenum map_Format_Type[12] =
+{
+	0,
+	GL_UNSIGNED_BYTE,
+	GL_UNSIGNED_INT_8_8_8_8_REV,
+	GL_UNSIGNED_BYTE,
+	GL_UNSIGNED_INT_24_8,
+	GL_FLOAT,
+	GL_HALF_FLOAT,
+	GL_HALF_FLOAT,
+	GL_HALF_FLOAT,
+	GL_FLOAT,
+	GL_FLOAT,
+	GL_FLOAT
+};
+
 static void GLReadString(FILE* f, char* buff)
 {
 	size_t ind = 0;
@@ -280,9 +332,8 @@ void OpenGLEffect::BindAttributes()
 
 		if( loc == -1 || it == attribmap.end() )
 		{
-			//Console().Error(
-			//	"Invalid attribute found. Note that Quadron needs to know the semantic "
-			//	"of an attribute to set it automatically. Please use the q_<semantic> syntax");
+			std::cout <<
+				"Invalid attribute found. Use the my_<semantic> syntax!\n";
 		}
 		else
 			glBindAttribLocation(program, it->second, attribname);
@@ -454,6 +505,154 @@ void OpenGLEffect::SetInt(const char* name, int value)
 		reg[0] = value;
 		uni.Changed = true;
 	}
+}
+
+// *****************************************************************************************************************************
+//
+// OpenGLFrameBuffer impl
+//
+// *****************************************************************************************************************************
+
+OpenGLFramebuffer::OpenGLFramebuffer(GLuint width, GLuint height)
+{
+	glGenFramebuffers(1, &fboid);
+
+	sizex = width;
+	sizey = height;
+}
+
+OpenGLFramebuffer::~OpenGLFramebuffer()
+{
+	for( int i = 0; i < 8; ++i )
+	{
+		if( rendertargets[i].id != 0 )
+		{
+			if( rendertargets[i].type == 0 )
+				glDeleteRenderbuffers(1, &rendertargets[i].id);
+			else
+				glDeleteTextures(1, &rendertargets[i].id);
+		}
+	}
+
+	if( depthstencil.id != 0 )
+	{
+		if( depthstencil.type == 0 )
+			glDeleteRenderbuffers(1, &depthstencil.id);
+		else
+			glDeleteTextures(1, &depthstencil.id);
+	}
+
+	glDeleteFramebuffers(1, &fboid);
+}
+
+bool OpenGLFramebuffer::AttachRenderbuffer(GLenum target, OpenGLFormat format)
+{
+	Attachment* attach = 0;
+
+	if( target == GL_DEPTH_ATTACHMENT || target == GL_DEPTH_STENCIL_ATTACHMENT )
+		attach = &depthstencil;
+	else if( target >= GL_COLOR_ATTACHMENT0 && target < GL_COLOR_ATTACHMENT8 )
+		attach = &rendertargets[target - GL_COLOR_ATTACHMENT0];
+	else
+	{
+		std::cout << "Target is invalid!\n";
+		return false;
+	}
+
+	if( attach->id != 0 )
+	{
+		std::cout << "Already attached to this target!\n";
+		return false;
+	}
+
+	glGenRenderbuffers(1, &attach->id);
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, fboid);
+	glBindRenderbuffer(GL_RENDERBUFFER, attach->id);
+
+	glRenderbufferStorage(GL_RENDERBUFFER, map_Format_Internal[format], sizex, sizey);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, target, GL_RENDERBUFFER, attach->id);
+
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	attach->type = 0;
+
+	return true;
+}
+
+bool OpenGLFramebuffer::AttachTexture(GLenum target, OpenGLFormat format)
+{
+	Attachment* attach = 0;
+
+	if( target == GL_DEPTH_ATTACHMENT || target == GL_DEPTH_STENCIL_ATTACHMENT )
+		attach = &depthstencil;
+	else if( target >= GL_COLOR_ATTACHMENT0 && target < GL_COLOR_ATTACHMENT8 )
+		attach = &rendertargets[target - GL_COLOR_ATTACHMENT0];
+	else
+	{
+		std::cout << "Target is invalid!\n";
+		return false;
+	}
+
+	if( attach->id != 0 )
+	{
+		std::cout << "Already attached to this target!\n";
+		return false;
+	}
+
+	glGenTextures(1, &attach->id);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fboid);
+	glBindTexture(GL_TEXTURE_2D, attach->id);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, map_Format_Internal[format], sizex, sizey, 0, map_Format_Format[format], map_Format_Type[format], 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, target, GL_TEXTURE_2D, attach->id, 0);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	attach->type = 1;
+
+	return true;
+}
+
+bool OpenGLFramebuffer::Validate()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, fboid);
+
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+	switch( status )
+	{
+	case GL_FRAMEBUFFER_COMPLETE:
+		break;
+
+	case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+		std::cout << "OpenGLFramebuffer::Validate(): GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT!\n";
+		break;
+
+	case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+		std::cout << "OpenGLFramebuffer::Validate(): GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS!\n";
+		break;
+
+	case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+		std::cout << "OpenGLFramebuffer::Validate(): GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT!\n";
+		break;
+
+	default:
+		std::cout << "OpenGLFramebuffer::Validate(): Unknown error!\n";
+		break;
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return (status == GL_FRAMEBUFFER_COMPLETE);
 }
 
 // *****************************************************************************************************************************
@@ -779,6 +978,7 @@ _fail:
 
 bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect)
 {
+	char			log[1024];
 	OpenGLEffect*	neweffect;
 	GLuint			vertexshader = 0;
 	GLuint			fragmentshader = 0;
@@ -807,6 +1007,11 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 
 	if( success != GL_TRUE )
 	{
+		glGetShaderInfoLog(vertexshader, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
 		delete[] source;
 		glDeleteShader(vertexshader);
 
@@ -835,7 +1040,13 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 
 	if( success != GL_TRUE )
 	{
+		glGetShaderInfoLog(fragmentshader, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
 		delete[] source;
+
 		glDeleteShader(vertexshader);
 		glDeleteShader(fragmentshader);
 
@@ -855,6 +1066,11 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 
 	if( success != GL_TRUE )
 	{
+		glGetProgramInfoLog(neweffect->program, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
 		glDeleteProgram(neweffect->program);
 		delete neweffect;
 
@@ -871,13 +1087,15 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 	return true;
 }
 
-bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect)
+bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect)
 {
+	char			log[1024];
 	OpenGLEffect*	neweffect;
 	GLuint			shader = 0;
 	FILE*			infile = 0;
 	GLint			success;
 	GLint			length;
+	int				deflength = 0;
 	char*			source;
 
 	if( !(infile = fopen(csfile, "rb")) )
@@ -887,10 +1105,16 @@ bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect)
 	length = ftell(infile);
 	fseek(infile, 0, SEEK_SET);
 
-	source = new char[length];
+	if( defines )
+		deflength = strlen(defines);
+
+	source = new char[length + deflength];
 	shader = glCreateShader(GL_COMPUTE_SHADER);
 
-	fread(source, 1, length, infile);
+	if( defines )
+		memcpy(source, defines, deflength);
+
+	fread(source + deflength, 1, length, infile);
 	fclose(infile);
 
 	glShaderSource(shader, 1, (const GLcharARB**)&source, &length);
@@ -899,6 +1123,11 @@ bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect)
 
 	if( success != GL_TRUE )
 	{
+		glGetShaderInfoLog(shader, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
 		delete[] source;
 		glDeleteShader(shader);
 
@@ -917,6 +1146,11 @@ bool GLCreateComputeProgramFromFile(const char* csfile, OpenGLEffect** effect)
 
 	if( success != GL_TRUE )
 	{
+		glGetProgramInfoLog(neweffect->program, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
 		glDeleteProgram(neweffect->program);
 		delete neweffect;
 

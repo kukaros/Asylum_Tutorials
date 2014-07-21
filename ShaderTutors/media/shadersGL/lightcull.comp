@@ -1,0 +1,52 @@
+#version 430
+
+struct ListHead
+{
+	int Start;
+	int Count;
+};
+
+struct ListNode
+{
+	int LightIndex;
+	int Next;
+};
+
+layout(std140, binding = 0) buffer HeadBuffer {
+	ListHead data[];
+} headbuffer;
+
+layout(std140, binding = 1) buffer NodeBuffer {
+	ListNode data[];
+} nodebuffer;
+
+shared uint TileMinZ;
+shared uint TileMaxZ;
+
+layout (local_size_x = 16, local_size_y = 16) in;
+void main()
+{
+	ivec2	loc		= ivec2(gl_WorkGroupID.xy);
+	ivec2	size	= ivec2(gl_NumWorkGroups.xy);
+	int		index	= loc.y * size.x + loc.x;
+	
+	float minz = float(loc.x); //
+	float maxz = float(loc.y); //
+
+	// calculate min/max depth in this tile
+	atomicMin(TileMinZ, floatBitsToUint(minz));
+	atomicMax(TileMaxZ, floatBitsToUint(maxz));
+
+	memoryBarrierShared();
+
+	minz = uintBitsToFloat(TileMinZ);
+	maxz = uintBitsToFloat(TileMaxZ);
+
+	// calculate frustum
+
+	// cull lights
+
+	headbuffer.data[index].Start = loc.x;
+	nodebuffer.data[index].LightIndex = 0;
+	nodebuffer.data[index].Next = 0;
+}

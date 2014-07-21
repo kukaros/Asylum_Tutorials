@@ -193,6 +193,7 @@ extern PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays;
 extern PFNGLDISPATCHCOMPUTEPROC					glDispatchCompute;
 extern PFNGLDISPATCHCOMPUTEINDIRECTPROC			glDispatchComputeIndirect;
 extern PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture;
+extern PFNGLBINDBUFFERBASEPROC					glBindBufferBase;
 
 // WGL specific
 typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
@@ -282,6 +283,8 @@ namespace Quadron
 		static bool ARB_draw_buffers;
 		static bool ARB_vertex_array_object;
 		static bool ARB_compute_shader;
+		static bool ARB_shader_image_load_store;
+		static bool ARB_shader_storage_buffer_object;
 
 		static bool EXT_texture_compression_s3tc;
 		static bool EXT_texture_cube_map;

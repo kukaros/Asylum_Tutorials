@@ -22,7 +22,7 @@ extern long screenheight;
 // tutorial variables
 OpenGLMesh*		mesh			= 0;
 OpenGLEffect*	effect			= 0;
-OpenGLEffect*	computeprogram	= 0;
+OpenGLEffect*	coloredtexture	= 0;	// compute shader creating a checker pattern
 GLuint			texture			= 0;
 
 bool InitScene()
@@ -64,25 +64,20 @@ bool InitScene()
 	}
 
 	// effect
-	ok = GLCreateEffectFromFile("../media/shadersGL/simplelight.vert", "../media/shadersGL/simplelight.frag", &effect);
-
-	if( !ok )
+	if( !(ok = GLCreateEffectFromFile("../media/shadersGL/simplelight.vert", "../media/shadersGL/simplelight.frag", &effect)) )
 	{
 		MYERROR("Could not load effect");
 		return false;
 	}
 
 	// compute shader
-	ok = GLCreateComputeProgramFromFile("../media/shadersGL/coloredtexture.comp", &computeprogram);
-
-	if( !ok )
+	if( !(ok = GLCreateComputeProgramFromFile("../media/shadersGL/coloredtexture.comp", &coloredtexture)) )
 	{
 		MYERROR("Could not load compute shader");
 		return false;
 	}
 
-	computeprogram->SetInt("img", 0);
-	glBindImageTexture(0, texture, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+	coloredtexture->SetInt("img", 0);
 
 	return true;
 }
@@ -92,8 +87,8 @@ void UninitScene()
 	if( effect )
 		delete effect;
 
-	if( computeprogram )
-		delete computeprogram;
+	if( coloredtexture )
+		delete coloredtexture;
 
 	if( texture )
 		glDeleteTextures(1, &texture);
@@ -102,7 +97,7 @@ void UninitScene()
 		delete mesh;
 
 	effect = 0;
-	computeprogram = 0;
+	coloredtexture = 0;
 	mesh = 0;
 	texture = 0;
 }
@@ -150,12 +145,14 @@ void Render(float alpha, float elapsedtime)
 	time += elapsedtime;
 
 	// update texture
-	computeprogram->SetFloat("time", time);
-	computeprogram->Begin();
+	glBindImageTexture(0, texture, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+	coloredtexture->SetFloat("time", time);
+	coloredtexture->Begin();
 	{
 		glDispatchCompute(8, 8, 1);
 	}
-	computeprogram->End();
+	coloredtexture->End();
 
 	effect->SetVector("eyePos", eye);
 	effect->SetVector("lightPos", lightpos);

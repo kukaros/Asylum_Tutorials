@@ -20,8 +20,10 @@ RECT	workarea;
 DEVMODE	devmode;
 long	screenwidth		= 800;
 long	screenheight	= 600;
+bool	uninited		= false;
 
 bool InitScene();
+
 void LoadTexture(const std::wstring& file);
 void UninitScene();
 void Update(float delta);
@@ -262,6 +264,34 @@ bool InitGL(HWND hwnd)
 	return true;
 }
 //*************************************************************************************************************
+void UninitGL()
+{
+	if( !uninited )
+	{
+		uninited = true;
+
+		// release context
+		if( hrc )
+		{
+			UninitScene();
+
+			if( !wglMakeCurrent(hdc, NULL) )
+				MYERROR("Could not release context");
+
+			if( !wglDeleteContext(hrc) )
+				MYERROR("Could not delete context");
+
+			hrc = NULL;
+		}
+
+		if( hdc && !ReleaseDC(hwnd, hdc) )
+			MYERROR("Could not release device context");
+
+		hdc = NULL;
+		DestroyWindow(hwnd);
+	}
+}
+//*************************************************************************************************************
 void Adjust(tagRECT& out, long& width, long& height, DWORD style, DWORD exstyle, bool menu = false)
 {
 	long w = workarea.right - workarea.left;
@@ -316,26 +346,7 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 	{
 	case WM_CLOSE:
 		ShowWindow(hWnd, SW_HIDE);
-
-		// release context
-		if( hrc )
-		{
-			UninitScene();
-
-			if( !wglMakeCurrent(hdc, NULL) )
-				MYERROR("Could not release context");
-
-			if( !wglDeleteContext(hrc) )
-				MYERROR("Could not delete context");
-
-			hrc = NULL;
-		}
-
-		if( hdc && !ReleaseDC(hwnd, hdc) )
-			MYERROR("Could not release device context");
-
-		hdc = NULL;
-		DestroyWindow(hWnd);
+		UninitGL();
 
 		break;
 
@@ -464,6 +475,7 @@ int main(int argc, char* argv[])
 	}
 
 _end:
+	UninitGL();
 	std::cout << "Exiting...\n";
 
 	UnregisterClass("TestClass", wc.hInstance);

@@ -39,7 +39,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_Compute", "vc100\22_Comp
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "16_CoreProfile", "vc100\16_CoreProfile.vcxproj", "{4EFF735A-1151-4060-B03C-5E6AD223D804}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_CS_ForwardPlus", "vc100\22_CS_ForwardPlus.vcxproj", "{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "19_JitteredShadow", "vc100\19_JitteredShadow.vcxproj", "{7CB83449-B22B-4193-9130-AD5784F4F9CD}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_ForwardPlus", "vc100\22_ForwardPlus.vcxproj", "{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -123,6 +125,10 @@ Global
 		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Debug|Win32.Build.0 = Debug|Win32
 		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Release|Win32.ActiveCfg = Release|Win32
 		{4EFF735A-1151-4060-B03C-5E6AD223D804}.Release|Win32.Build.0 = Release|Win32
+		{7CB83449-B22B-4193-9130-AD5784F4F9CD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7CB83449-B22B-4193-9130-AD5784F4F9CD}.Debug|Win32.Build.0 = Debug|Win32
+		{7CB83449-B22B-4193-9130-AD5784F4F9CD}.Release|Win32.ActiveCfg = Release|Win32
+		{7CB83449-B22B-4193-9130-AD5784F4F9CD}.Release|Win32.Build.0 = Release|Win32
 		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Debug|Win32.ActiveCfg = Debug|Win32
 		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Debug|Win32.Build.0 = Debug|Win32
 		{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}.Release|Win32.ActiveCfg = Release|Win32

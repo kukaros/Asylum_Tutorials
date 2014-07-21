@@ -17,6 +17,9 @@
     <Filter Include="common">
       <UniqueIdentifier>{ca697c53-88a7-4f0d-b3f4-529b3133419b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{e5b95f16-1bce-4991-adb7-03ec4d5546f0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\extern\qglextensions.h">
@@ -28,5 +31,16 @@
     <ClInclude Include="..\extern\glcorearb.h">
       <Filter>extern</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\coloredtexture.comp">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\simplelight.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\simplelight.vert">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

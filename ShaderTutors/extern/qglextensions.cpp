@@ -3,6 +3,10 @@
 
 #if 1
 
+#ifdef _MSC_VER
+#	pragma warning (disable:4996)
+#endif
+
 #include <cstring>
 
 #define GET_ADDRESS(var, type, name)	\
@@ -91,6 +95,7 @@ PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays = 0;
 PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = 0;
 PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = 0;
 PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = 0;
+PFNGLBINDBUFFERBASEPROC					glBindBufferBase = 0;
 
 PFNWGLSWAPINTERVALFARPROC				wglSwapInterval = 0;
 WGLCREATECONTEXTATTRIBSARBPROC			wglCreateContextAttribs = 0;
@@ -117,6 +122,8 @@ namespace Quadron
 	bool qGLExtensions::ARB_draw_buffers = false;
 	bool qGLExtensions::ARB_vertex_array_object = false;
 	bool qGLExtensions::ARB_compute_shader = false;
+	bool qGLExtensions::ARB_shader_image_load_store = false;
+	bool qGLExtensions::ARB_shader_storage_buffer_object = false;
 
 	bool qGLExtensions::EXT_texture_compression_s3tc = false;
 	bool qGLExtensions::EXT_texture_cube_map = false;
@@ -226,7 +233,9 @@ namespace Quadron
 			EXT_framebuffer_blit			= true;
 			EXT_packed_depth_stencil		= true;
 
-			ARB_compute_shader				= IsSupported("GL_ARB_compute_shader");
+			ARB_compute_shader					= IsSupported("GL_ARB_compute_shader");
+			ARB_shader_image_load_store			= IsSupported("GL_ARB_shader_image_load_store");
+			ARB_shader_storage_buffer_object	= IsSupported("GL_ARB_shader_storage_buffer_object");
 		}
 		else
 		{
@@ -364,7 +373,16 @@ namespace Quadron
 		{
 			GET_ADDRESS(glDispatchCompute, PFNGLDISPATCHCOMPUTEPROC, "");
 			GET_ADDRESS(glDispatchComputeIndirect, PFNGLDISPATCHCOMPUTEINDIRECTPROC, "");
+		}
+
+		if( ARB_shader_image_load_store )
+		{
 			GET_ADDRESS(glBindImageTexture, PFNGLBINDIMAGETEXTUREPROC, "");
+		}
+
+		if( ARB_shader_storage_buffer_object )
+		{
+			GET_ADDRESS(glBindBufferBase, PFNGLBINDBUFFERBASEPROC, "");
 		}
 #endif
 		
