@@ -22,8 +22,8 @@
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shadersGL\forward.frag" />
-    <None Include="..\media\shadersGL\forward.vert" />
+    <None Include="..\media\shadersGL\ambientzpass.frag" />
+    <None Include="..\media\shadersGL\ambientzpass.vert" />
     <None Include="..\media\shadersGL\lightaccum.frag" />
     <None Include="..\media\shadersGL\lightaccum.vert" />
     <None Include="..\media\shadersGL\lightcull.comp" />

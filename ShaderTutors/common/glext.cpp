@@ -76,6 +76,118 @@ static void GLReadString(FILE* f, char* buff)
 
 // *****************************************************************************************************************************
 //
+// OpenGLAABox impl
+//
+// *****************************************************************************************************************************
+
+#define ASGN_IF(a, op, b) \
+	if( (a) op (b) ) (a) = (b);
+
+OpenGLAABox::OpenGLAABox()
+{
+	Min[0] = Min[1] = Min[2] = FLT_MAX;
+	Max[0] = Max[1] = Max[2] = -FLT_MAX;
+}
+
+void OpenGLAABox::Add(float x, float y, float z)
+{
+	ASGN_IF(Max[0], <, x);
+	ASGN_IF(Max[1], <, y);
+	ASGN_IF(Max[2], <, z);
+
+	ASGN_IF(Min[0], >, x);
+	ASGN_IF(Min[1], >, y);
+	ASGN_IF(Min[2], >, z);
+}
+
+void OpenGLAABox::Add(float v[3])
+{
+	ASGN_IF(Max[0], <, v[0]);
+	ASGN_IF(Max[1], <, v[1]);
+	ASGN_IF(Max[2], <, v[2]);
+
+	ASGN_IF(Min[0], >, v[0]);
+	ASGN_IF(Min[1], >, v[1]);
+	ASGN_IF(Min[2], >, v[2]);
+}
+
+void OpenGLAABox::GetCenter(float out[3])
+{
+	out[0] = (Min[0] + Max[0]) * 0.5f;
+	out[1] = (Min[1] + Max[1]) * 0.5f;
+	out[2] = (Min[2] + Max[2]) * 0.5f;
+}
+
+void OpenGLAABox::GetHalfSize(float out[3])
+{
+	out[0] = (Max[0] - Min[0]) * 0.5f;
+	out[1] = (Max[1] - Min[1]) * 0.5f;
+	out[2] = (Max[2] - Min[2]) * 0.5f;
+}
+
+void OpenGLAABox::TransformAxisAligned(float traf[16])
+{
+	float vertices[8][3] =
+	{
+		{ Min[0], Min[1], Min[2] },
+		{ Min[0], Min[1], Max[2] },
+		{ Min[0], Max[1], Min[2] },
+		{ Min[0], Max[1], Max[2] },
+		{ Max[0], Min[1], Min[2] },
+		{ Max[0], Min[1], Max[2] },
+		{ Max[0], Max[1], Min[2] },
+		{ Max[0], Max[1], Max[2] }
+	};
+	
+	for( int i = 0; i < 8; ++i )
+		GLVec3TransformCoord(vertices[i], vertices[i], traf);
+
+	Min[0] = Min[1] = Min[2] = FLT_MAX;
+	Max[0] = Max[1] = Max[2] = -FLT_MAX;
+
+	for( int i = 0; i < 8; ++i )
+		Add(vertices[i]);
+}
+
+float OpenGLAABox::Nearest(float from[4]) const
+{
+#define FAST_DISTANCE(x, y, z, p, op) \
+	d = p[0] * x + p[1] * y + p[2] * z + p[3]; \
+	ASGN_IF(dist, op, d);
+// END
+
+	float d, dist = FLT_MAX;
+
+	FAST_DISTANCE(Min[0], Min[1], Min[2], from, >);
+	FAST_DISTANCE(Min[0], Min[1], Max[2], from, >);
+	FAST_DISTANCE(Min[0], Max[1], Min[2], from, >);
+	FAST_DISTANCE(Min[0], Max[1], Max[2], from, >);
+	FAST_DISTANCE(Max[0], Min[1], Min[2], from, >);
+	FAST_DISTANCE(Max[0], Min[1], Max[2], from, >);
+	FAST_DISTANCE(Max[0], Max[1], Min[2], from, >);
+	FAST_DISTANCE(Max[0], Max[1], Max[2], from, >);
+
+	return dist;
+}
+
+float OpenGLAABox::Farthest(float from[4]) const
+{
+	float d, dist = -FLT_MAX;
+
+	FAST_DISTANCE(Min[0], Min[1], Min[2], from, <);
+	FAST_DISTANCE(Min[0], Min[1], Max[2], from, <);
+	FAST_DISTANCE(Min[0], Max[1], Min[2], from, <);
+	FAST_DISTANCE(Min[0], Max[1], Max[2], from, <);
+	FAST_DISTANCE(Max[0], Min[1], Min[2], from, <);
+	FAST_DISTANCE(Max[0], Min[1], Max[2], from, <);
+	FAST_DISTANCE(Max[0], Max[1], Min[2], from, <);
+	FAST_DISTANCE(Max[0], Max[1], Max[2], from, <);
+
+	return dist;
+}
+
+// *****************************************************************************************************************************
+//
 // OpenGLMesh impl
 //
 // *****************************************************************************************************************************
@@ -436,6 +548,7 @@ void OpenGLEffect::CommitChanges()
 			glUniformMatrix4fv(uni.Location, uni.RegisterCount / 4, false, floatdata);
 			break;
 
+		case GL_INT:
 		case GL_SAMPLER_2D:
 			glUniform1i(uni.Location, intdata[0]);
 			break;
@@ -655,6 +768,34 @@ bool OpenGLFramebuffer::Validate()
 	return (status == GL_FRAMEBUFFER_COMPLETE);
 }
 
+void OpenGLFramebuffer::Set()
+{
+	GLenum buffs[8];
+	GLsizei count = 0;
+
+	for( int i = 0; i < 8; ++i )
+	{
+		if( rendertargets[i].id != 0 )
+		{
+			buffs[i] = GL_COLOR_ATTACHMENT0 + i;
+			count = i;
+		}
+		else
+			buffs[i] = GL_NONE;
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fboid);
+
+	if( count > 0 )
+		glDrawBuffers(count, buffs);
+}
+
+void OpenGLFramebuffer::Unset()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDrawBuffer(GL_BACK);
+}
+
 // *****************************************************************************************************************************
 //
 // Functions impl
@@ -777,6 +918,8 @@ bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* numm
 	OpenGLAttributeRange*	table;
 	OpenGLColor			color;
 	FILE*				infile = 0;
+	float				bbmin[3];
+	float				bbmax[3];
 	unsigned int		unused;
 	unsigned int		version;
 	unsigned int		numindices;
@@ -881,12 +1024,15 @@ bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* numm
 		fread(&subset.VertexStart, 4, 1, infile);
 		fread(&subset.VertexCount, 4, 1, infile);
 		fread(&subset.FaceCount, 4, 1, infile);
-		fread(&unused, 4, 1, infile);
 
 		subset.FaceCount /= 3;
 		subset.FaceStart /= 3;
 
-		fseek(infile, 6 * sizeof(float), SEEK_CUR);
+		fread(bbmin, sizeof(float), 3, infile);
+		fread(bbmax, sizeof(float), 3, infile);
+
+		(*mesh)->boundingbox.Add(bbmin);
+		(*mesh)->boundingbox.Add(bbmax);
 
 		GLReadString(infile, buff);
 		GLReadString(infile, buff);
@@ -1170,6 +1316,19 @@ bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, Ope
 //
 // *****************************************************************************************************************************
 
+int isqrt(int n)
+{
+	int b = 0;
+
+	while( n >= 0 )
+	{
+		n = n - b;
+		b = b + 1;
+		n = n - b;
+	}
+
+	return b - 1;
+}
 
 float GLVec3Dot(float a[3], float b[3])
 {
@@ -1195,6 +1354,60 @@ void GLVec3Cross(float out[3], float a[3], float b[3])
 	out[0] = a[1] * b[2] - a[2] * b[1];
 	out[1] = a[2] * b[0] - a[0] * b[2];
 	out[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void GLVec3TransformCoord(float out[3], float v[3], float m[16])
+{
+	float tmp[4];
+
+	tmp[0] = v[0] * m[0] + v[1] * m[4] + v[2] * m[8] + m[12];
+	tmp[1] = v[0] * m[1] + v[1] * m[5] + v[2] * m[9] + m[13];
+	tmp[2] = v[0] * m[2] + v[1] * m[6] + v[2] * m[10] + m[14];
+	tmp[3] = v[0] * m[3] + v[1] * m[7] + v[2] * m[11] + m[15];
+
+	out[0] = tmp[0] / tmp[3];
+	out[1] = tmp[1] / tmp[3];
+	out[2] = tmp[2] / tmp[3];
+}
+
+void GLVec4Transform(float out[4], float v[4], float m[16])
+{
+	float tmp[4];
+
+	tmp[0] = v[0] * m[0] + v[1] * m[4] + v[2] * m[8] + v[3] * m[12];
+	tmp[1] = v[0] * m[1] + v[1] * m[5] + v[2] * m[9] + v[3] * m[13];
+	tmp[2] = v[0] * m[2] + v[1] * m[6] + v[2] * m[10] + v[3] * m[14];
+	tmp[3] = v[0] * m[3] + v[1] * m[7] + v[2] * m[11] + v[3] * m[15];
+
+	out[0] = tmp[0];
+	out[1] = tmp[1];
+	out[2] = tmp[2];
+	out[3] = tmp[3];
+}
+
+void GLVec4TransformTranspose(float out[4], float m[16], float v[4])
+{
+	float tmp[4];
+
+	tmp[0] = v[0] * m[0] + v[1] * m[1] + v[2] * m[2] + v[3] * m[3];
+	tmp[1] = v[0] * m[4] + v[1] * m[5] + v[2] * m[6] + v[3] * m[7];
+	tmp[2] = v[0] * m[8] + v[1] * m[9] + v[2] * m[10] + v[3] * m[11];
+	tmp[3] = v[0] * m[12] + v[1] * m[13] + v[2] * m[14] + v[3] * m[15];
+
+	out[0] = tmp[0];
+	out[1] = tmp[1];
+	out[2] = tmp[2];
+	out[3] = tmp[3];
+}
+
+void GLPlaneNormalize(float p[4])
+{
+	float length = GLVec3Length(p);
+
+	p[0] /= length;
+	p[1] /= length;
+	p[2] /= length;
+	p[3] /= length;
 }
 
 void GLMatrixLookAtRH(float out[16], float eye[3], float look[3], float up[3])
@@ -1296,4 +1509,28 @@ void GLMatrixIdentity(float out[16])
 {
 	memset(out, 0, 16 * sizeof(float));
 	out[0] = out[5] = out[10] = out[15] = 1;
+}
+
+void GLFitToBox(float& outnear, float& outfar, float eye[3], float look[3], const OpenGLAABox& box)
+{
+	float refplane[4];
+	float length;
+
+	refplane[0] = look[0] - eye[0];
+	refplane[1] = look[1] - eye[1];
+	refplane[2] = look[2] - eye[2];
+	refplane[3] = -(refplane[0] * eye[0] + refplane[1] * eye[1] + refplane[2] * eye[2]);
+
+	length = GLVec3Length(refplane);
+
+	refplane[0] /= length;
+	refplane[1] /= length;
+	refplane[2] /= length;
+	refplane[3] /= length;
+
+	outnear = box.Nearest(refplane) - 0.02f;	// 2mm
+	outfar = box.Farthest(refplane) + 0.02f;	// 2mm
+
+	outnear = std::max<float>(outnear, 0.1f);
+	outfar = std::max<float>(outfar, 0.2f);
 }

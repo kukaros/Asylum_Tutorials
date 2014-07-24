@@ -101,11 +101,33 @@ struct OpenGLMaterial
 };
 
 /**
+ * \brief Axis-aligned bounding box
+ */
+class OpenGLAABox
+{
+public:
+	float Min[3];
+	float Max[3];
+
+	OpenGLAABox();
+
+	void Add(float x, float y, float z);
+	void Add(float v[3]);
+	void GetCenter(float out[3]);
+	void GetHalfSize(float out[3]);
+	void TransformAxisAligned(float traf[16]);
+
+	float Nearest(float from[4]) const;
+	float Farthest(float from[4]) const;
+};
+
+/**
  * \brief Similar to ID3DXMesh. Core profile only.
  */
 class OpenGLMesh
 {
 	friend bool GLCreateMesh(GLuint, GLuint, GLuint, OpenGLVertexElement*, OpenGLMesh**);
+	friend bool GLLoadMeshFromQM(const char*, OpenGLMaterial**, GLuint*, OpenGLMesh**);
 
 	struct locked_data
 	{
@@ -116,6 +138,7 @@ class OpenGLMesh
 private:
 	OpenGLAttributeRange*		subsettable;
 	OpenGLVertexDeclaration		vertexdecl;
+	OpenGLAABox					boundingbox;
 	GLuint						numvertices;
 	GLuint						numindices;
 	GLuint						vertexbuffer;
@@ -139,6 +162,10 @@ public:
 	void UnlockVertexBuffer();
 	void UnlockIndexBuffer();
 	void SetAttributeTable(const OpenGLAttributeRange* table, GLuint size);
+
+	inline const OpenGLAABox& GetBoundingBox() const {
+		return boundingbox;
+	}
 
 	inline GLuint GetVertexBuffer() const {
 		return vertexbuffer;
@@ -231,6 +258,17 @@ public:
 	bool AttachRenderbuffer(GLenum target, OpenGLFormat format);
 	bool AttachTexture(GLenum target, OpenGLFormat format);
 	bool Validate();
+
+	void Set();
+	void Unset();
+
+	inline GLuint GetColorAttachment(int index) {
+		return rendertargets[index].id;
+	}
+	
+	inline GLuint GetDepthAttachment() {
+		return depthstencil.id;
+	}
 };
 
 // content functions
@@ -240,15 +278,24 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
 
 // math functions
+int isqrt(int n);
+
 float GLVec3Dot(float a[3], float b[3]);
 float GLVec3Length(float a[3]);
 
 void GLVec3Normalize(float a[3]);
 void GLVec3Cross(float out[3], float a[3], float b[3]);
+void GLVec3TransformCoord(float out[3], float v[3], float m[16]);
+void GLVec4Transform(float out[4], float v[4], float m[16]);
+void GLVec4TransformTranspose(float out[4], float m[16], float v[4]);
+void GLPlaneNormalize(float p[4]);
+
 void GLMatrixLookAtRH(float out[16], float eye[3], float look[3], float up[3]);
 void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearplane, float farplane);
 void GLMatrixMultiply(float out[16], float a[16], float b[16]);
 void GLMatrixRotationAxis(float out[16], float angle, float x, float y, float z);
 void GLMatrixIdentity(float out[16]);
+
+void GLFitToBox(float& outnear, float& outfar, float eye[3], float look[3], const OpenGLAABox& box);
 
 #endif

@@ -14,21 +14,71 @@
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
 
+#define NUM_LIGHTS			256			// must be square number
+#define M_PI				3.141592f
+#define M_2PI				6.283185f
+
 // external variables
 extern HDC hdc;
 extern long screenwidth;
 extern long screenheight;
 
-// tutorial variables
-OpenGLMesh*			mesh			= 0;
+// sample structures
+struct LightParticle
+{
+	OpenGLColor	color;
+	float		previous[4];
+	float		current[4];
+	float		velocity[3];
+	float		radius;
+};
+
+struct SceneObject
+{
+	int type;			// 0 for box, 1 for teapot
+	float position[3];
+	float scale[3];
+};
+
+// sample variables
+OpenGLMesh*			box				= 0;
+OpenGLMesh*			teapot			= 0;
 OpenGLEffect*		lightcull		= 0;
 OpenGLEffect*		lightaccum		= 0;
+OpenGLEffect*		ambient			= 0;
 OpenGLFramebuffer*	framebuffer		= 0;
+OpenGLAABox			scenebox;
+
 GLuint				texture			= 0;
 GLuint				headbuffer		= 0;	// head of linked lists
 GLuint				nodebuffer		= 0;	// nodes of linked lists
+GLuint				lightbuffer		= 0;
+GLuint				counterbuffer	= 0;	// atomic counter
 GLuint				workgroupsx		= 0;
 GLuint				workgroupsy		= 0;
+
+SceneObject objects[] =
+{
+	{ 0, { 0, -1, 0 }, { 20, 0.5f, 20 } },
+
+	{ 1, { -3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 } },
+	{ 1, { -3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 } },
+	{ 1, { -3 - 0.108f, -0.108f, 3 }, { 1, 1, 1 } },
+
+	{ 1, { -0.108f, -0.108f, -3 }, { 1, 1, 1 } },
+	{ 1, { -0.108f, -0.108f, 0 }, { 1, 1, 1 } },
+	{ 1, { -0.108f, -0.108f, 3 }, { 1, 1, 1 } },
+
+	{ 1, { 3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 } },
+	{ 1, { 3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 } },
+	{ 1, { 3 - 0.108f, -0.108f, 3 }, { 1, 1, 1 } }
+};
+
+const int numobjects = sizeof(objects) / sizeof(SceneObject);
+
+// sample functions
+void UpdateParticles(bool generate);
+void RenderScene(OpenGLEffect* effect);
 
 bool InitScene()
 {
@@ -46,16 +96,53 @@ bool InitScene()
 	OpenGLMaterial* materials = 0;
 	GLuint nummaterials = 0;
 
-	bool ok = GLLoadMeshFromQM("../media/meshes/teapot.qm", &materials, &nummaterials, &mesh);
-
-	if( !ok )
+	// load objects
+	if( !GLLoadMeshFromQM("../media/meshes/teapot.qm", &materials, &nummaterials, &teapot) )
 	{
-		MYERROR("Could not load mesh");
+		MYERROR("Could not load teapot");
 		return false;
 	}
 
 	delete[] materials;
 
+	if( !GLLoadMeshFromQM("../media/meshes/cube.qm", &materials, &nummaterials, &box) )
+	{
+		MYERROR("Could not load box");
+		return false;
+	}
+
+	delete[] materials;
+
+	// calculate scene bounding box
+	OpenGLAABox tmpbox;
+	float world[16];
+
+	GLMatrixIdentity(world);
+
+	for( int i = 0; i < numobjects; ++i )
+	{
+		const SceneObject& obj = objects[i];
+
+		world[0] = obj.scale[0];
+		world[5] = obj.scale[1];
+		world[10] = obj.scale[2];
+
+		world[12] = obj.position[0];
+		world[13] = obj.position[1];
+		world[14] = obj.position[2];
+
+		if( obj.type == 0 )
+			tmpbox = box->GetBoundingBox();
+		else if( obj.type == 1 )
+			tmpbox = teapot->GetBoundingBox();
+
+		tmpbox.TransformAxisAligned(world);
+
+		scenebox.Add(tmpbox.Min);
+		scenebox.Add(tmpbox.Max);
+	}
+
+	// create render targets
 	framebuffer = new OpenGLFramebuffer(screenwidth, screenheight);
 
 	framebuffer->AttachRenderbuffer(GL_COLOR_ATTACHMENT0, GLFMT_A8R8G8B8);
@@ -90,6 +177,8 @@ bool InitScene()
 
 	glGenBuffers(1, &headbuffer);
 	glGenBuffers(1, &nodebuffer);
+	glGenBuffers(1, &lightbuffer);
+	glGenBuffers(1, &counterbuffer);
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, headbuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * headsize, 0, GL_STATIC_DRAW);
@@ -97,17 +186,32 @@ bool InitScene()
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, nodebuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * nodesize * 1024, 0, GL_STATIC_DRAW);	// 2 MB
 
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, NUM_LIGHTS * sizeof(LightParticle), 0, GL_DYNAMIC_DRAW);
+
+	UpdateParticles(true);
+
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
+	glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), 0, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+
 	// light accumulation shader
-	if( !(ok = GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum)) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum) )
 	{
 		MYERROR("Could not load light accumulation shader");
 		return false;
 	}
 
+	if( !GLCreateEffectFromFile("../media/shadersGL/ambientzpass.vert", "../media/shadersGL/ambientzpass.frag", &ambient) )
+	{
+		MYERROR("Could not load ambient shader");
+		return false;
+	}
+
 	// light culling shader
-	if( !(ok = GLCreateComputeProgramFromFile("../media/shadersGL/lightcull.comp", 0, &lightcull)) )
+	if( !GLCreateComputeProgramFromFile("../media/shadersGL/lightcull.comp", 0, &lightcull) )
 	{
 		MYERROR("Could not load light culling shader");
 		return false;
@@ -124,8 +228,14 @@ void UninitScene()
 	if( lightaccum )
 		delete lightaccum;
 
-	if( mesh )
-		delete mesh;
+	if( ambient )
+		delete ambient;
+
+	if( teapot )
+		delete teapot;
+
+	if( box )
+		delete box;
 
 	if( framebuffer )
 		delete framebuffer;
@@ -139,43 +249,176 @@ void UninitScene()
 	if( nodebuffer )
 		glDeleteBuffers(1, &nodebuffer);
 
+	if( lightbuffer )
+		glDeleteBuffers(1, &lightbuffer);
+
+	lightbuffer = 0;
 	lightcull = 0;
 	lightaccum = 0;
-	mesh = 0;
+	teapot = 0;
 	texture = 0;
+}
+//*************************************************************************************************************
+void UpdateParticles(bool generate)
+{
+	if( lightbuffer == 0 )
+		return;
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
+	LightParticle* particles = (LightParticle*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
+
+	if( generate )
+	{
+		int segments = isqrt(NUM_LIGHTS);
+		float theta, phi;
+		float center[3];
+
+		scenebox.GetCenter(center);
+
+		for( int i = 0; i < segments; ++i )
+		{
+			for( int j = 0; j < segments; ++j )
+			{
+				LightParticle& p = particles[i * segments + j];
+
+				theta = ((float)j / (segments - 1)) * M_PI;
+				phi = ((float)i / (segments - 1)) * M_2PI;
+
+				p.previous[0] = center[0];
+				p.previous[1] = center[1];
+				p.previous[2] = center[2];
+				p.previous[3] = 1;
+
+				p.velocity[0] = sinf(theta) * cosf(phi) * 0.1f;
+				p.velocity[1] = cosf(theta) * 0.1f;
+				p.velocity[2] = sinf(theta) * sinf(phi) * 0.1f;
+
+				p.current[0] = p.previous[0]; // + p.velocity[0] * 5;
+				p.current[1] = p.previous[1]; // + p.velocity[1] * 5;
+				p.current[2] = p.previous[2]; // + p.velocity[2] * 5;
+				p.current[3] = 1;
+
+				p.radius = 1;
+				//p.color = OpenGLColor::R
+			}
+		}
+	}
+	else
+	{
+		for( int i = 0; i < NUM_LIGHTS; ++i )
+		{
+			LightParticle& p = particles[i];
+
+			p.previous[0] = p.current[0];
+			p.previous[1] = p.current[1];
+			p.previous[2] = p.current[2];
+
+			p.current[0] += p.velocity[0];
+			p.current[1] += p.velocity[1];
+			p.current[2] += p.velocity[2];
+		}
+	}
+
+	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 //*************************************************************************************************************
 void Update(float delta)
 {
+	UpdateParticles(false);
+}
+//*************************************************************************************************************
+void RenderScene(OpenGLEffect* effect)
+{
+	float world[16];
+
+	GLMatrixIdentity(world);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	for( int i = 0; i < numobjects; ++i )
+	{
+		const SceneObject& obj = objects[i];
+
+		world[0] = obj.scale[0];
+		world[5] = obj.scale[1];
+		world[10] = obj.scale[2];
+
+		world[12] = obj.position[0];
+		world[13] = obj.position[1];
+		world[14] = obj.position[2];
+
+		effect->SetMatrix("matWorld", world);
+		effect->CommitChanges();
+
+		if( obj.type == 0 )
+			box->DrawSubset(0);
+		else if( obj.type == 1 )
+			teapot->DrawSubset(0);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
 {
 	static float time = 0;
 
-	float lightpos[4]	= { 6, 3, 10, 1 };
-	float eye[3]		= { 0, 6, 8 };
-	float look[3]		= { 0, 0, 0 };
-	float up[3]			= { 0, 1, 0 };
+	float globalambient[4]	= { 0.2f, 0.2f, 0.2f, 1.0f };
+	float lightpos[4]		= { 6, 3, 10, 1 };
+	float clipplanes[2];
+	float screensize[2]		= { (float)screenwidth, (float)screenheight };
+	float eye[3]			= { 0, 6, 8 };
+	float look[3]			= { 0, 0, 0 };
+	float up[3]				= { 0, 1, 0 };
 
 	float view[16];
 	float proj[16];
-	float world[16];
 	float viewproj[16];
 
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	GLFitToBox(clipplanes[0], clipplanes[1], eye, look, scenebox);
+	GLMatrixPerspectiveRH(proj, (60.0f * 3.14159f) / 180.f,  (float)screenwidth / (float)screenheight, clipplanes[0], clipplanes[1]);
 
 	GLMatrixLookAtRH(view, eye, look, up);
-	GLMatrixPerspectiveRH(proj, (60.0f * 3.14159f) / 180.f,  (float)screenwidth / (float)screenheight, 0.1f, 100.0f);
-	
 	GLMatrixMultiply(viewproj, view, proj);
-	GLMatrixIdentity(world);
-
+	
 	time += elapsedtime;
 
-	// cull lights
+	// STEP 1: z pass
+	ambient->SetMatrix("matViewProj", viewproj);
+	ambient->SetVector("matAmbient", globalambient);
+
+	framebuffer->Set();
+	{
+		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+		ambient->Begin();
+		{
+			RenderScene(ambient);
+		}
+		ambient->End();
+	}
+	framebuffer->Unset();
+
+	// STEP 2: cull lights
+	lightcull->SetInt("depthSampler", 0);
+	lightcull->SetInt("numLights", NUM_LIGHTS);
+	lightcull->SetVector("clipPlanes", clipplanes);
+	lightcull->SetVector("screenSize", screensize);
+	lightcull->SetMatrix("matProj", proj);
+	lightcull->SetMatrix("matView", view);
+	lightcull->SetMatrix("matViewProj", viewproj);
+
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
+	GLuint* counter = (GLuint*)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_WRITE_ONLY);
+	
+	*counter = 0;
+	glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, headbuffer);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, nodebuffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightbuffer);
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, counterbuffer);
+	glBindTexture(GL_TEXTURE_2D, framebuffer->GetDepthAttachment());
 
 	lightcull->Begin();
 	{
@@ -183,37 +426,32 @@ void Render(float alpha, float elapsedtime)
 	}
 	lightcull->End();
 
-	// render
-	//lightaccum->SetVector("eyePos", eye);
-	//lightaccum->SetVector("lightPos", lightpos);
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, 0);
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// STEP 3: accumulate lighting
 	lightaccum->SetMatrix("matViewProj", viewproj);
-	//lightaccum->SetInt("sampler0", 0);
+	lightaccum->SetVector("eyePos", eye);
+	lightaccum->SetInt("sampler0", 0);
+
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glDepthMask(GL_FALSE);
 
 	lightaccum->Begin();
 	{
-		glBindTexture(GL_TEXTURE_2D, texture);
-
-		for( int i = -1; i < 2; ++i )
-		{
-			for( int j = -1; j < 2; ++j )
-			{
-				world[12] = -0.108f + i * 3;
-				world[13] = -0.108f;
-				world[14] =  j * 3.0f;
-
-				lightaccum->SetMatrix("matWorld", world);
-				lightaccum->CommitChanges();
-
-				mesh->DrawSubset(0);
-			}
-		}
-
-		glBindTexture(GL_TEXTURE_2D, 0);
+		RenderScene(lightaccum);
 	}
 	lightaccum->End();
 
+	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
+
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
 
 	// check errors
 	GLenum err = glGetError();

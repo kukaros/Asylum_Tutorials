@@ -33,12 +33,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shadersGL\forward.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\media\shadersGL\forward.vert">
-      <Filter>shaders</Filter>
-    </None>
     <None Include="..\media\shadersGL\lightcull.comp">
       <Filter>shaders</Filter>
     </None>
@@ -46,6 +40,12 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="..\media\shadersGL\lightaccum.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\ambientzpass.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\ambientzpass.vert">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

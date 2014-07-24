@@ -285,6 +285,7 @@ namespace Quadron
 		static bool ARB_compute_shader;
 		static bool ARB_shader_image_load_store;
 		static bool ARB_shader_storage_buffer_object;
+		static bool ARB_shader_atomic_counters;
 
 		static bool EXT_texture_compression_s3tc;
 		static bool EXT_texture_cube_map;

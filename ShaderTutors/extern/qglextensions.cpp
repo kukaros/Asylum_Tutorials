@@ -124,6 +124,7 @@ namespace Quadron
 	bool qGLExtensions::ARB_compute_shader = false;
 	bool qGLExtensions::ARB_shader_image_load_store = false;
 	bool qGLExtensions::ARB_shader_storage_buffer_object = false;
+	bool qGLExtensions::ARB_shader_atomic_counters = false;
 
 	bool qGLExtensions::EXT_texture_compression_s3tc = false;
 	bool qGLExtensions::EXT_texture_cube_map = false;
@@ -236,6 +237,7 @@ namespace Quadron
 			ARB_compute_shader					= IsSupported("GL_ARB_compute_shader");
 			ARB_shader_image_load_store			= IsSupported("GL_ARB_shader_image_load_store");
 			ARB_shader_storage_buffer_object	= IsSupported("GL_ARB_shader_storage_buffer_object");
+			ARB_shader_atomic_counters			= IsSupported("GL_ARB_shader_atomic_counters");
 		}
 		else
 		{

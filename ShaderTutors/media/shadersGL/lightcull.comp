@@ -1,24 +1,45 @@
 #version 430
 
+struct LightParticle
+{
+	vec4 Color;
+	vec4 Previous;
+	vec4 Current;
+	vec4 VelocityAndRadius;
+};
+
 struct ListHead
 {
-	int Start;
-	int Count;
+	uint Start;
+	uint Count;
 };
 
 struct ListNode
 {
-	int LightIndex;
-	int Next;
+	uint LightIndex;
+	uint Next;
 };
 
-layout(std140, binding = 0) buffer HeadBuffer {
+layout(packed, binding = 0) buffer HeadBuffer {
 	ListHead data[];
 } headbuffer;
 
-layout(std140, binding = 1) buffer NodeBuffer {
+layout(packed, binding = 1) buffer NodeBuffer {
 	ListNode data[];
 } nodebuffer;
+
+layout(std140, binding = 2) readonly buffer LightBuffer {
+	LightParticle data[];
+} lightbuffer;
+
+layout(binding = 0) uniform sampler2D depthSampler;
+layout(binding = 0) uniform atomic_uint nextInsertionPoint;
+
+uniform mat4 matView;
+uniform mat4 matProj;
+uniform vec2 clipPlanes;
+uniform vec2 screenSize;
+uniform int numLights;
 
 shared uint TileMinZ;
 shared uint TileMaxZ;
@@ -26,27 +47,107 @@ shared uint TileMaxZ;
 layout (local_size_x = 16, local_size_y = 16) in;
 void main()
 {
-	ivec2	loc		= ivec2(gl_WorkGroupID.xy);
-	ivec2	size	= ivec2(gl_NumWorkGroups.xy);
-	int		index	= loc.y * size.x + loc.x;
-	
-	float minz = float(loc.x); //
-	float maxz = float(loc.y); //
+	ivec2	loc		= ivec2(gl_GlobalInvocationID.xy);
+	ivec2	tileID	= ivec2(gl_WorkGroupID.xy);
+	ivec2	tileNum	= ivec2(gl_NumWorkGroups.xy);
+	int		index	= tileID.y * tileNum.x + tileID.x;
 
-	// calculate min/max depth in this tile
-	atomicMin(TileMinZ, floatBitsToUint(minz));
-	atomicMax(TileMaxZ, floatBitsToUint(maxz));
+	// initialize globals
+	if( gl_LocalInvocationIndex == 0 )
+	{
+		TileMinZ = 0x7F7FFFFF;
+		TileMaxZ = 0;
 
-	memoryBarrierShared();
+		headbuffer.data[index].Count = 0;
+	}
 
-	minz = uintBitsToFloat(TileMinZ);
-	maxz = uintBitsToFloat(TileMaxZ);
+	barrier();
 
-	// calculate frustum
+	// STEP 1: calculate min/max depth in this tile
+	vec2 tex = vec2(loc) / screenSize;
+	float depth = texture(depthSampler, tex).r;
+	float linearz = (0.5 * matProj[3][2]) / (depth + 0.5 * matProj[2][2] - 0.5);
 
-	// cull lights
+	float minz = min(clipPlanes.y, linearz);
+	float maxz = max(clipPlanes.x, linearz);
 
-	headbuffer.data[index].Start = loc.x;
-	nodebuffer.data[index].LightIndex = 0;
-	nodebuffer.data[index].Next = 0;
+	if( minz <= maxz )
+	{
+		atomicMin(TileMinZ, floatBitsToUint(minz));
+		atomicMax(TileMaxZ, floatBitsToUint(maxz));
+	}
+
+	barrier();
+
+	if( gl_LocalInvocationIndex == 0 )
+	{
+		// convert to [0, 1]
+		minz = uintBitsToFloat(TileMinZ);
+		maxz = uintBitsToFloat(TileMaxZ);
+
+		// STEP 2: calculate frustum
+		vec4 planes[6];
+		vec2 step1 = (2.0 * vec2(tileID)) / vec2(tileNum);
+		vec2 step2 = (2.0 * vec2(tileID + ivec2(1, 1))) / vec2(tileNum);
+
+		planes[0] = vec4(1, 0, 0, 1 - step1.x);		// left
+		planes[1] = vec4(-1, 0, 0, -1 + step2.x);	// right
+		planes[2] = vec4(0, 1, 0, 1 - step1.y);		// bottom
+		planes[3] = vec4(0, -1, 0, -1 + step2.y);	// top
+		planes[4] = vec4(0, 0, -1, -minz);			// near
+		planes[5] = vec4(0, 0, 1, maxz);			// far
+
+		for( int i = 0; i < 4; ++i )
+		{
+			planes[i] = planes[i] * matProj;
+			planes[i] /= length(planes[i].xyz);
+		}
+
+		// STEP 3: cull lights
+		vec4	pos;
+		float	dist;
+		float	radius;
+		uint	count = 0;
+		uint	start = 0xFFFFFFFF;
+		uint	prev, next;
+
+		for( uint i = 0; i < numLights; ++i )
+		{
+			pos = lightbuffer.data[i].Current;
+			radius = lightbuffer.data[i].VelocityAndRadius.w;
+
+			pos = matView * pos;
+
+			for( int j = 0; j < 6; ++j )
+			{
+				dist = dot(pos, planes[j]) + radius;
+
+				if( dist <= 0 )
+					break;
+			}
+
+			if( dist > 0 )
+			{
+				if( start == 0xFFFFFFFF )
+				{
+					start = atomicCounterIncrement(nextInsertionPoint);
+					prev = next = start;
+				}
+
+				// add to list
+				nodebuffer.data[prev].Next = next;
+
+				nodebuffer.data[next].LightIndex = i;
+				nodebuffer.data[next].Next = 0xFFFFFFFF;
+
+				prev = next;
+				next = atomicCounterIncrement(nextInsertionPoint);
+
+				++count; //atomicIncrement
+			}
+		}
+
+		headbuffer.data[index].Start = start;
+		headbuffer.data[index].Count = count;
+	}
 }
