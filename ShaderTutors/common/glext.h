@@ -115,6 +115,7 @@ public:
 	void Add(float v[3]);
 	void GetCenter(float out[3]);
 	void GetHalfSize(float out[3]);
+	void GetPlanes(float outplanes[6][4]);
 	void TransformAxisAligned(float traf[16]);
 
 	float Nearest(float from[4]) const;
@@ -271,6 +272,22 @@ public:
 	}
 };
 
+/**
+ * Simple quad for 2D rendering
+ */
+class OpenGLScreenQuad
+{
+private:
+	GLuint vertexbuffer;
+	GLuint vertexlayout;
+
+public:
+	OpenGLScreenQuad();
+	~OpenGLScreenQuad();
+
+	void Draw();
+};
+
 // content functions
 bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
 bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
@@ -285,6 +302,7 @@ float GLVec3Length(float a[3]);
 
 void GLVec3Normalize(float a[3]);
 void GLVec3Cross(float out[3], float a[3], float b[3]);
+void GLVec3Transform(float out[3], float v[3], float m[16]);
 void GLVec3TransformCoord(float out[3], float v[3], float m[16]);
 void GLVec4Transform(float out[4], float v[4], float m[16]);
 void GLVec4TransformTranspose(float out[4], float m[16], float v[4]);
@@ -294,8 +312,29 @@ void GLMatrixLookAtRH(float out[16], float eye[3], float look[3], float up[3]);
 void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearplane, float farplane);
 void GLMatrixMultiply(float out[16], float a[16], float b[16]);
 void GLMatrixRotationAxis(float out[16], float angle, float x, float y, float z);
+void GLMatrixRotationYawPitchRoll(float out[16], float yaw, float pitch, float roll);
 void GLMatrixIdentity(float out[16]);
 
 void GLFitToBox(float& outnear, float& outfar, float eye[3], float look[3], const OpenGLAABox& box);
+
+// other
+template <typename T, int n>
+struct array_state
+{
+	T prev[n];
+	T curr[n];
+
+	array_state& operator =(T t[n]) {
+		for (int i = 0; i < n; ++i)
+			prev[i] = curr[i] = t[i];
+
+		return *this;
+	}
+
+	void smooth(T out[n], float alpha) {
+		for (int i = 0; i < n; ++i)
+			out[i] = prev[i] + alpha * (curr[i] - prev[i]);
+	}
+};
 
 #endif

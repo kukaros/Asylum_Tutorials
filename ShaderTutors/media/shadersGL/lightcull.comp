@@ -37,6 +37,7 @@ layout(binding = 0) uniform atomic_uint nextInsertionPoint;
 
 uniform mat4 matView;
 uniform mat4 matProj;
+uniform mat4 matViewProj;
 uniform vec2 clipPlanes;
 uniform vec2 screenSize;
 uniform int numLights;
@@ -99,9 +100,15 @@ void main()
 
 		for( int i = 0; i < 4; ++i )
 		{
-			planes[i] = planes[i] * matProj;
+			planes[i] = planes[i] * matViewProj;
 			planes[i] /= length(planes[i].xyz);
 		}
+
+		planes[4] = planes[4] * matView;
+		planes[5] = planes[5] * matView;
+
+		planes[4] /= length(planes[4].xyz);
+		planes[5] /= length(planes[5].xyz);
 
 		// STEP 3: cull lights
 		vec4	pos;
@@ -115,8 +122,6 @@ void main()
 		{
 			pos = lightbuffer.data[i].Current;
 			radius = lightbuffer.data[i].VelocityAndRadius.w;
-
-			pos = matView * pos;
 
 			for( int j = 0; j < 6; ++j )
 			{

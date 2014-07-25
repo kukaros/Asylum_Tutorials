@@ -41,7 +41,7 @@ out vec4 my_FragColor0;
 
 float Attenuate(vec3 ldir, float radius)
 {
-	float atten = dot(ldir, ldir) * radius;
+	float atten = dot(ldir, ldir) / radius;
 
 	atten = 1.0 / (atten * 15.0 + 1.0);
 	atten = (atten - 0.0625) * 1.066666;
@@ -64,28 +64,44 @@ void main()
 	uint lightID;
 
 	vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
+	vec4 lightcolor;
 	vec4 lightpos;
-	vec3 ldir;
+
+	//vec3 otherlight = normalize(vec3(0, 1.0, 1.0));
+	vec3 irrad;
+	vec3 l;
+	vec3 h;
 	vec3 n = normalize(wnorm);
+	vec3 v = normalize(vdir);
+
 	float diff;
+	float spec;
 	float atten;
 	float radius;
+
+	//diff = max(dot(otherlight, n), 0);
+	//color.rgb += vec3(1.0) * diff * 0.25;
 
 	for( uint i = 0; i < count; ++i )
 	{
 		lightID = nodebuffer.data[nodeID].LightIndex;
 		nodeID = nodebuffer.data[nodeID].Next;
 
+		lightcolor = lightbuffer.data[lightID].Color;
 		lightpos = lightbuffer.data[lightID].Current;
 		radius = lightbuffer.data[lightID].VelocityAndRadius.w;
 
-		ldir = lightpos.xyz - wpos.xyz;
-		atten = Attenuate(ldir, radius);
+		l = lightpos.xyz - wpos.xyz;
+		atten = Attenuate(l, radius);
 
-		ldir = normalize(ldir);
-		diff = max(dot(ldir, n), 0) * atten;
+		l = normalize(l);
+		h = normalize(l + v);
+
+		diff = max(dot(l, n), 0);
+		spec = pow(max(dot(h, n), 0), 80.0);
 		
-		color.rgb += vec3(diff, diff, diff);
+		irrad = (lightcolor.rgb * diff + vec3(1.0) * spec) * atten;
+		color.rgb += irrad;
 	}
 
 	my_FragColor0 = color;

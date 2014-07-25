@@ -24,6 +24,8 @@
   <ItemGroup>
     <None Include="..\media\shadersGL\ambientzpass.frag" />
     <None Include="..\media\shadersGL\ambientzpass.vert" />
+    <None Include="..\media\shadersGL\basic2D.frag" />
+    <None Include="..\media\shadersGL\basic2D.vert" />
     <None Include="..\media\shadersGL\lightaccum.frag" />
     <None Include="..\media\shadersGL\lightaccum.vert" />
     <None Include="..\media\shadersGL\lightcull.comp" />

@@ -149,6 +149,26 @@ void OpenGLAABox::TransformAxisAligned(float traf[16])
 		Add(vertices[i]);
 }
 
+void OpenGLAABox::GetPlanes(float outplanes[6][4])
+{
+#define CALC_PLANE(i, nx, ny, nz, px, py, pz) \
+	outplanes[i][0] = nx;	p[0] = px; \
+	outplanes[i][1] = ny;	p[1] = py; \
+	outplanes[i][2] = nz;	p[2] = pz; \
+	outplanes[i][3] = -GLVec3Dot(p, outplanes[i]); \
+	GLPlaneNormalize(outplanes[i]);
+// END
+
+	float p[3];
+
+	CALC_PLANE(0, 1, 0, 0, Min[0], Min[1], Min[2]);		// left
+	CALC_PLANE(1, -1, 0, 0, Max[0], Min[1], Min[2]);	// right
+	CALC_PLANE(2, 0, 1, 0, Min[0], Min[1], Min[2]);		// bottom
+	CALC_PLANE(3, 0, -1, 0, Min[0], Max[1], Min[2]);	// top
+	CALC_PLANE(4, 0, 0, -1, Min[0], Min[1], Max[2]);	// front
+	CALC_PLANE(5, 0, 0, 1, Min[0], Min[1], Min[2]);		// back
+}
+
 float OpenGLAABox::Nearest(float from[4]) const
 {
 #define FAST_DISTANCE(x, y, z, p, op) \
@@ -798,6 +818,65 @@ void OpenGLFramebuffer::Unset()
 
 // *****************************************************************************************************************************
 //
+// OpenGLScreenQuad impl
+//
+// *****************************************************************************************************************************
+
+OpenGLScreenQuad::OpenGLScreenQuad()
+{
+	vertexbuffer = 0;
+	vertexlayout = 0;
+
+	glGenBuffers(1, &vertexbuffer);
+	glGenVertexArrays(1, &vertexlayout);
+
+	float vertices[] =
+	{
+		-1, -1, 0, 0, 0,
+		1, -1, 0, 1, 0,
+		-1, 1, 0, 0, 1,
+
+		-1, 1, 0, 0, 1,
+		1, -1, 0, 1, 0,
+		1, 1, 0, 1, 1
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER, 6 * 5 * sizeof(float), vertices, GL_STATIC_DRAW);
+
+	glBindVertexArray(vertexlayout);
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+
+		glEnableVertexAttribArray(GLDECLUSAGE_POSITION);
+		glVertexAttribPointer(GLDECLUSAGE_POSITION, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+
+		glEnableVertexAttribArray(GLDECLUSAGE_TEXCOORD);
+		glVertexAttribPointer(GLDECLUSAGE_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)12);
+	}
+	glBindVertexArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+OpenGLScreenQuad::~OpenGLScreenQuad()
+{
+	if( vertexbuffer )
+		glDeleteBuffers(1, &vertexbuffer);
+
+	if( vertexlayout )
+		glDeleteVertexArrays(1, &vertexlayout);
+}
+
+void OpenGLScreenQuad::Draw()
+{
+	glBindVertexArray(vertexlayout);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+}
+
+// *****************************************************************************************************************************
+//
 // Functions impl
 //
 // *****************************************************************************************************************************
@@ -1356,6 +1435,19 @@ void GLVec3Cross(float out[3], float a[3], float b[3])
 	out[2] = a[0] * b[1] - a[1] * b[0];
 }
 
+void GLVec3Transform(float out[3], float v[3], float m[16])
+{
+	float tmp[3];
+
+	tmp[0] = v[0] * m[0] + v[1] * m[4] + v[2] * m[8];
+	tmp[1] = v[0] * m[1] + v[1] * m[5] + v[2] * m[9];
+	tmp[2] = v[0] * m[2] + v[1] * m[6] + v[2] * m[10];
+
+	out[0] = tmp[0];
+	out[1] = tmp[1];
+	out[2] = tmp[2];
+}
+
 void GLVec3TransformCoord(float out[3], float v[3], float m[16])
 {
 	float tmp[4];
@@ -1501,6 +1593,33 @@ void GLMatrixRotationAxis(float out[16], float angle, float x, float y, float z)
 	out[10] = cosa + u[2] * u[2] * (1.0f - cosa);
 	out[11] = 0;
 
+	out[12] = out[13] = out[14] = 0;
+	out[15] = 1;
+}
+
+void GLMatrixRotationYawPitchRoll(float out[16], float yaw, float pitch, float roll)
+{
+	float sy = sinf(-yaw);
+	float sr = sinf(roll);
+	float sp = sinf(-pitch);
+
+	float cy = cosf(-yaw);
+	float cr = cosf(roll);
+	float cp = cosf(-pitch);
+
+	out[0] = cy * cr + sr * sp * sy;
+	out[1] = cp * sr;
+	out[2] = sr * sp * cy - sy * cr;
+
+	out[4] = cr * sp * sy - sr * cy;
+	out[5] = cr * cp;
+	out[6] = sr * sy + cr * sp * cy;
+
+	out[8] = cp * sy;
+	out[9] = -sp;
+	out[10] = cp * cy;
+
+	out[3] = out[7] = out[11] = 0;
 	out[12] = out[13] = out[14] = 0;
 	out[15] = 1;
 }

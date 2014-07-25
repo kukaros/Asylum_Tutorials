@@ -19,9 +19,12 @@
 #define M_2PI				6.283185f
 
 // external variables
-extern HDC hdc;
-extern long screenwidth;
-extern long screenheight;
+extern HDC		hdc;
+extern long		screenwidth;
+extern long		screenheight;
+extern short	mousedx;
+extern short	mousedy;
+extern short	mousedown;
 
 // sample structures
 struct LightParticle
@@ -46,8 +49,12 @@ OpenGLMesh*			teapot			= 0;
 OpenGLEffect*		lightcull		= 0;
 OpenGLEffect*		lightaccum		= 0;
 OpenGLEffect*		ambient			= 0;
+OpenGLEffect*		basic2D			= 0;
 OpenGLFramebuffer*	framebuffer		= 0;
+OpenGLScreenQuad*	screenquad		= 0;
 OpenGLAABox			scenebox;
+
+array_state<float, 2>	cameraangle;
 
 GLuint				texture			= 0;
 GLuint				headbuffer		= 0;	// head of linked lists
@@ -77,14 +84,15 @@ SceneObject objects[] =
 const int numobjects = sizeof(objects) / sizeof(SceneObject);
 
 // sample functions
-void UpdateParticles(bool generate);
+void UpdateParticles(float dt, bool generate);
 void RenderScene(OpenGLEffect* effect);
 
 bool InitScene()
 {
-	Quadron::qGLExtensions::QueryFeatures();
+	Quadron::qGLExtensions::QueryFeatures(hdc);
 
-	glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
+	//glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
+	glClearColor(0.0f, 0.0103f, 0.0707f, 1.0f);
 	glClearDepth(1.0);
 
 	glEnable(GL_CULL_FACE);
@@ -144,12 +152,13 @@ bool InitScene()
 
 	// create render targets
 	framebuffer = new OpenGLFramebuffer(screenwidth, screenheight);
-
-	framebuffer->AttachRenderbuffer(GL_COLOR_ATTACHMENT0, GLFMT_A8R8G8B8);
+	framebuffer->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_A8R8G8B8);
 	framebuffer->AttachTexture(GL_DEPTH_ATTACHMENT, GLFMT_D32F);
 	
 	if( !framebuffer->Validate() )
 		return false;
+
+	screenquad = new OpenGLScreenQuad();
 
 	// texture
 	glGenTextures(1, &texture);
@@ -189,13 +198,19 @@ bool InitScene()
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, NUM_LIGHTS * sizeof(LightParticle), 0, GL_DYNAMIC_DRAW);
 
-	UpdateParticles(true);
+	UpdateParticles(0, true);
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
 	glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), 0, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/basic2D.frag", &basic2D) )
+	{
+		MYERROR("Could not load basic 2D shader");
+		return false;
+	}
 
 	// light accumulation shader
 	if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum) )
@@ -217,6 +232,9 @@ bool InitScene()
 		return false;
 	}
 
+	float angles[2] = { -0.25f, 0.7f };
+	cameraangle = angles;
+
 	return true;
 }
 //*************************************************************************************************************
@@ -231,6 +249,9 @@ void UninitScene()
 	if( ambient )
 		delete ambient;
 
+	if( basic2D )
+		delete basic2D;
+
 	if( teapot )
 		delete teapot;
 
@@ -239,6 +260,9 @@ void UninitScene()
 
 	if( framebuffer )
 		delete framebuffer;
+
+	if( screenquad )
+		delete screenquad;
 
 	if( texture )
 		glDeleteTextures(1, &texture);
@@ -252,6 +276,9 @@ void UninitScene()
 	if( lightbuffer )
 		glDeleteBuffers(1, &lightbuffer);
 
+	if( counterbuffer )
+		glDeleteBuffers(1, &counterbuffer);
+
 	lightbuffer = 0;
 	lightcull = 0;
 	lightaccum = 0;
@@ -259,13 +286,22 @@ void UninitScene()
 	texture = 0;
 }
 //*************************************************************************************************************
-void UpdateParticles(bool generate)
+void KeyPress(WPARAM wparam)
 {
+}
+//*************************************************************************************************************
+void UpdateParticles(float dt, bool generate)
+{
+	OpenGLAABox tmpbox = scenebox;
+
 	if( lightbuffer == 0 )
 		return;
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
 	LightParticle* particles = (LightParticle*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
+
+	// make it bigger
+	tmpbox.Max[1] += 1;
 
 	if( generate )
 	{
@@ -273,7 +309,14 @@ void UpdateParticles(bool generate)
 		float theta, phi;
 		float center[3];
 
-		scenebox.GetCenter(center);
+		OpenGLColor randomcolors[3] =
+		{
+			OpenGLColor(1, 0, 0, 1),
+			OpenGLColor(0, 1, 0, 1),
+			OpenGLColor(0, 0, 1, 1)
+		};
+
+		tmpbox.GetCenter(center);
 
 		for( int i = 0; i < segments; ++i )
 		{
@@ -289,33 +332,79 @@ void UpdateParticles(bool generate)
 				p.previous[2] = center[2];
 				p.previous[3] = 1;
 
-				p.velocity[0] = sinf(theta) * cosf(phi) * 0.1f;
-				p.velocity[1] = cosf(theta) * 0.1f;
-				p.velocity[2] = sinf(theta) * sinf(phi) * 0.1f;
+				p.velocity[0] = sinf(theta) * cosf(phi) * 2;
+				p.velocity[1] = cosf(theta) * 2;
+				p.velocity[2] = sinf(theta) * sinf(phi) * 2;
 
-				p.current[0] = p.previous[0]; // + p.velocity[0] * 5;
-				p.current[1] = p.previous[1]; // + p.velocity[1] * 5;
-				p.current[2] = p.previous[2]; // + p.velocity[2] * 5;
+				p.current[0] = p.previous[0];
+				p.current[1] = p.previous[1];
+				p.current[2] = p.previous[2];
 				p.current[3] = 1;
 
-				p.radius = 1;
-				//p.color = OpenGLColor::R
+				p.radius = 1; // must be at least 1 (but bigger than 1.5 won't work good with this scene)
+				p.color = randomcolors[(i + j) % 3];
 			}
 		}
 	}
 	else
 	{
+		float planes[6][4];
+		float denom;
+		float besttoi;
+		float toi;
+		float impulse;
+		float (*bestplane)[4];
+		bool closing;
+
+		tmpbox.GetPlanes(planes);
+
 		for( int i = 0; i < NUM_LIGHTS; ++i )
 		{
 			LightParticle& p = particles[i];
 
+			// integrate
 			p.previous[0] = p.current[0];
 			p.previous[1] = p.current[1];
 			p.previous[2] = p.current[2];
 
-			p.current[0] += p.velocity[0];
-			p.current[1] += p.velocity[1];
-			p.current[2] += p.velocity[2];
+			p.current[0] += p.velocity[0] * dt;
+			p.current[1] += p.velocity[1] * dt;
+			p.current[2] += p.velocity[2] * dt;
+
+			// detect collision
+			besttoi = 2;
+
+			for( int j = 0; j < 6; ++j )
+			{
+				closing = (GLVec3Dot(p.velocity, planes[j]) < 0);
+				denom = GLVec3Dot(p.current, planes[j]) + planes[j][3];
+
+				if( closing && fabs(denom) > 0 )
+				{
+					// p.radius
+					toi = (1 - GLVec3Dot(p.previous, planes[j]) - planes[j][3]) / denom;
+
+					if( toi <= 1 && toi >= 0 && toi < besttoi )
+					{
+						besttoi = toi;
+						bestplane = &planes[j];
+					}
+				}
+			}
+
+			if( besttoi >= 0 && besttoi <= 1 )
+			{
+				// resolve constraint
+				p.current[0] = (1 - besttoi) * p.previous[0] + besttoi * p.current[0];
+				p.current[1] = (1 - besttoi) * p.previous[1] + besttoi * p.current[1];
+				p.current[2] = (1 - besttoi) * p.previous[2] + besttoi * p.current[2];
+			
+				impulse = -GLVec3Dot(*bestplane, p.velocity);
+
+				p.velocity[0] += 2 * impulse * (*bestplane)[0];
+				p.velocity[1] += 2 * impulse * (*bestplane)[1];
+				p.velocity[2] += 2 * impulse * (*bestplane)[2];
+			}
 		}
 	}
 
@@ -325,7 +414,23 @@ void UpdateParticles(bool generate)
 //*************************************************************************************************************
 void Update(float delta)
 {
-	UpdateParticles(false);
+	cameraangle.prev[0] = cameraangle.curr[0];
+	cameraangle.prev[1] = cameraangle.curr[1];
+
+	if( mousedown == 1 )
+	{
+		cameraangle.curr[0] += mousedx * 0.004f;
+		cameraangle.curr[1] += mousedy * 0.004f;
+	}
+
+	// clamp to [-pi, pi]
+	if( cameraangle.curr[1] >= 1.5f )
+		cameraangle.curr[1] = 1.5f;
+
+	if( cameraangle.curr[1] <= -1.5f )
+		cameraangle.curr[1] = -1.5f;
+
+	UpdateParticles(delta, false);
 }
 //*************************************************************************************************************
 void RenderScene(OpenGLEffect* effect)
@@ -363,17 +468,23 @@ void Render(float alpha, float elapsedtime)
 {
 	static float time = 0;
 
-	float globalambient[4]	= { 0.2f, 0.2f, 0.2f, 1.0f };
+	float globalambient[4]	= { 0, 0, 0, 1.0f };
 	float lightpos[4]		= { 6, 3, 10, 1 };
 	float clipplanes[2];
 	float screensize[2]		= { (float)screenwidth, (float)screenheight };
-	float eye[3]			= { 0, 6, 8 };
+	float eye[3]			= { 0, 0, 8 };
 	float look[3]			= { 0, 0, 0 };
 	float up[3]				= { 0, 1, 0 };
+	float orient[2];
 
 	float view[16];
 	float proj[16];
 	float viewproj[16];
+
+	cameraangle.smooth(orient, alpha);
+
+	GLMatrixRotationYawPitchRoll(view, orient[0], orient[1], 0);
+	GLVec3Transform(eye, eye, view);
 
 	GLFitToBox(clipplanes[0], clipplanes[1], eye, look, scenebox);
 	GLMatrixPerspectiveRH(proj, (60.0f * 3.14159f) / 180.f,  (float)screenwidth / (float)screenheight, clipplanes[0], clipplanes[1]);
@@ -435,23 +546,37 @@ void Render(float alpha, float elapsedtime)
 	lightaccum->SetVector("eyePos", eye);
 	lightaccum->SetInt("sampler0", 0);
 
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
-	glDepthMask(GL_FALSE);
-
-	lightaccum->Begin();
+	framebuffer->Set();
 	{
-		RenderScene(lightaccum);
-	}
-	lightaccum->End();
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+		glDepthMask(GL_FALSE);
 
-	glDisable(GL_BLEND);
-	glDepthMask(GL_TRUE);
+		lightaccum->Begin();
+		{
+			RenderScene(lightaccum);
+		}
+		lightaccum->End();
+
+		glDisable(GL_BLEND);
+		glDepthMask(GL_TRUE);
+	}
+	framebuffer->Unset();
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
+
+	// STEP 4: gamma correct
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glBindTexture(GL_TEXTURE_2D, framebuffer->GetColorAttachment(0));
+
+	basic2D->SetInt("sampler0", 0);
+	basic2D->Begin();
+	{
+		screenquad->Draw();
+	}
+	basic2D->End();
 
 	// check errors
 	GLenum err = glGetError();

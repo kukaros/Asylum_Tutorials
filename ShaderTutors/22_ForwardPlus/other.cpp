@@ -20,6 +20,9 @@ RECT	workarea;
 DEVMODE	devmode;
 long	screenwidth		= 800;
 long	screenheight	= 600;
+short	mousex, mousedx	= 0;
+short	mousey, mousedy	= 0;
+short	mousedown		= 0;
 bool	uninited		= false;
 
 bool InitScene();
@@ -28,6 +31,7 @@ void LoadTexture(const std::wstring& file);
 void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
+void KeyPress(WPARAM wparam);
 
 bool IsSupported(const char* (APIENTRY *func)(HDC), HDC hdc, const char* name)
 {
@@ -360,7 +364,35 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 		case VK_ESCAPE:
 			SendMessage(hWnd, WM_CLOSE, 0, 0);
 			break;
+
+		default:
+			KeyPress(wParam);
+			break;
 		}
+		break;
+
+	case WM_MOUSEMOVE: {
+		short x = (short)(lParam & 0xffff);
+		short y = (short)((lParam >> 16) & 0xffff);
+
+		mousedx += x - mousex;
+		mousedy += y - mousey;
+
+		mousex = x;
+		mousey = y;
+		} break;
+
+	case WM_LBUTTONDOWN:
+		mousedown = 1;
+		break;
+
+	case WM_RBUTTONDOWN:
+		mousedown = 2;
+		break;
+
+	case WM_LBUTTONUP:
+	case WM_RBUTTONUP:
+		mousedown = 0;
 		break;
 
 	default:
@@ -378,7 +410,7 @@ int main(int argc, char* argv[])
 	double last, current;
 	double delta, accum = 0;
 
-	// ablak osztály
+	// ablak osztï¿½ly
 	WNDCLASSEX wc =
 	{
 		sizeof(WNDCLASSEX),
@@ -404,7 +436,7 @@ int main(int argc, char* argv[])
 	devmode.dmPelsHeight	= screenheight;
 	devmode.dmFields		= DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
 
-	// ablakos mód
+	// ablakos mï¿½d
 	style |= WS_SYSMENU|WS_BORDER|WS_CAPTION|WS_MINIMIZEBOX;
 	Adjust(rect, screenwidth, screenheight, style, true);
 	
@@ -456,6 +488,8 @@ int main(int argc, char* argv[])
 
 		last = current;
 		accum += delta;
+
+		mousedx = mousedy = 0;
 
 		while( accum > 0.0333f )
 		{
