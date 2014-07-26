@@ -195,6 +195,11 @@ extern PFNGLDISPATCHCOMPUTEINDIRECTPROC			glDispatchComputeIndirect;
 extern PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture;
 extern PFNGLBINDBUFFERBASEPROC					glBindBufferBase;
 
+extern PFNGLGETINTEGERI_VPROC					glGetIntegeri_v;
+extern PFNGLDEBUGMESSAGECONTROLPROC				glDebugMessageControl;
+extern PFNGLDEBUGMESSAGECALLBACKPROC			glDebugMessageCallback;
+extern PFNGLGETDEBUGMESSAGELOGPROC				glGetDebugMessageLog;
+
 // WGL specific
 typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
 typedef const char* (APIENTRY *WGLGETEXTENSIONSSTRINGARBPROC)(HDC hdc);
@@ -286,6 +291,7 @@ namespace Quadron
 		static bool ARB_shader_image_load_store;
 		static bool ARB_shader_storage_buffer_object;
 		static bool ARB_shader_atomic_counters;
+		static bool ARB_debug_output;
 
 		static bool EXT_texture_compression_s3tc;
 		static bool EXT_texture_cube_map;

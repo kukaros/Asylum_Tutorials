@@ -87,9 +87,37 @@ const int numobjects = sizeof(objects) / sizeof(SceneObject);
 void UpdateParticles(float dt, bool generate);
 void RenderScene(OpenGLEffect* effect);
 
+void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userdata)
+{
+	if( source == GL_DEBUG_SOURCE_API )
+		std::cout << "GL(" << severity << "): ";
+	else if( source == GL_DEBUG_SOURCE_SHADER_COMPILER )
+		std::cout << "GLSL(" << severity << "): ";
+	else
+		std::cout << "OTHER(" << severity << "): ";
+
+	std::cout << id << ": " << message << "\n";
+}
+
 bool InitScene()
 {
 	Quadron::qGLExtensions::QueryFeatures(hdc);
+
+#ifdef _DEBUG
+	if( Quadron::qGLExtensions::ARB_debug_output )
+	{
+		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
+		glDebugMessageCallback(ReportGLError, 0);
+	}
+#endif
+
+	/*
+	GLint maxgroups[3];
+
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &maxgroups[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &maxgroups[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &maxgroups[2]);
+	*/
 
 	//glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
 	glClearColor(0.0f, 0.0103f, 0.0707f, 1.0f);
@@ -341,7 +369,7 @@ void UpdateParticles(float dt, bool generate)
 				p.current[2] = p.previous[2];
 				p.current[3] = 1;
 
-				p.radius = 1; // must be at least 1 (but bigger than 1.5 won't work good with this scene)
+				p.radius = 1; // must be at least 1
 				p.color = randomcolors[(i + j) % 3];
 			}
 		}

@@ -97,6 +97,10 @@ PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = 0;
 PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = 0;
 PFNGLBINDBUFFERBASEPROC					glBindBufferBase = 0;
 
+PFNGLDEBUGMESSAGECONTROLPROC			glDebugMessageControl = 0;
+PFNGLDEBUGMESSAGECALLBACKPROC			glDebugMessageCallback = 0;
+PFNGLGETDEBUGMESSAGELOGPROC				glGetDebugMessageLog = 0;
+
 PFNWGLSWAPINTERVALFARPROC				wglSwapInterval = 0;
 WGLCREATECONTEXTATTRIBSARBPROC			wglCreateContextAttribs = 0;
 WGLGETEXTENSIONSSTRINGARBPROC			wglGetExtensionsString = 0;
@@ -104,6 +108,7 @@ WGLGETPIXELFORMATATTRIBIVARBPROC		wglGetPixelFormatAttribiv = 0;
 WGLGETPIXELFORMATATTRIBFVARBPROC		wglGetPixelFormatAttribfv = 0;
 WGLCHOOSEPIXELFORMATARBPROC				wglChoosePixelFormat = 0;
 GLGETSTRINGIPROC						glGetStringi = 0;
+PFNGLGETINTEGERI_VPROC					glGetIntegeri_v = 0;
 #endif
 
 namespace Quadron
@@ -125,6 +130,7 @@ namespace Quadron
 	bool qGLExtensions::ARB_shader_image_load_store = false;
 	bool qGLExtensions::ARB_shader_storage_buffer_object = false;
 	bool qGLExtensions::ARB_shader_atomic_counters = false;
+	bool qGLExtensions::ARB_debug_output = false;
 
 	bool qGLExtensions::EXT_texture_compression_s3tc = false;
 	bool qGLExtensions::EXT_texture_cube_map = false;
@@ -171,8 +177,6 @@ namespace Quadron
 
 		if( coreprofile )
 			glGetStringi = (GLGETSTRINGIPROC)wglGetProcAddress("glGetStringi");
-
-		wglGetExtensionsString = (WGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
 
 		if( wglGetExtensionsString && dc )
 		{
@@ -234,6 +238,7 @@ namespace Quadron
 			EXT_framebuffer_blit			= true;
 			EXT_packed_depth_stencil		= true;
 
+			ARB_debug_output					= IsSupported("GL_ARB_debug_output");
 			ARB_compute_shader					= IsSupported("GL_ARB_compute_shader");
 			ARB_shader_image_load_store			= IsSupported("GL_ARB_shader_image_load_store");
 			ARB_shader_storage_buffer_object	= IsSupported("GL_ARB_shader_storage_buffer_object");
@@ -278,6 +283,11 @@ namespace Quadron
 		GET_ADDRESS(glGenerateMipmap, PFNGLGENERATEMIPMAPEXTPROC, "glGenerateMipmapEXT");
 		GET_ADDRESS(glMapBuffer, PFNGLMAPBUFFERARBPROC, "glMapBufferARB");
 		GET_ADDRESS(glUnmapBuffer, PFNGLUNMAPBUFFERARBPROC, "glUnmapBufferARB");
+
+		if( coreprofile )
+		{
+			GET_ADDRESS(glGetIntegeri_v, PFNGLGETINTEGERI_VPROC, "");
+		}
 
 		if( ARB_texture_compression )
 		{
@@ -386,6 +396,13 @@ namespace Quadron
 		{
 			GET_ADDRESS(glBindBufferBase, PFNGLBINDBUFFERBASEPROC, "");
 		}
+
+		if( ARB_debug_output )
+		{
+			GET_ADDRESS(glDebugMessageControl, PFNGLDEBUGMESSAGECONTROLPROC, "");
+			GET_ADDRESS(glDebugMessageCallback, PFNGLDEBUGMESSAGECALLBACKPROC, "");
+			GET_ADDRESS(glGetDebugMessageLog, PFNGLGETDEBUGMESSAGELOGPROC, "");
+		}
 #endif
 		
 		if( ARB_shader_objects )
@@ -465,6 +482,12 @@ namespace Quadron
 		loc = strchr(name, ' ');
 
 		if( loc || *name == '\0' )
+			return false;
+
+		if( !wglGetExtensionsString )
+			wglGetExtensionsString = (WGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
+
+		if( !wglGetExtensionsString )
 			return false;
 
 		ext = (const char*)wglGetExtensionsString(hdc);

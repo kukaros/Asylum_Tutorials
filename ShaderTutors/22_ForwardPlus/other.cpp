@@ -33,36 +33,9 @@ void Update(float delta);
 void Render(float alpha, float elapsedtime);
 void KeyPress(WPARAM wparam);
 
-bool IsSupported(const char* (APIENTRY *func)(HDC), HDC hdc, const char* name)
+namespace Quadron
 {
-	const char *ext = 0, *start;
-	const char *loc, *term;
-
-	loc = strchr(name, ' ');
-
-	if( loc || *name == '\0' )
-		return false;
-
-	ext = (const char*)func(hdc);
-	start = ext;
-
-	for( ;; )
-	{
-		if( !(loc = strstr(start, name)) )
-			break;
-
-		term = loc + strlen(name);
-
-		if( loc == start || *(loc - 1) == ' ' )
-		{
-			if( *term == ' ' || *term == '\0' )
-				return true;
-		}
-
-		start = term;
-	}
-
-	return false;
+	extern bool wIsSupported(const char* name, HDC hdc);
 }
 
 bool InitGL(HWND hwnd)
@@ -127,7 +100,7 @@ bool InitGL(HWND hwnd)
 
 	if( wglGetExtensionsStringARB )
 	{
-		if( IsSupported(wglGetExtensionsStringARB, hdc, "WGL_ARB_pixel_format") )
+		if( Quadron::wIsSupported("WGL_ARB_pixel_format", hdc) )
 		{
 			std::cout << "WGL_ARB_pixel_format present, querying pixel formats...\n";
 
@@ -183,8 +156,8 @@ bool InitGL(HWND hwnd)
 			{
 				std::cout << "Selected pixel format: " << pixelformat <<"\n";
 
-				if( IsSupported(wglGetExtensionsStringARB, hdc, "WGL_ARB_create_context") &&
-					IsSupported(wglGetExtensionsStringARB, hdc, "WGL_ARB_create_context_profile") )
+				if( Quadron::wIsSupported("WGL_ARB_create_context", hdc) &&
+					Quadron::wIsSupported("WGL_ARB_create_context_profile", hdc) )
 				{
 					wglCreateContextAttribsARB = (WGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 				}
@@ -205,13 +178,16 @@ bool InitGL(HWND hwnd)
 
 				if( wglCreateContextAttribsARB )
 				{
-					int contextattribs[9] =
+					int contextattribs[] =
 					{
 						0x2091,		// WGL_CONTEXT_MAJOR_VERSION_ARB
 						major,
 						0x2092,		// WGL_CONTEXT_MINOR_VERSION_ARB
 						minor,
 						0x2094,		// WGL_CONTEXT_FLAGS_ARB
+#ifdef _DEBUG
+						0x0001,		// WGL_CONTEXT_DEBUG_BIT
+#endif
 						0x0002,		// WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
 						0x9126,		// WGL_CONTEXT_PROFILE_MASK_ARB
 						0x00000001,	// WGL_CONTEXT_CORE_PROFILE_BIT_ARB
@@ -410,7 +386,6 @@ int main(int argc, char* argv[])
 	double last, current;
 	double delta, accum = 0;
 
-	// ablak oszt�ly
 	WNDCLASSEX wc =
 	{
 		sizeof(WNDCLASSEX),
@@ -436,7 +411,6 @@ int main(int argc, char* argv[])
 	devmode.dmPelsHeight	= screenheight;
 	devmode.dmFields		= DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
 
-	// ablakos m�d
 	style |= WS_SYSMENU|WS_BORDER|WS_CAPTION|WS_MINIMIZEBOX;
 	Adjust(rect, screenwidth, screenheight, style, true);
 	
@@ -472,7 +446,6 @@ int main(int argc, char* argv[])
 	GetCursorPos(&p);
 	ScreenToClient(hwnd, &p);
 	
-	// timer
 	QueryPerformanceFrequency(&qwTicksPerSec);
 	tickspersec = qwTicksPerSec.QuadPart;
 

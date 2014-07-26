@@ -71,7 +71,7 @@ bool InitScene()
 	}
 
 	// compute shader
-	if( !(ok = GLCreateComputeProgramFromFile("../media/shadersGL/coloredtexture.comp", &coloredtexture)) )
+	if( !(ok = GLCreateComputeProgramFromFile("../media/shadersGL/coloredtexture.comp", 0, &coloredtexture)) )
 	{
 		MYERROR("Could not load compute shader");
 		return false;
@@ -100,6 +100,10 @@ void UninitScene()
 	coloredtexture = 0;
 	mesh = 0;
 	texture = 0;
+}
+//*************************************************************************************************************
+void KeyPress(WPARAM wparam)
+{
 }
 //*************************************************************************************************************
 void Update(float delta)
