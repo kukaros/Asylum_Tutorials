@@ -32,6 +32,9 @@ layout(std140, binding = 2) readonly buffer LightBuffer {
 	LightParticle data[];
 } lightbuffer;
 
+uniform sampler2D sampler0;
+uniform int numTilesX;
+
 in vec4 wpos;
 in vec3 wnorm;
 in vec3 vdir;
@@ -51,23 +54,16 @@ float Attenuate(vec3 ldir, float radius)
 
 void main()
 {
-	const int numtilesx = 50;	//
-	const int numtilesy = 38;	//
-
 	ivec2	loc = ivec2(gl_FragCoord.xy);
 	ivec2	tileID = loc / ivec2(16, 16);
-	int		index = tileID.y * numtilesx + tileID.x;
+	int		index = tileID.y * numTilesX + tileID.x;
 
-	uint start = headbuffer.data[index].Start;
-	uint count = headbuffer.data[index].Count;
-	uint nodeID = start;
-	uint lightID;
-
+	vec4 base = texture(sampler0, tex);
 	vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
 	vec4 lightcolor;
 	vec4 lightpos;
 
-	//vec3 otherlight = normalize(vec3(0, 1.0, 1.0));
+	vec3 otherlight = normalize(vec3(-1.0, 1.0, 1.0));
 	vec3 irrad;
 	vec3 l;
 	vec3 h;
@@ -79,8 +75,13 @@ void main()
 	float atten;
 	float radius;
 
-	//diff = max(dot(otherlight, n), 0);
-	//color.rgb += vec3(1.0) * diff * 0.25;
+	diff = max(dot(otherlight, n), 0);
+	color.rgb += vec3(0.6, 0.6, 1.0) * base.rgb * diff;
+
+	uint start = headbuffer.data[index].Start;
+	uint count = headbuffer.data[index].Count;
+	uint nodeID = start;
+	uint lightID;
 
 	for( uint i = 0; i < count; ++i )
 	{
@@ -100,7 +101,7 @@ void main()
 		diff = max(dot(l, n), 0);
 		spec = pow(max(dot(h, n), 0), 80.0);
 		
-		irrad = (lightcolor.rgb * diff + vec3(1.0) * spec) * atten;
+		irrad = (lightcolor.rgb * base.rgb * diff + vec3(1.0) * spec) * atten;
 		color.rgb += irrad;
 	}
 
@@ -114,7 +115,5 @@ void main()
 
 	if( start > 0 && count > 50 )
 		my_FragColor0 = vec4(1.0, 0.0, 0.0, 1.0);
-
-	my_FragColor0.a = 1.0;
 	*/
 }

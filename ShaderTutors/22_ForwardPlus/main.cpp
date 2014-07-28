@@ -5,7 +5,6 @@
 #pragma comment(lib, "GdiPlus.lib")
 
 #include <Windows.h>
-#include <GdiPlus.h>
 #include <iostream>
 
 #include "../common/glext.h"
@@ -15,6 +14,7 @@
 #define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
 
 #define NUM_LIGHTS			256			// must be square number
+#define LIGHT_RADIUS		1.5f		// must be at least 1
 #define M_PI				3.141592f
 #define M_2PI				6.283185f
 
@@ -66,7 +66,7 @@ GLuint				workgroupsy		= 0;
 
 SceneObject objects[] =
 {
-	{ 0, { 0, -1, 0 }, { 20, 0.5f, 20 } },
+	{ 0, { 0, -0.35f, 0 }, { 20, 0.5f, 20 } },
 
 	{ 1, { -3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 } },
 	{ 1, { -3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 } },
@@ -89,14 +89,17 @@ void RenderScene(OpenGLEffect* effect);
 
 void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userdata)
 {
-	if( source == GL_DEBUG_SOURCE_API )
-		std::cout << "GL(" << severity << "): ";
-	else if( source == GL_DEBUG_SOURCE_SHADER_COMPILER )
-		std::cout << "GLSL(" << severity << "): ";
-	else
-		std::cout << "OTHER(" << severity << "): ";
+	if( type >= GL_DEBUG_TYPE_ERROR && type <= GL_DEBUG_TYPE_PERFORMANCE )
+	{
+		if( source == GL_DEBUG_SOURCE_API )
+			std::cout << "GL(" << severity << "): ";
+		else if( source == GL_DEBUG_SOURCE_SHADER_COMPILER )
+			std::cout << "GLSL(" << severity << "): ";
+		else
+			std::cout << "OTHER(" << severity << "): ";
 
-	std::cout << id << ": " << message << "\n";
+		std::cout << id << ": " << message << "\n";
+	}
 }
 
 bool InitScene()
@@ -189,19 +192,10 @@ bool InitScene()
 	screenquad = new OpenGLScreenQuad();
 
 	// texture
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
+	if( !GLCreateTextureFromFile("../media/textures/wood2.jpg", &texture) )
 	{
-		unsigned int* data = new unsigned int[128 * 128];
-		memset(data, 0xff, 128 * 128 * 4);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 128, 128, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, data);
-		delete[] data;
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		MYERROR("Could not load texture");
+		return false;
 	}
 
 	// buffers
@@ -312,6 +306,8 @@ void UninitScene()
 	lightaccum = 0;
 	teapot = 0;
 	texture = 0;
+
+	GLKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
@@ -369,7 +365,7 @@ void UpdateParticles(float dt, bool generate)
 				p.current[2] = p.previous[2];
 				p.current[3] = 1;
 
-				p.radius = 1; // must be at least 1
+				p.radius = LIGHT_RADIUS;
 				p.color = randomcolors[(i + j) % 3];
 			}
 		}
@@ -378,9 +374,9 @@ void UpdateParticles(float dt, bool generate)
 	{
 		float planes[6][4];
 		float denom;
-		float besttoi;
-		float toi;
-		float impulse;
+		float toi, besttoi;
+		float impulse, noise;
+		float energy;
 		float (*bestplane)[4];
 		bool closing;
 
@@ -428,10 +424,21 @@ void UpdateParticles(float dt, bool generate)
 				p.current[2] = (1 - besttoi) * p.previous[2] + besttoi * p.current[2];
 			
 				impulse = -GLVec3Dot(*bestplane, p.velocity);
+				noise = (rand() % 50) / 100.0f;
 
-				p.velocity[0] += 2 * impulse * (*bestplane)[0];
-				p.velocity[1] += 2 * impulse * (*bestplane)[1];
-				p.velocity[2] += 2 * impulse * (*bestplane)[2];
+				energy = GLVec3Length(p.velocity);
+
+				// add a random noise
+				p.velocity[0] += (1.5f + noise) * impulse * (*bestplane)[0];
+				p.velocity[1] += (1.5f + noise) * impulse * (*bestplane)[1];
+				p.velocity[2] += (1.5f + noise) * impulse * (*bestplane)[2];
+
+				// must conserve energy
+				GLVec3Normalize(p.velocity);
+
+				p.velocity[0] *= energy;
+				p.velocity[1] *= energy;
+				p.velocity[2] *= energy;
 			}
 		}
 	}
@@ -481,12 +488,25 @@ void RenderScene(OpenGLEffect* effect)
 		world[14] = obj.position[2];
 
 		effect->SetMatrix("matWorld", world);
-		effect->CommitChanges();
 
 		if( obj.type == 0 )
+		{
+			float uv[] = { 5, 5, 0, 1 };
+
+			effect->SetVector("uv", uv);
+			effect->CommitChanges();
+
 			box->DrawSubset(0);
+		}
 		else if( obj.type == 1 )
+		{
+			float uv[] = { 1, 1, 0, 1 };
+
+			effect->SetVector("uv", uv);
+			effect->CommitChanges();
+
 			teapot->DrawSubset(0);
+		}
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -573,6 +593,7 @@ void Render(float alpha, float elapsedtime)
 	lightaccum->SetMatrix("matViewProj", viewproj);
 	lightaccum->SetVector("eyePos", eye);
 	lightaccum->SetInt("sampler0", 0);
+	lightaccum->SetInt("numTilesX", workgroupsx);
 
 	framebuffer->Set();
 	{
@@ -606,11 +627,13 @@ void Render(float alpha, float elapsedtime)
 	}
 	basic2D->End();
 
+#ifdef _DEBUG
 	// check errors
 	GLenum err = glGetError();
 
 	if( err != GL_NO_ERROR )
 		std::cout << "Error\n";
+#endif
 
 	SwapBuffers(hdc);
 }

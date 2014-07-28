@@ -293,6 +293,9 @@ bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVer
 bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
 bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect);
 bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
+bool GLCreateTextureFromFile(const char* file, GLuint* out);
+
+void GLKillAnyRogueObject();
 
 // math functions
 int isqrt(int n);

@@ -27,7 +27,6 @@ bool	uninited		= false;
 
 bool InitScene();
 
-void LoadTexture(const std::wstring& file);
 void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
@@ -186,7 +185,7 @@ bool InitGL(HWND hwnd)
 						minor,
 						0x2094,		// WGL_CONTEXT_FLAGS_ARB
 #ifdef _DEBUG
-						0x0001,		// WGL_CONTEXT_DEBUG_BIT
+						//0x0001,		// WGL_CONTEXT_DEBUG_BIT
 #endif
 						0x0002,		// WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
 						0x9126,		// WGL_CONTEXT_PROFILE_MASK_ARB
@@ -487,6 +486,10 @@ _end:
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();
+
+#ifdef _DEBUG
+	//system("pause");
+#endif
 
 	return 0;
 }

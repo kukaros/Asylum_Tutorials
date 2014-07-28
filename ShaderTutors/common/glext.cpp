@@ -6,10 +6,13 @@
 #include <string>
 #include <cstdio>
 #include <cmath>
+#include <GdiPlus.h>
 
 #ifdef _MSC_VER
 #	pragma warning (disable:4996)
 #endif
+
+ULONG_PTR gdiplustoken = 0;
 
 GLint map_Format_Internal[12] =
 {
@@ -72,6 +75,65 @@ static void GLReadString(FILE* f, char* buff)
 	}
 
 	buff[ind] = '\0';
+}
+
+static Gdiplus::Bitmap* Win32LoadPicture(const std::wstring& file)
+{
+	if( gdiplustoken == 0 )
+	{
+		Gdiplus::GdiplusStartupInput gdiplustartup;
+		Gdiplus::GdiplusStartup(&gdiplustoken, &gdiplustartup, NULL);
+	}
+
+	HANDLE hFile = CreateFileW(
+		file.c_str(), 
+		FILE_READ_DATA,
+		FILE_SHARE_READ,
+		NULL, 
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+
+	if( !hFile )
+		return 0;
+
+	DWORD len = GetFileSize(hFile, NULL);
+	HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE|GMEM_NODISCARD, len); // leak
+
+	if ( !hGlobal )
+	{
+		CloseHandle(hFile);
+		return 0;
+	}
+
+	char* lpBuffer = reinterpret_cast<char*>(GlobalLock(hGlobal));
+	DWORD dwBytesRead = 0;
+
+	while( ReadFile(hFile, lpBuffer, 4096, &dwBytesRead, NULL) )
+	{
+		lpBuffer += dwBytesRead;
+
+		if( dwBytesRead == 0 )
+			break;
+
+		dwBytesRead = 0;
+	}
+
+	CloseHandle(hFile);
+	GlobalUnlock(hGlobal);
+
+	IStream* pStream = NULL;
+
+	if( CreateStreamOnHGlobal(hGlobal, FALSE, &pStream) != S_OK )
+	{
+		GlobalFree(hGlobal);
+		return 0;
+	}
+
+	Gdiplus::Bitmap* bitmap = Gdiplus::Bitmap::FromStream(pStream);
+	pStream->Release();
+
+	return bitmap;
 }
 
 // *****************************************************************************************************************************
@@ -739,6 +801,7 @@ bool OpenGLFramebuffer::AttachTexture(GLenum target, OpenGLFormat format)
 	glBindFramebuffer(GL_FRAMEBUFFER, fboid);
 	glBindTexture(GL_TEXTURE_2D, attach->id);
 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -1387,6 +1450,93 @@ bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, Ope
 
 	(*effect) = neweffect;
 	return true;
+}
+
+bool GLCreateTextureFromFile(const char* file, GLuint* out)
+{
+	std::wstring wstr;
+	int length = strlen(file);
+	int size = MultiByteToWideChar(CP_UTF8, 0, file, length, 0, 0);
+
+	wstr.resize(size);
+	MultiByteToWideChar(CP_UTF8, 0, file, length, &wstr[0], size);
+
+	GLuint texid = 0;
+	Gdiplus::Bitmap* bitmap = Win32LoadPicture(wstr);
+
+	if( bitmap )
+	{ 
+		if( bitmap->GetLastStatus() == Gdiplus::Ok )
+		{
+			Gdiplus::BitmapData data;
+			unsigned char* tmpbuff;
+
+			bitmap->LockBits(0, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data);
+
+			tmpbuff = new unsigned char[data.Width * data.Height * 4];
+			memcpy(tmpbuff, data.Scan0, data.Width * data.Height * 4);
+
+			for( UINT i = 0; i < data.Height; ++i )
+			{
+				// swap red and blue
+				for( UINT j = 0; j < data.Width; ++j )
+				{
+					UINT index = (i * data.Width + j) * 4;
+					std::swap<unsigned char>(tmpbuff[index + 0], tmpbuff[index + 2]);
+				}
+
+				// flip on X
+				for( UINT j = 0; j < data.Width / 2; ++j )
+				{
+					UINT index1 = (i * data.Width + j) * 4;
+					UINT index2 = (i * data.Width + (data.Width - j - 1)) * 4;
+
+					std::swap<unsigned int>(*((unsigned int*)(tmpbuff + index1)), *((unsigned int*)(tmpbuff + index2)));
+				}
+			}
+
+			glGenTextures(1, &texid);
+			glBindTexture(GL_TEXTURE_2D, texid);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			glBindTexture(GL_TEXTURE_2D, texid);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, data.Width, data.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpbuff);
+			glGenerateMipmap(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			GLenum err = glGetError();
+
+			if( err != GL_NO_ERROR )
+			{
+				glDeleteTextures(1, &texid);
+				texid = 0;
+
+				std::cout << "Error: Could not create texture!";
+			}
+			else
+				std::cout << "Created texture " << data.Width << "x" << data.Height << "\n";
+
+			bitmap->UnlockBits(&data);
+			delete[] tmpbuff;
+		}
+
+		delete bitmap;
+	}
+	else
+		std::cout << "Error: Could not load bitmap!";
+
+	*out = texid;
+	return (texid != 0);
+}
+
+void GLKillAnyRogueObject()
+{
+	if( gdiplustoken )
+		Gdiplus::GdiplusShutdown(gdiplustoken);
 }
 
 // *****************************************************************************************************************************

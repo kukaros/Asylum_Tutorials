@@ -7,6 +7,7 @@ in vec2 my_Texcoord0;
 uniform mat4 matWorld;
 uniform mat4 matViewProj;
 uniform vec4 eyePos;
+uniform vec2 uv;
 
 out vec4 wpos;
 out vec3 wnorm;
@@ -18,7 +19,7 @@ void main()
 	wpos = matWorld * vec4(my_Position, 1);
 	vdir = eyePos.xyz - wpos.xyz;
 
-	tex = my_Texcoord0;
+	tex = my_Texcoord0 * uv;
 	wnorm = (matWorld * vec4(my_Normal, 0)).xyz;
 
 	gl_Position = matViewProj * wpos;

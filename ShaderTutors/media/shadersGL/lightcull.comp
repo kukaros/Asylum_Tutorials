@@ -20,11 +20,11 @@ struct ListNode
 	uint Next;
 };
 
-layout(packed, binding = 0) buffer HeadBuffer {
+layout(packed, binding = 0) writeonly buffer HeadBuffer {
 	ListHead data[];
 } headbuffer;
 
-layout(packed, binding = 1) buffer NodeBuffer {
+layout(packed, binding = 1) writeonly buffer NodeBuffer {
 	ListNode data[];
 } nodebuffer;
 
@@ -44,11 +44,14 @@ uniform int numLights;
 
 shared uint TileMinZ;
 shared uint TileMaxZ;
+shared uint TileLightStart;
+shared uint TileLightCount;
 
 layout (local_size_x = 16, local_size_y = 16) in;
 void main()
 {
 	ivec2	loc		= ivec2(gl_GlobalInvocationID.xy);
+	ivec2	itemID	= ivec2(gl_LocalInvocationID.xy);
 	ivec2	tileID	= ivec2(gl_WorkGroupID.xy);
 	ivec2	tileNum	= ivec2(gl_NumWorkGroups.xy);
 	int		index	= tileID.y * tileNum.x + tileID.x;
@@ -56,8 +59,10 @@ void main()
 	// initialize globals
 	if( gl_LocalInvocationIndex == 0 )
 	{
-		TileMinZ = 0x7F7FFFFF;
-		TileMaxZ = 0;
+		TileMinZ		= 0x7F7FFFFF;
+		TileMaxZ		= 0;
+		TileLightStart	= 0xFFFFFFFF;
+		TileLightCount	= 0;
 
 		headbuffer.data[index].Count = 0;
 	}
@@ -80,79 +85,84 @@ void main()
 
 	barrier();
 
+	// convert to [0, 1]
+	minz = uintBitsToFloat(TileMinZ);
+	maxz = uintBitsToFloat(TileMaxZ);
+
+	// STEP 2: calculate frustum
+	vec4 planes[6];
+	vec2 step1 = (2.0 * vec2(tileID)) / vec2(tileNum);
+	vec2 step2 = (2.0 * vec2(tileID + ivec2(1, 1))) / vec2(tileNum);
+
+	planes[0] = vec4(1, 0, 0, 1 - step1.x);		// left
+	planes[1] = vec4(-1, 0, 0, -1 + step2.x);	// right
+	planes[2] = vec4(0, 1, 0, 1 - step1.y);		// bottom
+	planes[3] = vec4(0, -1, 0, -1 + step2.y);	// top
+	planes[4] = vec4(0, 0, -1, -minz);			// near
+	planes[5] = vec4(0, 0, 1, maxz);			// far
+
+	for( int i = 0; i < 4; ++i )
+	{
+		planes[i] = planes[i] * matViewProj;
+		planes[i] /= length(planes[i].xyz);
+	}
+
+	planes[4] = planes[4] * matView;
+	planes[5] = planes[5] * matView;
+
+	planes[4] /= length(planes[4].xyz);
+	planes[5] /= length(planes[5].xyz);
+
+	// STEP 3: cull lights
+	vec4	pos;
+	float	dist;
+	float	radius;
+
+	uint	prev, next;
+	uint	lightsperitem	= max(numLights / 256, 1);
+	uint	remainder		= numLights % 256;
+	uint	lightstart, lightend;
+
+	if( gl_LocalInvocationIndex < remainder )
+	{
+		++lightsperitem;
+		lightstart = lightsperitem * gl_LocalInvocationIndex;
+	}
+	else
+		lightstart = remainder * (lightsperitem + 1) + (gl_LocalInvocationIndex - remainder) * lightsperitem;
+
+	lightend = min(lightstart + lightsperitem, numLights);
+
+	for( uint i = lightstart; i < lightend; ++i )
+	{
+		pos = lightbuffer.data[i].Current;
+		radius = lightbuffer.data[i].VelocityAndRadius.w;
+
+		for( int j = 0; j < 6; ++j )
+		{
+			dist = dot(pos, planes[j]) + radius;
+
+			if( dist <= 0 )
+				break;
+		}
+
+		if( dist > 0 )
+		{
+			next = atomicCounterIncrement(nextInsertionPoint);	// returns old value of nextInsertionPoint
+			prev = atomicExchange(TileLightStart, next);		// returns old value of TileLightStart
+
+			nodebuffer.data[next].LightIndex = i;
+			nodebuffer.data[next].Next = prev;
+
+			atomicAdd(TileLightCount, 1);
+		}
+	}
+
+	barrier();
+
 	if( gl_LocalInvocationIndex == 0 )
 	{
-		// convert to [0, 1]
-		minz = uintBitsToFloat(TileMinZ);
-		maxz = uintBitsToFloat(TileMaxZ);
-
-		// STEP 2: calculate frustum
-		vec4 planes[6];
-		vec2 step1 = (2.0 * vec2(tileID)) / vec2(tileNum);
-		vec2 step2 = (2.0 * vec2(tileID + ivec2(1, 1))) / vec2(tileNum);
-
-		planes[0] = vec4(1, 0, 0, 1 - step1.x);		// left
-		planes[1] = vec4(-1, 0, 0, -1 + step2.x);	// right
-		planes[2] = vec4(0, 1, 0, 1 - step1.y);		// bottom
-		planes[3] = vec4(0, -1, 0, -1 + step2.y);	// top
-		planes[4] = vec4(0, 0, -1, -minz);			// near
-		planes[5] = vec4(0, 0, 1, maxz);			// far
-
-		for( int i = 0; i < 4; ++i )
-		{
-			planes[i] = planes[i] * matViewProj;
-			planes[i] /= length(planes[i].xyz);
-		}
-
-		planes[4] = planes[4] * matView;
-		planes[5] = planes[5] * matView;
-
-		planes[4] /= length(planes[4].xyz);
-		planes[5] /= length(planes[5].xyz);
-
-		// STEP 3: cull lights
-		vec4	pos;
-		float	dist;
-		float	radius;
-		uint	count = 0;
-		uint	start = 0xFFFFFFFF;
-		uint	prev, next;
-
-		for( uint i = 0; i < numLights; ++i )
-		{
-			pos = lightbuffer.data[i].Current;
-			radius = lightbuffer.data[i].VelocityAndRadius.w;
-
-			for( int j = 0; j < 6; ++j )
-			{
-				dist = dot(pos, planes[j]) + radius;
-
-				if( dist <= 0 )
-					break;
-			}
-
-			if( dist > 0 )
-			{
-				if( start == 0xFFFFFFFF )
-				{
-					start = atomicCounterIncrement(nextInsertionPoint);
-					prev = next = start;
-				}
-
-				// add to list
-				nodebuffer.data[prev].Next = next;
-
-				nodebuffer.data[next].LightIndex = i;
-				nodebuffer.data[next].Next = 0xFFFFFFFF;
-
-				prev = next;
-				next = atomicCounterIncrement(nextInsertionPoint);
-
-				++count; //atomicIncrement
-			}
-		}
-
-		headbuffer.data[index].Start = start;
-		headbuffer.data[index].Count = count;
+		headbuffer.data[index].Start = TileLightStart;
+		headbuffer.data[index].Count = TileLightCount;
 	}
 }
