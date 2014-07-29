@@ -218,7 +218,7 @@ void OpenGLAABox::GetPlanes(float outplanes[6][4])
 	outplanes[i][1] = ny;	p[1] = py; \
 	outplanes[i][2] = nz;	p[2] = pz; \
 	outplanes[i][3] = -GLVec3Dot(p, outplanes[i]); \
-	GLPlaneNormalize(outplanes[i]);
+	GLPlaneNormalize(outplanes[i], outplanes[i]);
 // END
 
 	float p[3];
@@ -229,6 +229,11 @@ void OpenGLAABox::GetPlanes(float outplanes[6][4])
 	CALC_PLANE(3, 0, -1, 0, Min[0], Max[1], Min[2]);	// top
 	CALC_PLANE(4, 0, 0, -1, Min[0], Min[1], Max[2]);	// front
 	CALC_PLANE(5, 0, 0, 1, Min[0], Min[1], Min[2]);		// back
+}
+
+float OpenGLAABox::Radius() const
+{
+	return GLVec3Distance(Min, Max) * 0.5f;
 }
 
 float OpenGLAABox::Nearest(float from[4]) const
@@ -1143,7 +1148,7 @@ bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* numm
 	fread(data, istride, numindices, infile);
 	(*mesh)->UnlockIndexBuffer();
 
-	if( version > 1 )
+	if( version >= 1 )
 	{
 		fread(&unused, 4, 1, infile);
 
@@ -1452,7 +1457,7 @@ bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, Ope
 	return true;
 }
 
-bool GLCreateTextureFromFile(const char* file, GLuint* out)
+bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out)
 {
 	std::wstring wstr;
 	int length = strlen(file);
@@ -1504,7 +1509,12 @@ bool GLCreateTextureFromFile(const char* file, GLuint* out)
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 			glBindTexture(GL_TEXTURE_2D, texid);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, data.Width, data.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpbuff);
+
+			if( srgb )
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, data.Width, data.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpbuff);
+			else
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, data.Width, data.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpbuff);
+
 			glGenerateMipmap(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -1559,33 +1569,45 @@ int isqrt(int n)
 	return b - 1;
 }
 
-float GLVec3Dot(float a[3], float b[3])
+float GLVec3Dot(const float a[3], const float b[3])
 {
 	return (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]);
 }
 
-float GLVec3Length(float a[3])
+float GLVec3Length(const float a[3])
 {
 	return sqrtf(GLVec3Dot(a, a));
 }
 
-void GLVec3Normalize(float a[3])
+float GLVec3Distance(const float a[3], const float b[3])
 {
-	float il = 1.0f / GLVec3Length(a);
+	float c[3] =
+	{
+		a[0] - b[0],
+		a[1] - b[1],
+		a[2] - b[2]
+	};
 
-	a[0] *= il;
-	a[1] *= il;
-	a[2] *= il;
+	return GLVec3Length(c);
 }
 
-void GLVec3Cross(float out[3], float a[3], float b[3])
+void GLVec3Normalize(float out[3], const float v[3])
+{
+	float il = 1.0f / GLVec3Length(v);
+
+	out[0] = v[0] * il;
+	out[1] = v[1] * il;
+	out[2] = v[2] * il;
+}
+
+void GLVec3Cross(float out[3], const float a[3], const float b[3])
 {
 	out[0] = a[1] * b[2] - a[2] * b[1];
 	out[1] = a[2] * b[0] - a[0] * b[2];
 	out[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-void GLVec3Transform(float out[3], float v[3], float m[16])
+void GLVec3Transform(float out[3], const float v[3], const float m[16])
 {
 	float tmp[3];
 
@@ -1598,7 +1620,7 @@ void GLVec3Transform(float out[3], float v[3], float m[16])
 	out[2] = tmp[2];
 }
 
-void GLVec3TransformCoord(float out[3], float v[3], float m[16])
+void GLVec3TransformCoord(float out[3], const float v[3], const float m[16])
 {
 	float tmp[4];
 
@@ -1612,7 +1634,7 @@ void GLVec3TransformCoord(float out[3], float v[3], float m[16])
 	out[2] = tmp[2] / tmp[3];
 }
 
-void GLVec4Transform(float out[4], float v[4], float m[16])
+void GLVec4Transform(float out[4], const float v[4], const float m[16])
 {
 	float tmp[4];
 
@@ -1627,7 +1649,7 @@ void GLVec4Transform(float out[4], float v[4], float m[16])
 	out[3] = tmp[3];
 }
 
-void GLVec4TransformTranspose(float out[4], float m[16], float v[4])
+void GLVec4TransformTranspose(float out[4], const float m[16], const float v[4])
 {
 	float tmp[4];
 
@@ -1642,17 +1664,17 @@ void GLVec4TransformTranspose(float out[4], float m[16], float v[4])
 	out[3] = tmp[3];
 }
 
-void GLPlaneNormalize(float p[4])
+void GLPlaneNormalize(float out[4], const float p[4])
 {
-	float length = GLVec3Length(p);
+	float il = 1.0f / GLVec3Length(p);
 
-	p[0] /= length;
-	p[1] /= length;
-	p[2] /= length;
-	p[3] /= length;
+	out[0] = p[0] * il;
+	out[1] = p[1] * il;
+	out[2] = p[2] * il;
+	out[3] = p[3] * il;
 }
 
-void GLMatrixLookAtRH(float out[16], float eye[3], float look[3], float up[3])
+void GLMatrixLookAtRH(float out[16], const float eye[3], const float look[3], const float up[3])
 {
 	float x[3], y[3], z[3];
 
@@ -1660,10 +1682,10 @@ void GLMatrixLookAtRH(float out[16], float eye[3], float look[3], float up[3])
 	z[1] = look[1] - eye[1];
 	z[2] = look[2] - eye[2];
 
-	GLVec3Normalize(z);
+	GLVec3Normalize(z, z);
 	GLVec3Cross(x, z, up);
 
-	GLVec3Normalize(x);
+	GLVec3Normalize(x, x);
 	GLVec3Cross(y, x, z);
 
 	out[0] = x[0];		out[1] = y[0];		out[2] = -z[0];		out[3] = 0.0f;
@@ -1692,7 +1714,7 @@ void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearpl
 	out[14] = 2 * farplane * nearplane / (nearplane - farplane);
 }
 
-void GLMatrixMultiply(float out[16], float a[16], float b[16])
+void GLMatrixMultiply(float out[16], const float a[16], const float b[16])
 {
 	float tmp[16];
 
@@ -1726,7 +1748,7 @@ void GLMatrixRotationAxis(float out[16], float angle, float x, float y, float z)
 	float cosa = cosf(angle);
 	float sina = sinf(angle);
 
-	GLVec3Normalize(u);
+	GLVec3Normalize(u, u);
 
 	out[0] = cosa + u[0] * u[0] * (1.0f - cosa);
 	out[1] = u[0] * u[1] * (1.0f - cosa) - u[2] * sina;
@@ -1780,7 +1802,85 @@ void GLMatrixIdentity(float out[16])
 	out[0] = out[5] = out[10] = out[15] = 1;
 }
 
-void GLFitToBox(float& outnear, float& outfar, float eye[3], float look[3], const OpenGLAABox& box)
+void GLMatrixInverse(float out[16], const float m[16])
+{
+	float s[6] =
+	{
+		m[0] * m[5] - m[1] * m[4],
+		m[0] * m[6] - m[2] * m[4],
+		m[0] * m[7] - m[3] * m[4],
+		m[1] * m[6] - m[2] * m[5],
+		m[1] * m[7] - m[3] * m[5],
+		m[2] * m[7] - m[3] * m[6]
+	};
+
+	float c[6] =
+	{
+		m[8] * m[13] - m[9] * m[12],
+		m[8] * m[14] - m[10] * m[12],
+		m[8] * m[15] - m[11] * m[12],
+		m[9] * m[14] - m[10] * m[13],
+		m[9] * m[15] - m[11] * m[13],
+		m[10] * m[15] - m[11] * m[14]
+	};
+
+	float det = (s[0] * c[5] - s[1] * c[4] + s[2] * c[3] + s[3] * c[2] - s[4] * c[1] + s[5] * c[0]);
+
+#ifdef _DEBUG
+	if( fabs(det) < 1e-4f )
+		::_CrtDbgBreak();
+#endif
+
+	float r = 1.0f / det;
+
+	out[0] = r * (m[5] * c[5] - m[6] * c[4] + m[7] * c[3]);
+	out[1] = r * (m[2] * c[4] - m[1] * c[5] - m[3] * c[3]);
+	out[2] = r * (m[13] * s[5] - m[14] * s[4] + m[15] * s[3]);
+	out[3] = r * (m[10] * s[4] - m[9] * s[5] - m[11] * s[3]);
+
+	out[4] = r * (m[6] * c[2] - m[4] * c[5] - m[7] * c[1]);
+	out[5] = r * (m[0] * c[5] - m[2] * c[2] + m[3] * c[1]);
+	out[6] = r * (m[14] * s[2] - m[12] * s[5] - m[15] * s[1]);
+	out[7] = r * (m[8] * s[5] - m[10] * s[2] + m[11] * s[1]);
+
+	out[8] = r * (m[4] * c[4] - m[5] * c[2] + m[7] * c[0]);
+	out[9] = r * (m[1] * c[2] - m[0] * c[4] - m[3] * c[0]);
+	out[10] = r * (m[12] * s[4] - m[13] * s[2] + m[15] * s[0]);
+	out[11] = r * (m[9] * s[2] - m[8] * s[4] - m[11] * s[0]);
+
+	out[12] = r * (m[5] * c[1] - m[4] * c[3] - m[6] * c[0]);
+	out[13] = r * (m[0] * c[3] - m[1] * c[1] + m[2] * c[0]);
+	out[14] = r * (m[13] * s[1] - m[12] * s[3] - m[14] * s[0]);
+	out[15] = r * (m[8] * s[3] - m[9] * s[1] + m[10] * s[0]);
+}
+
+void GLMatrixReflect(float out[16], float plane[4])
+{
+	float p[4];
+
+	GLPlaneNormalize(p, plane);
+
+	out[0] = -2 * p[0] * p[0] + 1;
+	out[1] = -2 * p[1] * p[0];
+	out[2] = -2 * p[2] * p[0];
+
+	out[4] = -2 * p[0] * p[1];
+	out[5] = -2 * p[1] * p[1] + 1;
+	out[6] = -2 * p[2] * p[1];
+
+	out[8] = -2 * p[0] * p[2];
+	out[9] = -2 * p[1] * p[2];
+	out[10] = -2 * p[2] * p[2] + 1;
+
+	out[12] = -2 * p[0] * p[3];
+	out[13] = -2 * p[1] * p[3];
+	out[14] = -2 * p[2] * p[3];
+
+	out[3] = out[7] = out[11] = 0;
+	out[15] = 1;
+}
+
+void GLFitToBox(float& outnear, float& outfar, const float eye[3], const float look[3], const OpenGLAABox& box)
 {
 	float refplane[4];
 	float length;
@@ -1802,4 +1902,28 @@ void GLFitToBox(float& outnear, float& outfar, float eye[3], float look[3], cons
 
 	outnear = std::max<float>(outnear, 0.1f);
 	outfar = std::max<float>(outfar, 0.2f);
+}
+
+void GLGetOrthogonalVectors(float out1[3], float out2[3], const float v[3])
+{
+	// select dominant direction
+	int bestcoord = 0;
+
+	if( fabs(v[1]) > fabs(v[bestcoord]) )
+		bestcoord = 1;
+
+	if( fabs(v[2]) > fabs(v[bestcoord]) )
+		bestcoord = 2;
+
+	// ignore handedness
+	int other1 = (bestcoord + 1) % 3;
+	int other2 = (bestcoord + 2) % 3;
+
+	out1[bestcoord] = v[other1];
+	out1[other1] = -v[bestcoord];
+	out1[other2] = v[other2];
+
+	out2[bestcoord] = v[other2];
+	out2[other1] = v[other1];
+	out2[other2] = -v[bestcoord];
 }

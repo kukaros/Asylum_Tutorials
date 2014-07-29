@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\16_CoreProfile\main.cpp" />
+    <ClCompile Include="..\22_Transparency\main.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp">
       <Filter>extern</Filter>
     </ClCompile>
@@ -14,20 +14,14 @@
     <Filter Include="extern">
       <UniqueIdentifier>{638c7da3-24dc-4d2f-b688-9283f29be83e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="osx">
-      <UniqueIdentifier>{08ec701b-4a30-4692-8fee-2cbd609b46e6}</UniqueIdentifier>
-    </Filter>
     <Filter Include="common">
       <UniqueIdentifier>{ca697c53-88a7-4f0d-b3f4-529b3133419b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{210bbaa9-fc58-4e55-bf0d-676498748ce9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.h">
-      <Filter>osx</Filter>
-    </ClInclude>
-    <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.h">
-      <Filter>osx</Filter>
-    </ClInclude>
     <ClInclude Include="..\extern\qglextensions.h">
       <Filter>extern</Filter>
     </ClInclude>
@@ -37,16 +31,5 @@
     <ClInclude Include="..\extern\glcorearb.h">
       <Filter>extern</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.m">
-      <Filter>osx</Filter>
-    </None>
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.m">
-      <Filter>osx</Filter>
-    </None>
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\main.m">
-      <Filter>osx</Filter>
-    </None>
   </ItemGroup>
 </Project>

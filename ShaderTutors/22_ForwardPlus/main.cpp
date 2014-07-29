@@ -1,24 +1,27 @@
 //*************************************************************************************************************
-#pragma comment(lib, "OpenGL32.lib")
-#pragma comment(lib, "GLU32.lib")
-#pragma comment(lib, "winmm.lib")
-#pragma comment(lib, "GdiPlus.lib")
-
 #include <Windows.h>
 #include <iostream>
 
 #include "../common/glext.h"
 
-// helper macros
-#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
-#define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
+// TODO:
+// - padlora normalmap
+// - arnyek + holdfeny kulon
+// - timer
+// - include
+// - lekerdezni a struktura meretet
 
-#define NUM_LIGHTS			256			// must be square number
+// helper macros
+#define TITLE				"Shader tutorial 22.1: Forward+ renderer"
+#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+
+#define NUM_LIGHTS			400			// must be square number
 #define LIGHT_RADIUS		1.5f		// must be at least 1
 #define M_PI				3.141592f
 #define M_2PI				6.283185f
 
 // external variables
+extern HWND		hwnd;
 extern HDC		hdc;
 extern long		screenwidth;
 extern long		screenheight;
@@ -49,24 +52,27 @@ OpenGLMesh*			teapot			= 0;
 OpenGLEffect*		lightcull		= 0;
 OpenGLEffect*		lightaccum		= 0;
 OpenGLEffect*		ambient			= 0;
+OpenGLEffect*		gammacorrect	= 0;
 OpenGLEffect*		basic2D			= 0;
 OpenGLFramebuffer*	framebuffer		= 0;
 OpenGLScreenQuad*	screenquad		= 0;
 OpenGLAABox			scenebox;
 
-array_state<float, 2>	cameraangle;
-
-GLuint				texture			= 0;
+GLuint				texture1		= 0;
+GLuint				texture2		= 0;
+GLuint				texture3		= 0;
 GLuint				headbuffer		= 0;	// head of linked lists
 GLuint				nodebuffer		= 0;	// nodes of linked lists
-GLuint				lightbuffer		= 0;
+GLuint				lightbuffer		= 0;	// light particles
 GLuint				counterbuffer	= 0;	// atomic counter
 GLuint				workgroupsx		= 0;
 GLuint				workgroupsy		= 0;
 
+array_state<float, 2> cameraangle;
+
 SceneObject objects[] =
 {
-	{ 0, { 0, -0.35f, 0 }, { 20, 0.5f, 20 } },
+	{ 0, { 0, -0.35f, 0 }, { 15, 0.5f, 15 } },
 
 	{ 1, { -3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 } },
 	{ 1, { -3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 } },
@@ -104,6 +110,7 @@ void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severi
 
 bool InitScene()
 {
+	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures(hdc);
 
 #ifdef _DEBUG
@@ -183,7 +190,7 @@ bool InitScene()
 
 	// create render targets
 	framebuffer = new OpenGLFramebuffer(screenwidth, screenheight);
-	framebuffer->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_A8R8G8B8);
+	framebuffer->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_A16B16G16R16F);
 	framebuffer->AttachTexture(GL_DEPTH_ATTACHMENT, GLFMT_D32F);
 	
 	if( !framebuffer->Validate() )
@@ -191,8 +198,20 @@ bool InitScene()
 
 	screenquad = new OpenGLScreenQuad();
 
-	// texture
-	if( !GLCreateTextureFromFile("../media/textures/wood2.jpg", &texture) )
+	// textures
+	if( !GLCreateTextureFromFile("../media/textures/wood2.jpg", true, &texture1) )
+	{
+		MYERROR("Could not load texture");
+		return false;
+	}
+
+	if( !GLCreateTextureFromFile("../media/textures/marble2.png", true, &texture2) )
+	{
+		MYERROR("Could not load texture");
+		return false;
+	}
+
+	if( !GLCreateTextureFromFile("../media/textures/static_sky.jpg", true, &texture3) )
 	{
 		MYERROR("Could not load texture");
 		return false;
@@ -203,8 +222,8 @@ bool InitScene()
 	workgroupsy = (screenheight + (screenheight % 16)) / 16;
 
 	size_t numtiles = workgroupsx * workgroupsy;
-	size_t headsize = 8;	// start, count
-	size_t nodesize = 8;	// light index + next
+	size_t headsize = 16;	// start, count, pad, pad
+	size_t nodesize = 16;	// light index, next, pad, pad
 
 	glGenBuffers(1, &headbuffer);
 	glGenBuffers(1, &nodebuffer);
@@ -215,7 +234,7 @@ bool InitScene()
 	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * headsize, 0, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, nodebuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * nodesize * 1024, 0, GL_STATIC_DRAW);	// 2 MB
+	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * nodesize * 1024, 0, GL_STATIC_DRAW);	// 4 MB
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, NUM_LIGHTS * sizeof(LightParticle), 0, GL_DYNAMIC_DRAW);
@@ -227,6 +246,12 @@ bool InitScene()
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
 	glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), 0, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/gammacorrect.frag", &gammacorrect) )
+	{
+		MYERROR("Could not load gamma correction shader");
+		return false;
+	}
 
 	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/basic2D.frag", &basic2D) )
 	{
@@ -271,6 +296,9 @@ void UninitScene()
 	if( ambient )
 		delete ambient;
 
+	if( gammacorrect )
+		delete gammacorrect;
+
 	if( basic2D )
 		delete basic2D;
 
@@ -286,8 +314,14 @@ void UninitScene()
 	if( screenquad )
 		delete screenquad;
 
-	if( texture )
-		glDeleteTextures(1, &texture);
+	if( texture1 )
+		glDeleteTextures(1, &texture1);
+
+	if( texture2 )
+		glDeleteTextures(1, &texture2);
+
+	if( texture3 )
+		glDeleteTextures(1, &texture3);
 
 	if( headbuffer )
 		glDeleteBuffers(1, &headbuffer);
@@ -305,7 +339,7 @@ void UninitScene()
 	lightcull = 0;
 	lightaccum = 0;
 	teapot = 0;
-	texture = 0;
+	texture1 = 0;
 
 	GLKillAnyRogueObject();
 }
@@ -316,7 +350,10 @@ void KeyPress(WPARAM wparam)
 //*************************************************************************************************************
 void UpdateParticles(float dt, bool generate)
 {
+	// NOTE: runs on 10 fps
+
 	OpenGLAABox tmpbox = scenebox;
+	float center[3];
 
 	if( lightbuffer == 0 )
 		return;
@@ -324,14 +361,16 @@ void UpdateParticles(float dt, bool generate)
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
 	LightParticle* particles = (LightParticle*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
 
-	// make it bigger
-	tmpbox.Max[1] += 1;
+	// offset it a little
+	//tmpbox.Max[1] += 0.5f;
+	//tmpbox.Min[1] += 0.5f;
+
+	tmpbox.GetCenter(center);
 
 	if( generate )
 	{
 		int segments = isqrt(NUM_LIGHTS);
 		float theta, phi;
-		float center[3];
 
 		OpenGLColor randomcolors[3] =
 		{
@@ -339,8 +378,6 @@ void UpdateParticles(float dt, bool generate)
 			OpenGLColor(0, 1, 0, 1),
 			OpenGLColor(0, 0, 1, 1)
 		};
-
-		tmpbox.GetCenter(center);
 
 		for( int i = 0; i < segments; ++i )
 		{
@@ -372,13 +409,15 @@ void UpdateParticles(float dt, bool generate)
 	}
 	else
 	{
+		float vx[3], vy[3], vz[3];
+		float b[3];
+		float A[16], Ainv[16];
 		float planes[6][4];
-		float denom;
+		float denom, energy;
 		float toi, besttoi;
 		float impulse, noise;
-		float energy;
 		float (*bestplane)[4];
-		bool closing;
+		bool pastcollision;
 
 		tmpbox.GetPlanes(planes);
 
@@ -398,17 +437,23 @@ void UpdateParticles(float dt, bool generate)
 			// detect collision
 			besttoi = 2;
 
+			b[0] = p.current[0] - p.previous[0];
+			b[1] = p.current[1] - p.previous[1];
+			b[2] = p.current[2] - p.previous[2];
+
 			for( int j = 0; j < 6; ++j )
 			{
-				closing = (GLVec3Dot(p.velocity, planes[j]) < 0);
-				denom = GLVec3Dot(p.current, planes[j]) + planes[j][3];
+				// use radius == 0.5
+				denom = GLVec3Dot(b, planes[j]);
+				pastcollision = (GLVec3Dot(p.previous, planes[j]) + planes[j][3] < 0.5f);
 
-				if( closing && fabs(denom) > 0 )
+				if( denom < -1e-4f )
 				{
-					// p.radius
-					toi = (1 - GLVec3Dot(p.previous, planes[j]) - planes[j][3]) / denom;
+					toi = (0.5f - GLVec3Dot(p.previous, planes[j]) - planes[j][3]) / denom;
 
-					if( toi <= 1 && toi >= 0 && toi < besttoi )
+					if( ((toi <= 1 && toi >= 0) ||		// normal case
+						(toi < 0 && pastcollision)) &&	// allow past collision
+						toi < besttoi )
 					{
 						besttoi = toi;
 						bestplane = &planes[j];
@@ -416,30 +461,54 @@ void UpdateParticles(float dt, bool generate)
 				}
 			}
 
-			if( besttoi >= 0 && besttoi <= 1 )
+			if( besttoi <= 1 )
 			{
 				// resolve constraint
 				p.current[0] = (1 - besttoi) * p.previous[0] + besttoi * p.current[0];
 				p.current[1] = (1 - besttoi) * p.previous[1] + besttoi * p.current[1];
 				p.current[2] = (1 - besttoi) * p.previous[2] + besttoi * p.current[2];
-			
+
 				impulse = -GLVec3Dot(*bestplane, p.velocity);
-				noise = (rand() % 50) / 100.0f;
+
+				// perturb normal vector
+				noise = ((rand() % 100) / 100.0f) * M_PI * 0.333333f - M_PI * 0.166666f; // [-pi/6, pi/6]
+
+				b[0] = cosf(noise + M_PI * 0.5f);
+				b[1] = cosf(noise);
+				b[2] = 0;
+
+				GLVec3Normalize(vy, (*bestplane));
+				GLGetOrthogonalVectors(vx, vz, vy);
+
+				A[0] = vx[0];	A[1] = vy[0];	A[2] = vz[0];	A[3] = 0;
+				A[4] = vx[1];	A[5] = vy[1];	A[6] = vz[1];	A[7] = 0;
+				A[8] = vx[2];	A[9] = vy[2];	A[10] = vz[2];	A[11] = 0;
+				A[12] = 0;		A[13] = 0;		A[14] = 0;		A[15] = 1;
+
+				GLMatrixInverse(Ainv, A);
+				GLVec3Transform(vy, b, Ainv);
 
 				energy = GLVec3Length(p.velocity);
 
-				// add a random noise
-				p.velocity[0] += (1.5f + noise) * impulse * (*bestplane)[0];
-				p.velocity[1] += (1.5f + noise) * impulse * (*bestplane)[1];
-				p.velocity[2] += (1.5f + noise) * impulse * (*bestplane)[2];
+				p.velocity[0] += 2 * impulse * vy[0];
+				p.velocity[1] += 2 * impulse * vy[1];
+				p.velocity[2] += 2 * impulse * vy[2];
 
 				// must conserve energy
-				GLVec3Normalize(p.velocity);
+				GLVec3Normalize(p.velocity, p.velocity);
 
 				p.velocity[0] *= energy;
 				p.velocity[1] *= energy;
 				p.velocity[2] *= energy;
 			}
+
+#ifdef _DEBUG
+			// test if a light fell through
+			tmpbox.GetCenter(center);
+
+			if( GLVec3Distance(p.current, center) > tmpbox.Radius() )
+				::_CrtDbgBreak();
+#endif
 		}
 	}
 
@@ -473,7 +542,6 @@ void RenderScene(OpenGLEffect* effect)
 	float world[16];
 
 	GLMatrixIdentity(world);
-	glBindTexture(GL_TEXTURE_2D, texture);
 
 	for( int i = 0; i < numobjects; ++i )
 	{
@@ -491,11 +559,12 @@ void RenderScene(OpenGLEffect* effect)
 
 		if( obj.type == 0 )
 		{
-			float uv[] = { 5, 5, 0, 1 };
+			float uv[] = { 2, 2, 0, 1 };
 
 			effect->SetVector("uv", uv);
 			effect->CommitChanges();
 
+			glBindTexture(GL_TEXTURE_2D, texture1);
 			box->DrawSubset(0);
 		}
 		else if( obj.type == 1 )
@@ -505,6 +574,7 @@ void RenderScene(OpenGLEffect* effect)
 			effect->SetVector("uv", uv);
 			effect->CommitChanges();
 
+			glBindTexture(GL_TEXTURE_2D, texture2);
 			teapot->DrawSubset(0);
 		}
 	}
@@ -525,6 +595,7 @@ void Render(float alpha, float elapsedtime)
 	float up[3]				= { 0, 1, 0 };
 	float orient[2];
 
+	float texmat[16];
 	float view[16];
 	float proj[16];
 	float viewproj[16];
@@ -550,6 +621,25 @@ void Render(float alpha, float elapsedtime)
 	{
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
+		// draw background first
+		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_FALSE);
+		glBindTexture(GL_TEXTURE_2D, texture3);
+
+		GLMatrixRotationAxis(texmat, M_PI, 0, 0, 1);
+
+		basic2D->SetInt("sampler0", 0);
+		basic2D->SetMatrix("matTexture", texmat);
+		basic2D->Begin();
+		{
+			screenquad->Draw();
+		}
+		basic2D->End();
+
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+
+		// then fill zbuffer
 		ambient->Begin();
 		{
 			RenderScene(ambient);
@@ -561,6 +651,7 @@ void Render(float alpha, float elapsedtime)
 	// STEP 2: cull lights
 	lightcull->SetInt("depthSampler", 0);
 	lightcull->SetInt("numLights", NUM_LIGHTS);
+	lightcull->SetFloat("alpha", alpha);
 	lightcull->SetVector("clipPlanes", clipplanes);
 	lightcull->SetVector("screenSize", screensize);
 	lightcull->SetMatrix("matProj", proj);
@@ -592,6 +683,7 @@ void Render(float alpha, float elapsedtime)
 	// STEP 3: accumulate lighting
 	lightaccum->SetMatrix("matViewProj", viewproj);
 	lightaccum->SetVector("eyePos", eye);
+	lightaccum->SetFloat("alpha", alpha);
 	lightaccum->SetInt("sampler0", 0);
 	lightaccum->SetInt("numTilesX", workgroupsx);
 
@@ -620,12 +712,15 @@ void Render(float alpha, float elapsedtime)
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glBindTexture(GL_TEXTURE_2D, framebuffer->GetColorAttachment(0));
 
-	basic2D->SetInt("sampler0", 0);
-	basic2D->Begin();
+	GLMatrixIdentity(texmat);
+
+	gammacorrect->SetInt("sampler0", 0);
+	gammacorrect->SetMatrix("matTexture", texmat);
+	gammacorrect->Begin();
 	{
 		screenquad->Draw();
 	}
-	basic2D->End();
+	gammacorrect->End();
 
 #ifdef _DEBUG
 	// check errors

@@ -1,9 +1,4 @@
 //*************************************************************************************************************
-#pragma comment(lib, "OpenGL32.lib")
-#pragma comment(lib, "GLU32.lib")
-#pragma comment(lib, "winmm.lib")
-#pragma comment(lib, "GdiPlus.lib")
-
 #include <Windows.h>
 #include <GdiPlus.h>
 #include <iostream>
@@ -11,13 +6,14 @@
 #include "../common/glext.h"
 
 // helper macros
+#define TITLE				"Shader tutorial 22.0: Hello compute!"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
-#define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
 
 // external variables
-extern HDC hdc;
-extern long screenwidth;
-extern long screenheight;
+extern HWND		hwnd;
+extern HDC		hdc;
+extern long		screenwidth;
+extern long		screenheight;
 
 // tutorial variables
 OpenGLMesh*		mesh			= 0;
@@ -27,6 +23,7 @@ GLuint			texture			= 0;
 
 bool InitScene()
 {
+	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures();
 
 	glClearColor(0.0f, 0.125f, 0.3f, 1.0f);

@@ -1,5 +1,7 @@
 #version 430
 
+// DONT'T TRUST AMD!!!
+
 struct LightParticle
 {
 	vec4 Color;
@@ -10,21 +12,19 @@ struct LightParticle
 
 struct ListHead
 {
-	uint Start;
-	uint Count;
+	uvec4 StartAndCount;
 };
 
 struct ListNode
 {
-	uint LightIndex;
-	uint Next;
+	uvec4 LightIndexAndNext;
 };
 
-layout(packed, binding = 0) readonly buffer HeadBuffer {
+layout(std140, binding = 0) readonly buffer HeadBuffer {
 	ListHead data[];
 } headbuffer;
 
-layout(packed, binding = 1) readonly buffer NodeBuffer {
+layout(std140, binding = 1) readonly buffer NodeBuffer {
 	ListNode data[];
 } nodebuffer;
 
@@ -33,6 +33,7 @@ layout(std140, binding = 2) readonly buffer LightBuffer {
 } lightbuffer;
 
 uniform sampler2D sampler0;
+uniform float alpha;
 uniform int numTilesX;
 
 in vec4 wpos;
@@ -78,18 +79,18 @@ void main()
 	diff = max(dot(otherlight, n), 0);
 	color.rgb += vec3(0.6, 0.6, 1.0) * base.rgb * diff;
 
-	uint start = headbuffer.data[index].Start;
-	uint count = headbuffer.data[index].Count;
+	uint start = headbuffer.data[index].StartAndCount.x;
+	uint count = headbuffer.data[index].StartAndCount.y;
 	uint nodeID = start;
 	uint lightID;
 
 	for( uint i = 0; i < count; ++i )
 	{
-		lightID = nodebuffer.data[nodeID].LightIndex;
-		nodeID = nodebuffer.data[nodeID].Next;
+		lightID = nodebuffer.data[nodeID].LightIndexAndNext.x;
+		nodeID = nodebuffer.data[nodeID].LightIndexAndNext.y;
 
 		lightcolor = lightbuffer.data[lightID].Color;
-		lightpos = lightbuffer.data[lightID].Current;
+		lightpos = mix(lightbuffer.data[lightID].Previous, lightbuffer.data[lightID].Current, alpha);
 		radius = lightbuffer.data[lightID].VelocityAndRadius.w;
 
 		l = lightpos.xyz - wpos.xyz;
@@ -101,19 +102,9 @@ void main()
 		diff = max(dot(l, n), 0);
 		spec = pow(max(dot(h, n), 0), 80.0);
 		
-		irrad = (lightcolor.rgb * base.rgb * diff + vec3(1.0) * spec) * atten;
+		irrad = lightcolor.rgb * (base.rgb * diff + vec3(spec)) * atten;
 		color.rgb += irrad;
 	}
 
 	my_FragColor0 = color;
-
-	/*
-	my_FragColor0 = vec4(0.0, 1.0, 0.0, 1.0);
-
-	if( start > 0 && count > 0 )
-		my_FragColor0 = vec4(1.0, 1.0, 0.0, 1.0);
-
-	if( start > 0 && count > 50 )
-		my_FragColor0 = vec4(1.0, 0.0, 0.0, 1.0);
-	*/
 }

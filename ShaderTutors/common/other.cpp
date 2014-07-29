@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 
-#define TITLE			"Shader tutorial"
+#define TITLE			"Asylum's shader sample"
 #define MYERROR(x)		{ std::cout << "* Error: " << x << "!\n"; }
 
 HWND					hwnd			= NULL;
@@ -27,7 +27,7 @@ short					mousex, mousedx	= 0;
 short					mousey, mousedy	= 0;
 short					mousedown		= 0;
 
-// must be implemented by tutorial
+// must be implemented by sample
 HRESULT InitScene();
 
 void UninitScene();

@@ -289,7 +289,7 @@ HRESULT LoadMeshFromQM(LPCTSTR file, DWORD options, ID3DX10Mesh** mesh)
 	indexbuffer->Unmap();
 	indexbuffer->Release();
 
-	if( version > 1 )
+	if( version >= 1 )
 	{
 		fread(&unused, 4, 1, infile);
 

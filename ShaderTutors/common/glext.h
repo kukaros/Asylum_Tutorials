@@ -118,6 +118,7 @@ public:
 	void GetPlanes(float outplanes[6][4]);
 	void TransformAxisAligned(float traf[16]);
 
+	float Radius() const;
 	float Nearest(float from[4]) const;
 	float Farthest(float from[4]) const;
 };
@@ -293,32 +294,36 @@ bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVer
 bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
 bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect);
 bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
-bool GLCreateTextureFromFile(const char* file, GLuint* out);
+bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out);
 
 void GLKillAnyRogueObject();
 
 // math functions
 int isqrt(int n);
 
-float GLVec3Dot(float a[3], float b[3]);
-float GLVec3Length(float a[3]);
+float GLVec3Dot(const float a[3], const float b[3]);
+float GLVec3Length(const float a[3]);
+float GLVec3Distance(const float a[3], const float b[3]);
 
-void GLVec3Normalize(float a[3]);
-void GLVec3Cross(float out[3], float a[3], float b[3]);
-void GLVec3Transform(float out[3], float v[3], float m[16]);
-void GLVec3TransformCoord(float out[3], float v[3], float m[16]);
-void GLVec4Transform(float out[4], float v[4], float m[16]);
-void GLVec4TransformTranspose(float out[4], float m[16], float v[4]);
-void GLPlaneNormalize(float p[4]);
+void GLVec3Normalize(float out[3], const float v[3]);
+void GLVec3Cross(float out[3], const float a[3], const float b[3]);
+void GLVec3Transform(float out[3], const float v[3], const float m[16]);
+void GLVec3TransformCoord(float out[3], const float v[3], const float m[16]);
+void GLVec4Transform(float out[4], const float v[4], const float m[16]);
+void GLVec4TransformTranspose(float out[4], const float m[16], const float v[4]);
+void GLPlaneNormalize(float out[4], const float p[4]);
 
-void GLMatrixLookAtRH(float out[16], float eye[3], float look[3], float up[3]);
+void GLMatrixLookAtRH(float out[16], const float eye[3], const float look[3], const float up[3]);
 void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearplane, float farplane);
-void GLMatrixMultiply(float out[16], float a[16], float b[16]);
+void GLMatrixMultiply(float out[16], const float a[16], const float b[16]);
 void GLMatrixRotationAxis(float out[16], float angle, float x, float y, float z);
 void GLMatrixRotationYawPitchRoll(float out[16], float yaw, float pitch, float roll);
 void GLMatrixIdentity(float out[16]);
+void GLMatrixInverse(float out[16], const float m[16]);
+void GLMatrixReflect(float out[16], float plane[4]);
 
-void GLFitToBox(float& outnear, float& outfar, float eye[3], float look[3], const OpenGLAABox& box);
+void GLFitToBox(float& outnear, float& outfar, const float eye[3], const float look[3], const OpenGLAABox& box);
+void GLGetOrthogonalVectors(float out1[3], float out2[3], const float v[3]);
 
 // other
 template <typename T, int n>

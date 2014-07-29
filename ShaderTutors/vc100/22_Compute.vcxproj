@@ -13,7 +13,7 @@
   <ItemGroup>
     <ClCompile Include="..\common\glext.cpp" />
     <ClCompile Include="..\22_Compute\main.cpp" />
-    <ClCompile Include="..\22_Compute\other.cpp" />
+    <ClCompile Include="..\common\othergl.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>

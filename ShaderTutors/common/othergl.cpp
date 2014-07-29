@@ -1,33 +1,38 @@
 //*************************************************************************************************************
-#define TITLE				"OpenGL compute shaders"
-#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
-#define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
+#pragma comment(lib, "OpenGL32.lib")
+#pragma comment(lib, "GLU32.lib")
+#pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "GdiPlus.lib")
 
-#include <windows.h>
-#include <GL/gl.h>
 #include <iostream>
 #include <cmath>
+#include <Windows.h>
+#include <GL/gl.h>
 
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
 
-HWND	hwnd	= NULL;
-HDC		hdc		= NULL;
-HGLRC	hrc		= NULL;
+#define TITLE				"Asylum's shader sample"
+#define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+#define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
 
-RECT	workarea;
-DEVMODE	devmode;
-long	screenwidth		= 800;
-long	screenheight	= 600;
-short	mousex, mousedx	= 0;
-short	mousey, mousedy	= 0;
-short	mousedown		= 0;
-bool	uninited		= false;
+HWND		hwnd			= NULL;
+HDC			hdc				= NULL;
+HGLRC		hrc				= NULL;
 
+RECT		workarea;
+DEVMODE		devmode;
+long		screenwidth		= 800;
+long		screenheight	= 600;
+short		mousex, mousedx	= 0;
+short		mousey, mousedy	= 0;
+short		mousedown		= 0;
+bool		uninited		= false;
+
+// must be implemented by sample
 bool InitScene();
 
-void LoadTexture(const std::wstring& file);
 void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
@@ -186,7 +191,7 @@ bool InitGL(HWND hwnd)
 						minor,
 						0x2094,		// WGL_CONTEXT_FLAGS_ARB
 #ifdef _DEBUG
-						0x0001,		// WGL_CONTEXT_DEBUG_BIT
+						//0x0001,	// WGL_CONTEXT_DEBUG_BIT
 #endif
 						0x0002,		// WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
 						0x9126,		// WGL_CONTEXT_PROFILE_MASK_ARB
@@ -464,9 +469,9 @@ int main(int argc, char* argv[])
 
 		mousedx = mousedy = 0;
 
-		while( accum > 0.0333f )
+		while( accum > 0.1f )
 		{
-			accum -= 0.0333f;
+			accum -= 0.1f;
 
 			while( PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE) )
 			{
@@ -474,11 +479,11 @@ int main(int argc, char* argv[])
 				DispatchMessage(&msg);
 			}
 
-			Update(0.0333f);
+			Update(0.1f);
 		}
 
 		if( msg.message != WM_QUIT )
-			Render((float)accum / 0.0333f, (float)delta);
+			Render((float)accum / 0.1f, (float)delta);
 	}
 
 _end:
@@ -487,6 +492,10 @@ _end:
 
 	UnregisterClass("TestClass", wc.hInstance);
 	_CrtDumpMemoryLeaks();
+
+#ifdef _DEBUG
+	//system("pause");
+#endif
 
 	return 0;
 }

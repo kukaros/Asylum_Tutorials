@@ -1,9 +1,4 @@
 //*************************************************************************************************************
-#pragma comment(lib, "OpenGL32.lib")
-#pragma comment(lib, "GLU32.lib")
-#pragma comment(lib, "winmm.lib")
-#pragma comment(lib, "GdiPlus.lib")
-
 #include <Windows.h>
 #include <GdiPlus.h>
 #include <iostream>
@@ -11,13 +6,14 @@
 #include "../common/glext.h"
 
 // helper macros
+#define TITLE				"Shader tutorial 16: OpenGL core profile"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
-#define V_RETURN(r, e, x)	{ if( !(x) ) { MYERROR(e); return r; }}
 
 // external variables
-extern HDC hdc;
-extern long screenwidth;
-extern long screenheight;
+extern HWND		hwnd;
+extern HDC		hdc;
+extern long		screenwidth;
+extern long		screenheight;
 
 // tutorial variables
 OpenGLMesh* mesh = 0;
@@ -90,6 +86,7 @@ const char* pscode =
 
 bool InitScene()
 {
+	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures();
 
 	// setup opengl
@@ -209,6 +206,10 @@ void UninitScene()
 	vertexshader = 0;
 	pixelshader = 0;
 	program = 0;
+}
+//*************************************************************************************************************
+void KeyPress(WPARAM wparam)
+{
 }
 //*************************************************************************************************************
 void Update(float delta)

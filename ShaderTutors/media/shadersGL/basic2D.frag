@@ -7,8 +7,5 @@ out vec4 my_FragColor0;
 
 void main()
 {
-	vec4 base = texture(sampler0, tex);
-
-	base.rgb = pow(base.rgb, vec3(1.0 / 2.2));
-	my_FragColor0 = base;
+	my_FragColor0 = texture(sampler0, tex);
 }

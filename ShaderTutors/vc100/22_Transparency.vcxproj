@@ -12,7 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\glext.cpp" />
-    <ClCompile Include="..\22_ForwardPlus\main.cpp" />
+    <ClCompile Include="..\22_Transparency\main.cpp" />
     <ClCompile Include="..\common\othergl.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
@@ -21,23 +21,13 @@
     <ClInclude Include="..\extern\glcorearb.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\media\shadersGL\ambientzpass.frag" />
-    <None Include="..\media\shadersGL\ambientzpass.vert" />
-    <None Include="..\media\shadersGL\basic2D.frag" />
-    <None Include="..\media\shadersGL\gammacorrect.frag" />
-    <None Include="..\media\shadersGL\basic2D.vert" />
-    <None Include="..\media\shadersGL\lightaccum.frag" />
-    <None Include="..\media\shadersGL\lightaccum.vert" />
-    <None Include="..\media\shadersGL\lightcull.comp" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}</ProjectGuid>
+    <ProjectGuid>{1739F8A3-646F-49BF-815A-28F7986AB0EF}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>My22_ForwardPlus</RootNamespace>
+    <RootNamespace>My22_Transparency</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
