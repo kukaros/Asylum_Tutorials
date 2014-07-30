@@ -91,9 +91,9 @@ bool InitGL(HWND hwnd)
 
 	sscanf_s(str, "%1d.%2d %*s", &major, &minor);
 
-	if( major < 4 || (major == 4 && minor < 3) )
+	if( major < 3 || (major == 3 && minor < 2) )
 	{
-		std::cout << "Device does not support OpenGL 4.3\n";
+		std::cout << "Device does not support OpenGL 3.2\n";
 		return false;
 	}
 

@@ -12,29 +12,32 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\glext.cpp" />
-    <ClCompile Include="..\16_CoreProfile\main.cpp" />
+    <ClCompile Include="..\22_ForwardPlus\main.cpp" />
     <ClCompile Include="..\common\othergl.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\glext.h" />
-    <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.h" />
-    <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.h" />
-    <ClInclude Include="..\extern\glext.h" />
+    <ClInclude Include="..\extern\glcorearb.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.m" />
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.m" />
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\main.m" />
+    <None Include="..\media\shadersGL\ambient.frag" />
+    <None Include="..\media\shadersGL\ambient.vert" />
+    <None Include="..\media\shadersGL\basic2D.frag" />
+    <None Include="..\media\shadersGL\gammacorrect.frag" />
+    <None Include="..\media\shadersGL\basic2D.vert" />
+    <None Include="..\media\shadersGL\lightaccum.frag" />
+    <None Include="..\media\shadersGL\lightaccum.vert" />
+    <None Include="..\media\shadersGL\lightcull.comp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{EA562003-C608-4251-9229-37331A0C4F5D}</ProjectGuid>
+    <ProjectGuid>{5C0D2CA4-ACC2-4BF4-AF97-DFEB90D78C69}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>My16_CoreProfile</RootNamespace>
+    <RootNamespace>My22_ForwardPlus</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

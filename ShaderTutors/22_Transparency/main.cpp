@@ -77,6 +77,9 @@ bool InitScene()
 	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures(hdc);
 
+	if( !Quadron::qGLExtensions::ARB_shader_storage_buffer_object )
+		return false;
+
 #ifdef _DEBUG
 	if( Quadron::qGLExtensions::ARB_debug_output )
 	{

@@ -26,6 +26,9 @@ bool InitScene()
 	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures();
 
+	if( !Quadron::qGLExtensions::ARB_compute_shader || !Quadron::qGLExtensions::ARB_shader_image_load_store )
+		return false;
+
 	glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
 	glClearDepth(1.0);
 

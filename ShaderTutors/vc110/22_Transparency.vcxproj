@@ -12,29 +12,29 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\glext.cpp" />
-    <ClCompile Include="..\16_CoreProfile\main.cpp" />
+    <ClCompile Include="..\22_Transparency\main.cpp" />
     <ClCompile Include="..\common\othergl.cpp" />
     <ClCompile Include="..\extern\qglextensions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\glext.h" />
-    <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.h" />
-    <ClInclude Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.h" />
-    <ClInclude Include="..\extern\glext.h" />
+    <ClInclude Include="..\extern\glcorearb.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\AppDelegate.m" />
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\GLViewController.m" />
-    <None Include="..\16_CoreProfileMac\16_CoreProfileMac\main.m" />
+    <None Include="..\media\shadersGL\ambient.vert" />
+    <None Include="..\media\shadersGL\basic2D.vert" />
+    <None Include="..\media\shadersGL\collectfragments.frag" />
+    <None Include="..\media\shadersGL\initheadpointers.frag" />
+    <None Include="..\media\shadersGL\renderfragments.frag" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{EA562003-C608-4251-9229-37331A0C4F5D}</ProjectGuid>
+    <ProjectGuid>{1739F8A3-646F-49BF-815A-28F7986AB0EF}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>My16_CoreProfile</RootNamespace>
+    <RootNamespace>My22_Transparency</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
