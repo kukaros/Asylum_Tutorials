@@ -651,12 +651,12 @@ void OpenGLEffect::End()
 	// do nothing
 }
 
-void OpenGLEffect::SetMatrix(const char* name, float* value)
+void OpenGLEffect::SetMatrix(const char* name, const float* value)
 {
 	SetVector(name, value);
 }
 
-void OpenGLEffect::SetVector(const char* name, float* value)
+void OpenGLEffect::SetVector(const char* name, const float* value)
 {
 	Uniform test;
 	strcpy(test.Name, name);
@@ -1739,6 +1739,24 @@ void GLMatrixMultiply(float out[16], const float a[16], const float b[16])
 	tmp[15] = a[12] * b[3] + a[13] * b[7] + a[14] * b[11] + a[15] * b[15];
 
 	memcpy(out, tmp, 16 * sizeof(float));
+}
+
+void GLMatrixTranslation(float out[16], float x, float y, float z)
+{
+	GLMatrixIdentity(out);
+
+	out[12] = x;
+	out[13] = y;
+	out[14] = z;
+}
+
+void GLMatrixScaling(float out[16], float x, float y, float z)
+{
+	GLMatrixIdentity(out);
+
+	out[0] = x;
+	out[5] = y;
+	out[10] = z;
 }
 
 void GLMatrixRotationAxis(float out[16], float angle, float x, float y, float z)

@@ -42,12 +42,6 @@
     <None Include="..\media\shadersGL\lightaccum.vert">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\media\shadersGL\ambientzpass.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\media\shadersGL\ambientzpass.vert">
-      <Filter>shaders</Filter>
-    </None>
     <None Include="..\media\shadersGL\basic2D.vert">
       <Filter>shaders</Filter>
     </None>
@@ -55,6 +49,12 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="..\media\shadersGL\basic2D.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\ambient.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\ambient.vert">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

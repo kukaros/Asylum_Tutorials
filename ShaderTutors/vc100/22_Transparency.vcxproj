@@ -21,6 +21,13 @@
     <ClInclude Include="..\extern\glcorearb.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\ambient.vert" />
+    <None Include="..\media\shadersGL\basic2D.vert" />
+    <None Include="..\media\shadersGL\collectfragments.frag" />
+    <None Include="..\media\shadersGL\initheadpointers.frag" />
+    <None Include="..\media\shadersGL\renderfragments.frag" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>

@@ -32,4 +32,21 @@
       <Filter>extern</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\ambient.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\collectfragments.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\basic2D.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\initheadpointers.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\renderfragments.frag">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
 </Project>

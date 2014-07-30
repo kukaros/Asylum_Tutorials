@@ -9,7 +9,5 @@ out vec4 my_FragColor0;
 void main()
 {
 	vec4 base = texture(sampler0, tex);
-
-	my_FragColor0.rgb = base.rgb * matAmbient.rgb;
-	my_FragColor0.a = 1.0;
+	my_FragColor0 = base * matAmbient;
 }

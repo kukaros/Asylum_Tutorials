@@ -9,7 +9,6 @@
 // - arnyek + holdfeny kulon
 // - timer
 // - include
-// - lekerdezni a struktura meretet
 
 // helper macros
 #define TITLE				"Shader tutorial 22.1: Forward+ renderer"
@@ -217,7 +216,7 @@ bool InitScene()
 		return false;
 	}
 
-	// buffers
+	// create buffers
 	workgroupsx = (screenwidth + (screenwidth % 16)) / 16;
 	workgroupsy = (screenheight + (screenheight % 16)) / 16;
 
@@ -247,6 +246,7 @@ bool InitScene()
 	glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), 0, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 
+	// load effects
 	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/gammacorrect.frag", &gammacorrect) )
 	{
 		MYERROR("Could not load gamma correction shader");
@@ -266,7 +266,7 @@ bool InitScene()
 		return false;
 	}
 
-	if( !GLCreateEffectFromFile("../media/shadersGL/ambientzpass.vert", "../media/shadersGL/ambientzpass.frag", &ambient) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", "../media/shadersGL/ambient.frag", &ambient) )
 	{
 		MYERROR("Could not load ambient shader");
 		return false;
