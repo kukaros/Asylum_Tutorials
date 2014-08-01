@@ -6,16 +6,17 @@
 
 // TODO:
 // - padlora normalmap
-// - arnyek + holdfeny kulon
 // - timer
 // - include
 
 // helper macros
 #define TITLE				"Shader tutorial 22.1: Forward+ renderer"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+#define SAFE_DELETE(x)		if( (x) ) { delete (x); (x) = 0; }
 
 #define NUM_LIGHTS			400			// must be square number
 #define LIGHT_RADIUS		1.5f		// must be at least 1
+#define SHADOWMAP_SIZE		512
 #define M_PI				3.141592f
 #define M_2PI				6.283185f
 
@@ -53,7 +54,10 @@ OpenGLEffect*		lightaccum		= 0;
 OpenGLEffect*		ambient			= 0;
 OpenGLEffect*		gammacorrect	= 0;
 OpenGLEffect*		basic2D			= 0;
+OpenGLEffect*		shadowedlight	= 0;
+OpenGLEffect*		varianceshadow	= 0;
 OpenGLFramebuffer*	framebuffer		= 0;
+OpenGLFramebuffer*	shadowmap		= 0;
 OpenGLScreenQuad*	screenquad		= 0;
 OpenGLAABox			scenebox;
 
@@ -120,16 +124,8 @@ bool InitScene()
 	}
 #endif
 
-	/*
-	GLint maxgroups[3];
-
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &maxgroups[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &maxgroups[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &maxgroups[2]);
-	*/
-
 	//glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
-	glClearColor(0.0f, 0.0103f, 0.0707f, 1.0f);
+	glClearColor(0.0f, 0.0103f, 0.0707f, 1.0f); // linear
 	glClearDepth(1.0);
 
 	glEnable(GL_CULL_FACE);
@@ -142,7 +138,7 @@ bool InitScene()
 	GLuint nummaterials = 0;
 
 	// load objects
-	if( !GLLoadMeshFromQM("../media/meshes/teapot.qm", &materials, &nummaterials, &teapot) )
+	if( !GLCreateMeshFromQM("../media/meshes/teapot.qm", &materials, &nummaterials, &teapot) )
 	{
 		MYERROR("Could not load teapot");
 		return false;
@@ -150,7 +146,7 @@ bool InitScene()
 
 	delete[] materials;
 
-	if( !GLLoadMeshFromQM("../media/meshes/cube.qm", &materials, &nummaterials, &box) )
+	if( !GLCreateMeshFromQM("../media/meshes/cube.qm", &materials, &nummaterials, &box) )
 	{
 		MYERROR("Could not load box");
 		return false;
@@ -195,6 +191,13 @@ bool InitScene()
 	if( !framebuffer->Validate() )
 		return false;
 
+	shadowmap = new OpenGLFramebuffer(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
+	shadowmap->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_G32R32F); // GLFMT_G16R16F
+	shadowmap->AttachRenderbuffer(GL_DEPTH_ATTACHMENT, GLFMT_D24S8);
+
+	if( !shadowmap->Validate() )
+		return false;
+
 	screenquad = new OpenGLScreenQuad();
 
 	// textures
@@ -219,6 +222,18 @@ bool InitScene()
 	// create buffers
 	workgroupsx = (screenwidth + (screenwidth % 16)) / 16;
 	workgroupsy = (screenheight + (screenheight % 16)) / 16;
+
+#ifdef _DEBUG
+	/*
+	GLint maxgroups[3];
+
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &maxgroups[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &maxgroups[1]);
+
+	if( workgroupsx > maxgroups[0] || workgroupsy > maxgroups[1] )
+		::_CrtDbgBreak();
+	*/
+#endif
 
 	size_t numtiles = workgroupsx * workgroupsy;
 	size_t headsize = 16;	// start, count, pad, pad
@@ -259,6 +274,18 @@ bool InitScene()
 		return false;
 	}
 
+	if( !GLCreateEffectFromFile("../media/shadersGL/shadowmap_variance.vert", "../media/shadersGL/shadowmap_variance.frag", &varianceshadow) )
+	{
+		MYERROR("Could not load shadowmap shader");
+		return false;
+	}
+
+	if( !GLCreateEffectFromFile("../media/shadersGL/blinnphong_variance.vert", "../media/shadersGL/blinnphong_variance.frag", &shadowedlight) )
+	{
+		MYERROR("Could not load shadowed light shader");
+		return false;
+	}
+
 	// light accumulation shader
 	if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum) )
 	{
@@ -287,32 +314,18 @@ bool InitScene()
 //*************************************************************************************************************
 void UninitScene()
 {
-	if( lightcull )
-		delete lightcull;
-
-	if( lightaccum )
-		delete lightaccum;
-
-	if( ambient )
-		delete ambient;
-
-	if( gammacorrect )
-		delete gammacorrect;
-
-	if( basic2D )
-		delete basic2D;
-
-	if( teapot )
-		delete teapot;
-
-	if( box )
-		delete box;
-
-	if( framebuffer )
-		delete framebuffer;
-
-	if( screenquad )
-		delete screenquad;
+	SAFE_DELETE(lightcull);
+	SAFE_DELETE(lightaccum);
+	SAFE_DELETE(ambient);
+	SAFE_DELETE(gammacorrect);
+	SAFE_DELETE(basic2D);
+	SAFE_DELETE(shadowedlight);
+	SAFE_DELETE(varianceshadow);
+	SAFE_DELETE(teapot);
+	SAFE_DELETE(box);
+	SAFE_DELETE(framebuffer);
+	SAFE_DELETE(shadowmap);
+	SAFE_DELETE(screenquad);
 
 	if( texture1 )
 		glDeleteTextures(1, &texture1);
@@ -360,10 +373,6 @@ void UpdateParticles(float dt, bool generate)
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
 	LightParticle* particles = (LightParticle*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
-
-	// offset it a little
-	//tmpbox.Max[1] += 0.5f;
-	//tmpbox.Min[1] += 0.5f;
 
 	tmpbox.GetCenter(center);
 
@@ -540,6 +549,7 @@ void Update(float delta)
 void RenderScene(OpenGLEffect* effect)
 {
 	float world[16];
+	float worldinv[16];
 
 	GLMatrixIdentity(world);
 
@@ -555,7 +565,10 @@ void RenderScene(OpenGLEffect* effect)
 		world[13] = obj.position[1];
 		world[14] = obj.position[2];
 
+		GLMatrixInverse(worldinv, world);
+
 		effect->SetMatrix("matWorld", world);
+		effect->SetMatrix("matWorldInv", worldinv);
 
 		if( obj.type == 0 )
 		{
@@ -584,22 +597,28 @@ void RenderScene(OpenGLEffect* effect)
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
 {
-	static float time = 0;
+	float texmat[16];
+	float view[16];
+	float viewinv[16];
+	float proj[16];
+	float viewproj[16];
+	float lightview[16];
+	float lightproj[16];
+	float lightviewproj[16];
 
 	float globalambient[4]	= { 0, 0, 0, 1.0f };
-	float lightpos[4]		= { 6, 3, 10, 1 };
-	float clipplanes[2];
-	float screensize[2]		= { (float)screenwidth, (float)screenheight };
+	float moonlight[]		= { -0.25f, 0.65f, -1, 0 };
+	float mooncolor[]		= { 0.6f, 0.6f, 1, 1 };
+
 	float eye[3]			= { 0, 0, 8 };
 	float look[3]			= { 0, 0, 0 };
 	float up[3]				= { 0, 1, 0 };
+
+	float screensize[2]		= { (float)screenwidth, (float)screenheight };
+	float clipplanes[2];
 	float orient[2];
 
-	float texmat[16];
-	float view[16];
-	float proj[16];
-	float viewproj[16];
-
+	// setup camera
 	cameraangle.smooth(orient, alpha);
 
 	GLMatrixRotationYawPitchRoll(view, orient[0], orient[1], 0);
@@ -610,8 +629,55 @@ void Render(float alpha, float elapsedtime)
 
 	GLMatrixLookAtRH(view, eye, look, up);
 	GLMatrixMultiply(viewproj, view, proj);
-	
-	time += elapsedtime;
+
+	// setup moonlight
+	GLMatrixInverse(viewinv, view);
+	GLVec3Transform(moonlight, moonlight, viewinv);
+	GLVec3Normalize(moonlight, moonlight);
+
+	// should be that value in view space (background is fix)
+	// but let y stay in world space, so we see shadow
+	moonlight[1] = 0.65f;
+
+	float x[3], y[3], z[3];
+
+	GLVec3Normalize(z, moonlight);
+	GLVec3Cross(x, up, z);
+	GLVec3Cross(y, z, x);
+
+	GLMatrixIdentity(lightview);
+
+	lightview[0] = x[0];	lightview[1] = y[0];	lightview[2] = z[0];
+	lightview[4] = x[1];	lightview[5] = y[1];	lightview[6] = z[1];
+	lightview[8] = x[2];	lightview[9] = y[2];	lightview[10] = z[2];
+
+	//GLMatrixRotationYawPitchRoll(lightview, atan2f(moonlight[0], moonlight[2]), asinf(moonlight[1]), 0);
+	GLFitToBox(lightproj, lightview, scenebox);
+	GLMatrixMultiply(lightviewproj, lightview, lightproj);
+
+	/*
+	memcpy(view, lightview, 16 * sizeof(float));
+	memcpy(proj, lightproj, 16 * sizeof(float));
+	memcpy(viewproj, lightviewproj, 16 * sizeof(float));
+	*/
+
+	// render shadow map
+	varianceshadow->SetMatrix("matViewProj", lightviewproj);
+
+	shadowmap->Set();
+	{
+		glViewport(0, 0, SHADOWMAP_SIZE, SHADOWMAP_SIZE);
+		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+		varianceshadow->Begin();
+		{
+			RenderScene(varianceshadow);
+		}
+		varianceshadow->End();
+
+		glViewport(0, 0, screenwidth, screenheight);
+	}
+	shadowmap->Unset();
 
 	// STEP 1: z pass
 	ambient->SetMatrix("matViewProj", viewproj);
@@ -680,29 +746,52 @@ void Render(float alpha, float elapsedtime)
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	// STEP 3: accumulate lighting
+	// STEP 3: add some moonlight with shadow
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glDepthMask(GL_FALSE);
+
+	framebuffer->Set();
+
+	shadowedlight->SetMatrix("matViewProj", viewproj);
+	shadowedlight->SetMatrix("lightViewProj", lightviewproj);
+	shadowedlight->SetVector("eyePos", eye);
+	shadowedlight->SetVector("lightPos", moonlight);
+	shadowedlight->SetVector("lightColor", mooncolor);
+	shadowedlight->SetInt("sampler0", 0);
+	shadowedlight->SetInt("sampler1", 1);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, shadowmap->GetColorAttachment(0));
+	glActiveTexture(GL_TEXTURE0);
+
+	shadowedlight->Begin();
+	{
+		RenderScene(shadowedlight);
+	}
+	shadowedlight->End();
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE0);
+
+	// STEP 4: accumulate lighting
 	lightaccum->SetMatrix("matViewProj", viewproj);
 	lightaccum->SetVector("eyePos", eye);
 	lightaccum->SetFloat("alpha", alpha);
 	lightaccum->SetInt("sampler0", 0);
 	lightaccum->SetInt("numTilesX", workgroupsx);
 
-	framebuffer->Set();
+	lightaccum->Begin();
 	{
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-		glDepthMask(GL_FALSE);
-
-		lightaccum->Begin();
-		{
-			RenderScene(lightaccum);
-		}
-		lightaccum->End();
-
-		glDisable(GL_BLEND);
-		glDepthMask(GL_TRUE);
+		RenderScene(lightaccum);
 	}
+	lightaccum->End();
+
 	framebuffer->Unset();
+
+	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);

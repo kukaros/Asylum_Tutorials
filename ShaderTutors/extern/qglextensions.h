@@ -188,6 +188,8 @@ extern PFNGLDRAWRANGEELEMENTSPROC				glDrawRangeElements;
 extern PFNGLGENVERTEXARRAYSPROC					glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC					glBindVertexArray;
 extern PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays;
+extern PFNGLPATCHPARAMETERIPROC					glPatchParameteri;
+extern PFNGLPATCHPARAMETERFVPROC				glPatchParameterfv;
 
 // 4.3
 extern PFNGLDISPATCHCOMPUTEPROC					glDispatchCompute;
@@ -287,6 +289,7 @@ namespace Quadron
 		static bool ARB_texture_compression;
 		static bool ARB_draw_buffers;
 		static bool ARB_vertex_array_object;
+		static bool ARB_tessellation_shader;
 		static bool ARB_compute_shader;
 		static bool ARB_shader_image_load_store;
 		static bool ARB_shader_storage_buffer_object;

@@ -113,9 +113,9 @@ public:
 
 	void Add(float x, float y, float z);
 	void Add(float v[3]);
-	void GetCenter(float out[3]);
-	void GetHalfSize(float out[3]);
-	void GetPlanes(float outplanes[6][4]);
+	void GetCenter(float out[3]) const;
+	void GetHalfSize(float out[3]) const;
+	void GetPlanes(float outplanes[6][4]) const;
 	void TransformAxisAligned(float traf[16]);
 
 	float Radius() const;
@@ -129,7 +129,7 @@ public:
 class OpenGLMesh
 {
 	friend bool GLCreateMesh(GLuint, GLuint, GLuint, OpenGLVertexElement*, OpenGLMesh**);
-	friend bool GLLoadMeshFromQM(const char*, OpenGLMaterial**, GLuint*, OpenGLMesh**);
+	friend bool GLCreateMeshFromQM(const char*, OpenGLMaterial**, GLuint*, OpenGLMesh**);
 
 	struct locked_data
 	{
@@ -185,6 +185,7 @@ class OpenGLEffect
 {
 	friend bool GLCreateEffectFromFile(const char*, const char*, OpenGLEffect**);
 	friend bool GLCreateComputeProgramFromFile(const char*, const char*, OpenGLEffect**);
+	friend bool GLCreateTessellatorProgramFromFile(const char*, const char*, const char*, const char*, const char*, OpenGLEffect**);
 
 	struct Uniform
 	{
@@ -290,12 +291,20 @@ public:
 };
 
 // content functions
+bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out);
 bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
-bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
+bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
 bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect);
 bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
-bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out);
+bool GLCreateTessellatorProgramFromFile(
+	const char* vsfile,
+	const char* tcfile,
+	const char* tefile,
+	const char* gsfile,
+	const char* psfile,
+	OpenGLEffect** effect);
 
+// other
 void GLKillAnyRogueObject();
 
 // math functions
@@ -308,6 +317,7 @@ float GLVec3Distance(const float a[3], const float b[3]);
 void GLVec3Normalize(float out[3], const float v[3]);
 void GLVec3Cross(float out[3], const float a[3], const float b[3]);
 void GLVec3Transform(float out[3], const float v[3], const float m[16]);
+void GLVec3TransformTranspose(float out[3], const float m[16], const float v[3]);
 void GLVec3TransformCoord(float out[3], const float v[3], const float m[16]);
 void GLVec4Transform(float out[4], const float v[4], const float m[16]);
 void GLVec4TransformTranspose(float out[4], const float m[16], const float v[4]);
@@ -325,6 +335,7 @@ void GLMatrixInverse(float out[16], const float m[16]);
 void GLMatrixReflect(float out[16], float plane[4]);
 
 void GLFitToBox(float& outnear, float& outfar, const float eye[3], const float look[3], const OpenGLAABox& box);
+void GLFitToBox(float out[16], const float view[16], const OpenGLAABox& box);
 void GLGetOrthogonalVectors(float out1[3], float out2[3], const float v[3]);
 
 // other

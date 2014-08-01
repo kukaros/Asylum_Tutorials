@@ -53,6 +53,7 @@ float Attenuate(vec3 ldir, float radius)
 	return clamp(atten, 0.0, 1.0);
 }
 
+layout(early_fragment_tests) in;
 void main()
 {
 	ivec2	loc = ivec2(gl_FragCoord.xy);
@@ -64,7 +65,6 @@ void main()
 	vec4 lightcolor;
 	vec4 lightpos;
 
-	vec3 otherlight = normalize(vec3(-1.0, 1.0, 1.0));
 	vec3 irrad;
 	vec3 l;
 	vec3 h;
@@ -75,9 +75,6 @@ void main()
 	float spec;
 	float atten;
 	float radius;
-
-	diff = max(dot(otherlight, n), 0);
-	color.rgb += vec3(0.6, 0.6, 1.0) * base.rgb * diff;
 
 	uint start = headbuffer.data[index].StartAndCount.x;
 	uint count = headbuffer.data[index].StartAndCount.y;

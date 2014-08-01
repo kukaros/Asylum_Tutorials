@@ -173,14 +173,14 @@ void OpenGLAABox::Add(float v[3])
 	ASGN_IF(Min[2], >, v[2]);
 }
 
-void OpenGLAABox::GetCenter(float out[3])
+void OpenGLAABox::GetCenter(float out[3]) const
 {
 	out[0] = (Min[0] + Max[0]) * 0.5f;
 	out[1] = (Min[1] + Max[1]) * 0.5f;
 	out[2] = (Min[2] + Max[2]) * 0.5f;
 }
 
-void OpenGLAABox::GetHalfSize(float out[3])
+void OpenGLAABox::GetHalfSize(float out[3]) const
 {
 	out[0] = (Max[0] - Min[0]) * 0.5f;
 	out[1] = (Max[1] - Min[1]) * 0.5f;
@@ -211,7 +211,7 @@ void OpenGLAABox::TransformAxisAligned(float traf[16])
 		Add(vertices[i]);
 }
 
-void OpenGLAABox::GetPlanes(float outplanes[6][4])
+void OpenGLAABox::GetPlanes(float outplanes[6][4]) const
 {
 #define CALC_PLANE(i, nx, ny, nz, px, py, pz) \
 	outplanes[i][0] = nx;	p[0] = px; \
@@ -1034,7 +1034,7 @@ bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVer
 	return true;
 }
 
-bool GLLoadMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh)
+bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh)
 {
 	static const unsigned char usages[] =
 	{
@@ -1269,86 +1269,78 @@ _fail:
 	return success;
 }
 
+static GLuint GLCompileShader(GLenum type, const char* file, const char* defines)
+{
+	char	log[1024];
+	FILE*	infile = 0;
+	GLuint	shader = 0;
+	GLint	length;
+	GLint	success;
+	int		deflength = 0;
+	char*	source;
+
+	if( !file )
+		return 0;
+
+	if( !(infile = fopen(file, "rb")) )
+		return 0;
+
+	fseek(infile, 0, SEEK_END);
+	length = ftell(infile);
+	fseek(infile, 0, SEEK_SET);
+
+	if( defines )
+		deflength = strlen(defines);
+
+	source = new char[length + deflength];
+
+	if( defines )
+		memcpy(source, defines, deflength);
+
+	fread(source + deflength, 1, length, infile);
+	fclose(infile);
+
+	shader = glCreateShader(type);
+
+	glShaderSource(shader, 1, (const GLcharARB**)&source, &length);
+	glCompileShader(shader);
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		glGetShaderInfoLog(shader, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
+		delete[] source;
+		glDeleteShader(shader);
+
+		return 0;
+	}
+
+	delete[] source;
+	return shader;
+}
+
 bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect)
 {
 	char			log[1024];
 	OpenGLEffect*	neweffect;
 	GLuint			vertexshader = 0;
 	GLuint			fragmentshader = 0;
-	FILE*			infile = 0;
 	GLint			success;
 	GLint			length;
-	char*			source;
 
-	// vertex shader
-	if( !(infile = fopen(vsfile, "rb")) )
+	if( 0 == (vertexshader = GLCompileShader(GL_VERTEX_SHADER, vsfile, 0)) )
 		return false;
 
-	fseek(infile, 0, SEEK_END);
-	length = ftell(infile);
-	fseek(infile, 0, SEEK_SET);
-
-	source = new char[length];
-	vertexshader = glCreateShader(GL_VERTEX_SHADER);
-
-	fread(source, 1, length, infile);
-	fclose(infile);
-
-	glShaderSource(vertexshader, 1, (const GLcharARB**)&source, &length);
-	glCompileShader(vertexshader);
-	glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &success);
-
-	if( success != GL_TRUE )
+	if( 0 == (fragmentshader = GLCompileShader(GL_FRAGMENT_SHADER, psfile, 0)) )
 	{
-		glGetShaderInfoLog(vertexshader, 1024, &length, log);
-		log[length] = 0;
-
-		std::cout << log << "\n";
-
-		delete[] source;
 		glDeleteShader(vertexshader);
-
 		return false;
 	}
 
-	delete[] source;
-
-	// fragment shader
-	if( !(infile = fopen(psfile, "rb")) )
-		return false;
-
-	fseek(infile, 0, SEEK_END);
-	length = ftell(infile);
-	fseek(infile, 0, SEEK_SET);
-
-	source = new char[length];
-	fragmentshader = glCreateShader(GL_FRAGMENT_SHADER);
-
-	fread(source, 1, length, infile);
-	fclose(infile);
-
-	glShaderSource(fragmentshader, 1, (const GLcharARB**)&source, &length);
-	glCompileShader(fragmentshader);
-	glGetShaderiv(fragmentshader, GL_COMPILE_STATUS, &success);
-
-	if( success != GL_TRUE )
-	{
-		glGetShaderInfoLog(fragmentshader, 1024, &length, log);
-		log[length] = 0;
-
-		std::cout << log << "\n";
-
-		delete[] source;
-
-		glDeleteShader(vertexshader);
-		glDeleteShader(fragmentshader);
-
-		return false;
-	}
-
-	delete[] source;
-
-	// program
 	neweffect = new OpenGLEffect();
 	neweffect->program = glCreateProgram();
 
@@ -1364,9 +1356,11 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 
 		std::cout << log << "\n";
 
+		glDeleteShader(vertexshader);
+		glDeleteShader(fragmentshader);
 		glDeleteProgram(neweffect->program);
-		delete neweffect;
 
+		delete neweffect;
 		return false;
 	}
 
@@ -1385,51 +1379,12 @@ bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, Ope
 	char			log[1024];
 	OpenGLEffect*	neweffect;
 	GLuint			shader = 0;
-	FILE*			infile = 0;
 	GLint			success;
 	GLint			length;
-	int				deflength = 0;
-	char*			source;
 
-	if( !(infile = fopen(csfile, "rb")) )
+	if( 0 == (shader = GLCompileShader(GL_COMPUTE_SHADER, csfile, defines)) )
 		return false;
 
-	fseek(infile, 0, SEEK_END);
-	length = ftell(infile);
-	fseek(infile, 0, SEEK_SET);
-
-	if( defines )
-		deflength = strlen(defines);
-
-	source = new char[length + deflength];
-	shader = glCreateShader(GL_COMPUTE_SHADER);
-
-	if( defines )
-		memcpy(source, defines, deflength);
-
-	fread(source + deflength, 1, length, infile);
-	fclose(infile);
-
-	glShaderSource(shader, 1, (const GLcharARB**)&source, &length);
-	glCompileShader(shader);
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-
-	if( success != GL_TRUE )
-	{
-		glGetShaderInfoLog(shader, 1024, &length, log);
-		log[length] = 0;
-
-		std::cout << log << "\n";
-
-		delete[] source;
-		glDeleteShader(shader);
-
-		return false;
-	}
-
-	delete[] source;
-
-	// program
 	neweffect = new OpenGLEffect();
 	neweffect->program = glCreateProgram();
 
@@ -1452,6 +1407,92 @@ bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, Ope
 
 	neweffect->QueryUniforms();
 	glDeleteShader(shader);
+
+	(*effect) = neweffect;
+	return true;
+}
+
+bool GLCreateTessellatorProgramFromFile(
+	const char* vsfile,
+	const char* tcfile,
+	const char* tefile,
+	const char* gsfile,
+	const char* psfile,
+	OpenGLEffect** effect)
+{
+	char			log[1024];
+	OpenGLEffect*	neweffect;
+	GLuint			vertexshader = 0;
+	GLuint			tesscontrolshader = 0;
+	GLuint			tessshader = 0;
+	GLuint			tessevalshader = 0;
+	GLuint			geometryshader = 0;
+	GLuint			fragmentshader = 0;
+	GLint			success;
+	GLint			length;
+
+	// these are mandatory
+	if( 0 == (vertexshader = GLCompileShader(GL_VERTEX_SHADER, vsfile, 0)) )
+		return false;
+
+	if( 0 == (fragmentshader = GLCompileShader(GL_FRAGMENT_SHADER, psfile, 0)) )
+	{
+		glDeleteShader(vertexshader);
+		return false;
+	}
+
+	if( 0 == (tessevalshader = GLCompileShader(GL_TESS_EVALUATION_SHADER, tefile, 0)) )
+	{
+		glDeleteShader(vertexshader);
+		glDeleteShader(fragmentshader);
+		return false;
+	}
+
+	// others are optional
+	tesscontrolshader = GLCompileShader(GL_TESS_CONTROL_SHADER, tcfile, 0);
+	geometryshader = GLCompileShader(GL_GEOMETRY_SHADER, gsfile, 0);
+
+	neweffect = new OpenGLEffect();
+	neweffect->program = glCreateProgram();
+
+	glAttachShader(neweffect->program, vertexshader);
+	glAttachShader(neweffect->program, tessevalshader);
+	glAttachShader(neweffect->program, fragmentshader);
+
+	if( tesscontrolshader )
+		glAttachShader(neweffect->program, tesscontrolshader);
+
+	if( geometryshader )
+		glAttachShader(neweffect->program, geometryshader);
+
+	glLinkProgram(neweffect->program);
+	glGetProgramiv(neweffect->program, GL_LINK_STATUS, &success);
+
+	if( success != GL_TRUE )
+	{
+		glGetProgramInfoLog(neweffect->program, 1024, &length, log);
+		log[length] = 0;
+
+		std::cout << log << "\n";
+
+		glDeleteProgram(neweffect->program);
+		delete neweffect;
+
+		return false;
+	}
+
+	neweffect->BindAttributes();
+	neweffect->QueryUniforms();
+
+	glDeleteShader(vertexshader);
+	glDeleteShader(tessevalshader);
+	glDeleteShader(fragmentshader);
+
+	if( tesscontrolshader )
+		glDeleteShader(tesscontrolshader);
+
+	if( geometryshader )
+		glDeleteShader(geometryshader);
 
 	(*effect) = neweffect;
 	return true;
@@ -1620,6 +1661,19 @@ void GLVec3Transform(float out[3], const float v[3], const float m[16])
 	out[2] = tmp[2];
 }
 
+void GLVec3TransformTranspose(float out[3], const float m[16], const float v[3])
+{
+	float tmp[3];
+
+	tmp[0] = v[0] * m[0] + v[1] * m[1] + v[2] * m[2];
+	tmp[1] = v[0] * m[4] + v[1] * m[5] + v[2] * m[6];
+	tmp[2] = v[0] * m[8] + v[1] * m[9] + v[2] * m[10];
+
+	out[0] = tmp[0];
+	out[1] = tmp[1];
+	out[2] = tmp[2];
+}
+
 void GLVec3TransformCoord(float out[3], const float v[3], const float m[16])
 {
 	float tmp[4];
@@ -1712,6 +1766,24 @@ void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearpl
 
 	out[10] = (farplane + nearplane) / (nearplane - farplane);
 	out[14] = 2 * farplane * nearplane / (nearplane - farplane);
+}
+
+void GLMatrixOrthoRH(float out[16], float left, float right, float bottom, float top, float nearplane, float farplane)
+{
+	out[1] = out[2] = 0;
+	out[0] = 2.0f / (right - left);
+	out[12] = -(right + left) / (right - left);
+
+	out[4] = out[6] = 0;
+	out[5] = 2.0f / (top - bottom);
+	out[13] = -(top + bottom) / (top - bottom);
+
+	out[8] = out[9] = 0;
+	out[10] = -2.0f / (farplane - nearplane);
+	out[14] = -(farplane + nearplane) / (farplane - nearplane);
+
+	out[3] = out[7] = out[11] = 0;
+	out[15] = 1;
 }
 
 void GLMatrixMultiply(float out[16], const float a[16], const float b[16])
@@ -1920,6 +1992,26 @@ void GLFitToBox(float& outnear, float& outfar, const float eye[3], const float l
 
 	outnear = std::max<float>(outnear, 0.1f);
 	outfar = std::max<float>(outfar, 0.2f);
+}
+
+void GLFitToBox(float out[16], const float view[16], const OpenGLAABox& box)
+{
+	float pleft[] = { 1, 0, 0, 0 };
+	float pbottom[] = { 0, 1, 0, 0 };
+	float pnear[] = { 0, 0, -1, 0 };
+
+	GLVec4TransformTranspose(pleft, view, pleft);
+	GLVec4TransformTranspose(pbottom, view, pbottom);
+	GLVec4TransformTranspose(pnear, view, pnear);
+
+	float left = box.Nearest(pleft) - pleft[3];
+	float right = box.Farthest(pleft) - pleft[3];
+	float bottom = box.Nearest(pbottom) - pbottom[3];
+	float top = box.Farthest(pbottom) - pbottom[3];
+	float zn = box.Nearest(pnear) - pnear[3];
+	float zf = box.Farthest(pnear) - pnear[3];
+
+	GLMatrixOrthoRH(out, left, right, bottom, top, zn, zf);
 }
 
 void GLGetOrthogonalVectors(float out1[3], float out2[3], const float v[3])
