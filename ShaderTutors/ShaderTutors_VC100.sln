@@ -45,6 +45,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_ForwardPlus", "vc100\22_
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_Transparency", "vc100\22_Transparency.vcxproj", "{1739F8A3-646F-49BF-815A-28F7986AB0EF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "22_Tessellation", "vc100\22_Tessellation.vcxproj", "{150CD4FB-CD49-43BA-9B17-1284E6F3D6D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -139,6 +141,10 @@ Global
 		{1739F8A3-646F-49BF-815A-28F7986AB0EF}.Debug|Win32.Build.0 = Debug|Win32
 		{1739F8A3-646F-49BF-815A-28F7986AB0EF}.Release|Win32.ActiveCfg = Release|Win32
 		{1739F8A3-646F-49BF-815A-28F7986AB0EF}.Release|Win32.Build.0 = Release|Win32
+		{150CD4FB-CD49-43BA-9B17-1284E6F3D6D6}.Debug|Win32.ActiveCfg = Debug|Win32
+		{150CD4FB-CD49-43BA-9B17-1284E6F3D6D6}.Debug|Win32.Build.0 = Debug|Win32
+		{150CD4FB-CD49-43BA-9B17-1284E6F3D6D6}.Release|Win32.ActiveCfg = Release|Win32
+		{150CD4FB-CD49-43BA-9B17-1284E6F3D6D6}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

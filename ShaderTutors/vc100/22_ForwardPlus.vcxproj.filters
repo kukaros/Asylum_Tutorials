@@ -57,5 +57,17 @@
     <None Include="..\media\shadersGL\ambient.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\media\shadersGL\blinnphong_variance.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\blinnphong_variance.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\shadowmap_variance.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\shadowmap_variance.vert">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

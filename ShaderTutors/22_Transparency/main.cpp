@@ -41,8 +41,6 @@ GLuint				white;
 GLuint				headbuffer		= 0;
 GLuint				nodebuffer		= 0;
 GLuint				counterbuffer	= 0;
-GLuint				workgroupsx		= 0;
-GLuint				workgroupsy		= 0;
 
 array_state<float, 2> cameraangle;
 
@@ -51,8 +49,8 @@ SceneObject objects[] =
 	{ 0, { 0, -0.35f, 0 }, { 15, 0.5f, 15 }, 0, OpenGLColor(1, 1, 0, 0.75f) },
 
 	{ 1, { -1, -0.1f, 2.5f }, { 0.3f, 0.3f, 0.3f }, -M_PI / 8, OpenGLColor(1, 0, 1, 0.5f) },
-	{ 1, { 2, 0.1f, 0 }, { 0.3f, 0.3f, 0.3f }, M_PI / -2 + M_PI / -6, OpenGLColor(0, 1, 1, 0.5f) },
-	{ 1, { -2, 0.1f, -2 }, { 0.3f, 0.3f, 0.3f }, M_PI / -4, OpenGLColor(1, 0, 0, 0.5f) }
+	{ 1, { 2, -0.1f, 0 }, { 0.3f, 0.3f, 0.3f }, M_PI / -2 + M_PI / -6, OpenGLColor(0, 1, 1, 0.5f) },
+	{ 1, { -2, -0.1f, -2 }, { 0.3f, 0.3f, 0.3f }, M_PI / -4, OpenGLColor(1, 0, 0, 0.5f) }
 };
 
 const int numobjects = sizeof(objects) / sizeof(SceneObject);
@@ -104,7 +102,7 @@ bool InitScene()
 	OpenGLMaterial* materials = 0;
 	GLuint nummaterials = 0;
 
-	if( !GLLoadMeshFromQM("../media/meshes/cube.qm", &materials, &nummaterials, &box) )
+	if( !GLCreateMeshFromQM("../media/meshes/cube.qm", &materials, &nummaterials, &box) )
 	{
 		MYERROR("Could not load box");
 		return false;
@@ -112,7 +110,7 @@ bool InitScene()
 
 	delete[] materials;
 
-	if( !GLLoadMeshFromQM("../media/meshes/dragon.qm", &materials, &nummaterials, &dragon) )
+	if( !GLCreateMeshFromQM("../media/meshes/dragon.qm", &materials, &nummaterials, &dragon) )
 	{
 		MYERROR("Could not load teapot");
 		return false;
@@ -320,6 +318,7 @@ void Render(float alpha, float elapsedtime)
 
 	collect->SetMatrix("matViewProj", viewproj);
 	collect->SetVector("uv", texuv);
+	collect->SetInt("screenWidth", screenwidth);
 
 	collect->Begin();
 	{
@@ -351,7 +350,7 @@ void Render(float alpha, float elapsedtime)
 
 	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, 0);
 
-	// STEP 2: render and render
+	// STEP 3: render
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 

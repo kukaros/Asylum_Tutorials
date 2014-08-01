@@ -1,5 +1,7 @@
 #version 430
 
+#define MAX_LAYERS	4
+
 // DONT'T TRUST AMD!!!
 
 struct ListHead
@@ -24,6 +26,7 @@ layout(binding = 0) uniform atomic_uint nextInsertionPoint;
 
 uniform sampler2D sampler0;
 uniform vec4 matAmbient;
+uniform int screenWidth;
 
 in vec2 tex;
 
@@ -33,12 +36,12 @@ void main()
 	vec4	color = base * matAmbient;
 
 	ivec2	fragID = ivec2(gl_FragCoord.xy);
-	int		index = fragID.y * 800 + fragID.x;	//
+	int		index = fragID.y * screenWidth + fragID.x;
 	uint	depth = floatBitsToUint(gl_FragCoord.z);
 	uint	test;
 
 	uint count = headbuffer.data[index].StartAndCount.y;
-	uint node = atomicCounterIncrement(nextInsertionPoint);
+	uint node;
 	uint prev = 0xFFFFFFFF;
 	uint next = headbuffer.data[index].StartAndCount.x;
 
@@ -50,31 +53,44 @@ void main()
 		if( test < depth )
 			break;
 
+		if( prev != 0xFFFFFFFF && count >= MAX_LAYERS )
+			nodebuffer.data[prev].ColorDepthNext.xy = nodebuffer.data[next].ColorDepthNext.xy;
+
 		prev = next;
 		next = nodebuffer.data[next].ColorDepthNext.z;
 	}
 
-	if( prev == 0xFFFFFFFF )
+	if( prev != 0xFFFFFFFF && count >= MAX_LAYERS )
 	{
-		// insert as head
-		nodebuffer.data[node].ColorDepthNext.x = packUnorm4x8(color);
-		nodebuffer.data[node].ColorDepthNext.y = depth;
-		nodebuffer.data[node].ColorDepthNext.z = next;
-		nodebuffer.data[node].ColorDepthNext.w = 0;
-
-		headbuffer.data[index].StartAndCount.x = node;
-		headbuffer.data[index].StartAndCount.y = count + 1;
+		nodebuffer.data[prev].ColorDepthNext.x = packUnorm4x8(color);
+		nodebuffer.data[prev].ColorDepthNext.y = depth;
 	}
 	else
 	{
-		// insert normally
-		nodebuffer.data[prev].ColorDepthNext.z = node;
+		node = atomicCounterIncrement(nextInsertionPoint);
 
-		nodebuffer.data[node].ColorDepthNext.x = packUnorm4x8(color);
-		nodebuffer.data[node].ColorDepthNext.y = depth;
-		nodebuffer.data[node].ColorDepthNext.z = next;
-		nodebuffer.data[node].ColorDepthNext.w = 0;
+		if( prev == 0xFFFFFFFF )
+		{
+			// insert as head
+			nodebuffer.data[node].ColorDepthNext.x = packUnorm4x8(color);
+			nodebuffer.data[node].ColorDepthNext.y = depth;
+			nodebuffer.data[node].ColorDepthNext.z = next;
+			nodebuffer.data[node].ColorDepthNext.w = 0;
 
-		headbuffer.data[index].StartAndCount.y = count + 1;
+			headbuffer.data[index].StartAndCount.x = node;
+			headbuffer.data[index].StartAndCount.y = count + 1;
+		}
+		else
+		{
+			// insert normally
+			nodebuffer.data[prev].ColorDepthNext.z = node;
+
+			nodebuffer.data[node].ColorDepthNext.x = packUnorm4x8(color);
+			nodebuffer.data[node].ColorDepthNext.y = depth;
+			nodebuffer.data[node].ColorDepthNext.z = next;
+			nodebuffer.data[node].ColorDepthNext.w = 0;
+
+			headbuffer.data[index].StartAndCount.y = count + 1;
+		}
 	}
 }

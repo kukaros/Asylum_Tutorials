@@ -92,6 +92,9 @@ PFNGLGENVERTEXARRAYSPROC				glGenVertexArrays = 0;
 PFNGLBINDVERTEXARRAYPROC				glBindVertexArray = 0;
 PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays = 0;
 
+PFNGLPATCHPARAMETERIPROC				glPatchParameteri = 0;
+PFNGLPATCHPARAMETERFVPROC				glPatchParameterfv = 0;
+
 PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = 0;
 PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = 0;
 PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = 0;
@@ -126,6 +129,7 @@ namespace Quadron
 	bool qGLExtensions::ARB_texture_compression = false;
 	bool qGLExtensions::ARB_draw_buffers = false;
 	bool qGLExtensions::ARB_vertex_array_object = false;
+	bool qGLExtensions::ARB_tessellation_shader = false;
 	bool qGLExtensions::ARB_compute_shader = false;
 	bool qGLExtensions::ARB_shader_image_load_store = false;
 	bool qGLExtensions::ARB_shader_storage_buffer_object = false;
@@ -239,6 +243,7 @@ namespace Quadron
 			EXT_packed_depth_stencil		= true;
 
 			ARB_debug_output					= IsSupported("GL_ARB_debug_output");
+			ARB_tessellation_shader				= IsSupported("GL_ARB_tessellation_shader");
 			ARB_compute_shader					= IsSupported("GL_ARB_compute_shader");
 			ARB_shader_image_load_store			= IsSupported("GL_ARB_shader_image_load_store");
 			ARB_shader_storage_buffer_object	= IsSupported("GL_ARB_shader_storage_buffer_object");
@@ -381,6 +386,12 @@ namespace Quadron
 		}
 
 		// core profile only
+		if( ARB_tessellation_shader )
+		{
+			GET_ADDRESS(glPatchParameteri, PFNGLPATCHPARAMETERIPROC, "");
+			GET_ADDRESS(glPatchParameterfv, PFNGLPATCHPARAMETERFVPROC, "");
+		}
+
 		if( ARB_compute_shader )
 		{
 			GET_ADDRESS(glDispatchCompute, PFNGLDISPATCHCOMPUTEPROC, "");

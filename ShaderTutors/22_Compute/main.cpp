@@ -41,7 +41,7 @@ bool InitScene()
 	OpenGLMaterial* materials = 0;
 	GLuint nummaterials = 0;
 
-	bool ok = GLLoadMeshFromQM("../media/meshes/teapot.qm", &materials, &nummaterials, &mesh);
+	bool ok = GLCreateMeshFromQM("../media/meshes/teapot.qm", &materials, &nummaterials, &mesh);
 
 	if( !ok )
 	{
