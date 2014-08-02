@@ -781,7 +781,7 @@ bool OpenGLFramebuffer::AttachRenderbuffer(GLenum target, OpenGLFormat format)
 	return true;
 }
 
-bool OpenGLFramebuffer::AttachTexture(GLenum target, OpenGLFormat format)
+bool OpenGLFramebuffer::AttachTexture(GLenum target, OpenGLFormat format, GLenum filter)
 {
 	Attachment* attach = 0;
 
@@ -809,8 +809,8 @@ bool OpenGLFramebuffer::AttachTexture(GLenum target, OpenGLFormat format)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, map_Format_Internal[format], sizex, sizey, 0, map_Format_Format[format], map_Format_Type[format], 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, target, GL_TEXTURE_2D, attach->id, 0);
@@ -1726,6 +1726,33 @@ void GLPlaneNormalize(float out[4], const float p[4])
 	out[1] = p[1] * il;
 	out[2] = p[2] * il;
 	out[3] = p[3] * il;
+}
+
+void GLMatrixViewVector(float out[16], const float viewdir[3])
+{
+	float x[3];
+	float y[3] = { 0, 1, 0 };
+	float z[3];
+
+	GLVec3Normalize(z, viewdir);
+
+	float test = GLVec3Dot(y, z);
+
+	if( fabs(test) > 0.98f )
+	{
+		y[0] = 1;
+		y[1] = 0;
+	}
+
+	GLVec3Cross(x, y, z);
+	GLVec3Cross(y, z, x);
+
+	out[0] = x[0];	out[1] = y[0];	out[2] = z[0];
+	out[4] = x[1];	out[5] = y[1];	out[6] = z[1];
+	out[8] = x[2];	out[9] = y[2];	out[10] = z[2];
+
+	out[3] = out[7] = out[11] = out[12] = out[13] = out[14] = 0;
+	out[15] = 1;
 }
 
 void GLMatrixLookAtRH(float out[16], const float eye[3], const float look[3], const float up[3])

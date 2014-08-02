@@ -25,11 +25,16 @@
     <None Include="..\media\shadersGL\ambient.frag" />
     <None Include="..\media\shadersGL\ambient.vert" />
     <None Include="..\media\shadersGL\basic2D.frag" />
+    <None Include="..\media\shadersGL\blinnphong_variance.frag" />
+    <None Include="..\media\shadersGL\blinnphong_variance.vert" />
+    <None Include="..\media\shadersGL\boxblur3x3.frag" />
     <None Include="..\media\shadersGL\gammacorrect.frag" />
     <None Include="..\media\shadersGL\basic2D.vert" />
     <None Include="..\media\shadersGL\lightaccum.frag" />
     <None Include="..\media\shadersGL\lightaccum.vert" />
     <None Include="..\media\shadersGL\lightcull.comp" />
+    <None Include="..\media\shadersGL\shadowmap_variance.frag" />
+    <None Include="..\media\shadersGL\shadowmap_variance.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>

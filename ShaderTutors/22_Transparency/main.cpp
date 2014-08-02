@@ -155,6 +155,7 @@ bool InitScene()
 	// calculate scene bounding box
 	OpenGLAABox tmpbox;
 	float world[16];
+	float tmp[16];
 
 	GLMatrixIdentity(world);
 
@@ -162,15 +163,13 @@ bool InitScene()
 	{
 		const SceneObject& obj = objects[i];
 
+		// scaling * rotation * translation
+		GLMatrixScaling(tmp, obj.scale[0], obj.scale[1], obj.scale[2]);
 		GLMatrixRotationAxis(world, obj.angle, 0, 1, 0);
+		GLMatrixMultiply(world, tmp, world);
 
-		world[0] *= obj.scale[0];
-		world[5] *= obj.scale[1];
-		world[10] *= obj.scale[2];
-
-		world[12] = obj.position[0];
-		world[13] = obj.position[1];
-		world[14] = obj.position[2];
+		GLMatrixTranslation(tmp, obj.position[0], obj.position[1], obj.position[2]);
+		GLMatrixMultiply(world, world, tmp);
 
 		if( obj.type == 0 )
 			tmpbox = box->GetBoundingBox();

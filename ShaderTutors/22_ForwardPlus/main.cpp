@@ -16,7 +16,7 @@
 
 #define NUM_LIGHTS			400			// must be square number
 #define LIGHT_RADIUS		1.5f		// must be at least 1
-#define SHADOWMAP_SIZE		512
+#define SHADOWMAP_SIZE		1024
 #define M_PI				3.141592f
 #define M_2PI				6.283185f
 
@@ -44,6 +44,7 @@ struct SceneObject
 	int type;			// 0 for box, 1 for teapot
 	float position[3];
 	float scale[3];
+	float angle;
 };
 
 // sample variables
@@ -56,8 +57,10 @@ OpenGLEffect*		gammacorrect	= 0;
 OpenGLEffect*		basic2D			= 0;
 OpenGLEffect*		shadowedlight	= 0;
 OpenGLEffect*		varianceshadow	= 0;
+OpenGLEffect*		boxblur3x3		= 0;
 OpenGLFramebuffer*	framebuffer		= 0;
 OpenGLFramebuffer*	shadowmap		= 0;
+OpenGLFramebuffer*	blurredshadow	= 0;
 OpenGLScreenQuad*	screenquad		= 0;
 OpenGLAABox			scenebox;
 
@@ -70,24 +73,25 @@ GLuint				lightbuffer		= 0;	// light particles
 GLuint				counterbuffer	= 0;	// atomic counter
 GLuint				workgroupsx		= 0;
 GLuint				workgroupsy		= 0;
+bool				hascompute		= false;
 
 array_state<float, 2> cameraangle;
 
 SceneObject objects[] =
 {
-	{ 0, { 0, -0.35f, 0 }, { 15, 0.5f, 15 } },
+	{ 0, { 0, -0.35f, 0 }, { 15, 0.5f, 15 }, 0 },
 
-	{ 1, { -3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 } },
-	{ 1, { -3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 } },
-	{ 1, { -3 - 0.108f, -0.108f, 3 }, { 1, 1, 1 } },
+	{ 1, { -3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 }, M_PI / -4 },
+	{ 1, { -3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 }, M_PI / -4 },
+	{ 1, { -3 - 0.108f, -0.108f, 3 }, { 1, 1, 1 }, M_PI / -4 },
 
-	{ 1, { -0.108f, -0.108f, -3 }, { 1, 1, 1 } },
-	{ 1, { -0.108f, -0.108f, 0 }, { 1, 1, 1 } },
-	{ 1, { -0.108f, -0.108f, 3 }, { 1, 1, 1 } },
+	{ 1, { -0.108f, -0.108f, -3 }, { 1, 1, 1 }, M_PI / 4 },
+	{ 1, { -0.108f, -0.108f, 0 }, { 1, 1, 1 }, M_PI / 4 },
+	{ 1, { -0.108f, -0.108f, 3 }, { 1, 1, 1 }, M_PI / 4 },
 
-	{ 1, { 3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 } },
-	{ 1, { 3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 } },
-	{ 1, { 3 - 0.108f, -0.108f, 3 }, { 1, 1, 1 } }
+	{ 1, { 3 - 0.108f, -0.108f, -3 }, { 1, 1, 1 }, M_PI / -4 },
+	{ 1, { 3 - 0.108f, -0.108f, 0 }, { 1, 1, 1 }, M_PI / -4 },
+	{ 1, { 3 - 0.108f, -0.108f, 3 }, { 1, 1, 1 }, M_PI / -4 }
 };
 
 const int numobjects = sizeof(objects) / sizeof(SceneObject);
@@ -116,8 +120,7 @@ bool InitScene()
 	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures(hdc);
 
-	if( !Quadron::qGLExtensions::ARB_compute_shader || !Quadron::qGLExtensions::ARB_shader_storage_buffer_object )
-		return false;
+	hascompute = (Quadron::qGLExtensions::ARB_compute_shader && Quadron::qGLExtensions::ARB_shader_storage_buffer_object);
 
 #ifdef _DEBUG
 	if( Quadron::qGLExtensions::ARB_debug_output )
@@ -127,8 +130,7 @@ bool InitScene()
 	}
 #endif
 
-	//glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
-	glClearColor(0.0f, 0.0103f, 0.0707f, 1.0f); // linear
+	glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
 	glClearDepth(1.0);
 
 	glEnable(GL_CULL_FACE);
@@ -160,6 +162,7 @@ bool InitScene()
 	// calculate scene bounding box
 	OpenGLAABox tmpbox;
 	float world[16];
+	float tmp[16];
 
 	GLMatrixIdentity(world);
 
@@ -167,13 +170,13 @@ bool InitScene()
 	{
 		const SceneObject& obj = objects[i];
 
-		world[0] = obj.scale[0];
-		world[5] = obj.scale[1];
-		world[10] = obj.scale[2];
+		// scaling * rotation * translation
+		GLMatrixScaling(tmp, obj.scale[0], obj.scale[1], obj.scale[2]);
+		GLMatrixRotationAxis(world, obj.angle, 0, 1, 0);
+		GLMatrixMultiply(world, tmp, world);
 
-		world[12] = obj.position[0];
-		world[13] = obj.position[1];
-		world[14] = obj.position[2];
+		GLMatrixTranslation(tmp, obj.position[0], obj.position[1], obj.position[2]);
+		GLMatrixMultiply(world, world, tmp);
 
 		if( obj.type == 0 )
 			tmpbox = box->GetBoundingBox();
@@ -195,10 +198,16 @@ bool InitScene()
 		return false;
 
 	shadowmap = new OpenGLFramebuffer(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
-	shadowmap->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_G32R32F); // GLFMT_G16R16F
+	shadowmap->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_G32R32F, GL_LINEAR);
 	shadowmap->AttachRenderbuffer(GL_DEPTH_ATTACHMENT, GLFMT_D24S8);
 
 	if( !shadowmap->Validate() )
+		return false;
+
+	blurredshadow = new OpenGLFramebuffer(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
+	blurredshadow->AttachTexture(GL_COLOR_ATTACHMENT0, GLFMT_G32R32F, GL_LINEAR);
+
+	if( !blurredshadow->Validate() )
 		return false;
 
 	screenquad = new OpenGLScreenQuad();
@@ -242,38 +251,47 @@ bool InitScene()
 	size_t headsize = 16;	// start, count, pad, pad
 	size_t nodesize = 16;	// light index, next, pad, pad
 
-	glGenBuffers(1, &headbuffer);
-	glGenBuffers(1, &nodebuffer);
-	glGenBuffers(1, &lightbuffer);
-	glGenBuffers(1, &counterbuffer);
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, headbuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * headsize, 0, GL_STATIC_DRAW);
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, nodebuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * nodesize * 1024, 0, GL_STATIC_DRAW);	// 4 MB
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, NUM_LIGHTS * sizeof(LightParticle), 0, GL_DYNAMIC_DRAW);
-
-	UpdateParticles(0, true);
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
-	glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), 0, GL_DYNAMIC_DRAW);
-	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-
-	// load effects
-	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/gammacorrect.frag", &gammacorrect) )
+	if( hascompute )
 	{
-		MYERROR("Could not load gamma correction shader");
-		return false;
+		glGenBuffers(1, &headbuffer);
+		glGenBuffers(1, &nodebuffer);
+		glGenBuffers(1, &lightbuffer);
+		glGenBuffers(1, &counterbuffer);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, headbuffer);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * headsize, 0, GL_STATIC_DRAW);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, nodebuffer);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, numtiles * nodesize * 1024, 0, GL_STATIC_DRAW);	// 4 MB
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightbuffer);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, NUM_LIGHTS * sizeof(LightParticle), 0, GL_DYNAMIC_DRAW);
+
+		UpdateParticles(0, true);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
+		glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), 0, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 	}
 
+	// load effects
 	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/basic2D.frag", &basic2D) )
 	{
 		MYERROR("Could not load basic 2D shader");
+		return false;
+	}
+
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/boxblur3x3.frag", &boxblur3x3) )
+	{
+		MYERROR("Could not load blur shader");
+		return false;
+	}
+
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/gammacorrect.frag", &gammacorrect) )
+	{
+		MYERROR("Could not load gamma correction shader");
 		return false;
 	}
 
@@ -289,24 +307,27 @@ bool InitScene()
 		return false;
 	}
 
-	// light accumulation shader
-	if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum) )
-	{
-		MYERROR("Could not load light accumulation shader");
-		return false;
-	}
-
 	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", "../media/shadersGL/ambient.frag", &ambient) )
 	{
 		MYERROR("Could not load ambient shader");
 		return false;
 	}
-
-	// light culling shader
-	if( !GLCreateComputeProgramFromFile("../media/shadersGL/lightcull.comp", 0, &lightcull) )
+	
+	if( hascompute )
 	{
-		MYERROR("Could not load light culling shader");
-		return false;
+		// light accumulation shader
+		if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum) )
+		{
+			MYERROR("Could not load light accumulation shader");
+			return false;
+		}
+
+		// light culling shader
+		if( !GLCreateComputeProgramFromFile("../media/shadersGL/lightcull.comp", 0, &lightcull) )
+		{
+			MYERROR("Could not load light culling shader");
+			return false;
+		}
 	}
 
 	float angles[2] = { -0.25f, 0.7f };
@@ -324,10 +345,12 @@ void UninitScene()
 	SAFE_DELETE(basic2D);
 	SAFE_DELETE(shadowedlight);
 	SAFE_DELETE(varianceshadow);
+	SAFE_DELETE(boxblur3x3);
 	SAFE_DELETE(teapot);
 	SAFE_DELETE(box);
 	SAFE_DELETE(framebuffer);
 	SAFE_DELETE(shadowmap);
+	SAFE_DELETE(blurredshadow);
 	SAFE_DELETE(screenquad);
 
 	if( texture1 )
@@ -350,12 +373,6 @@ void UninitScene()
 
 	if( counterbuffer )
 		glDeleteBuffers(1, &counterbuffer);
-
-	lightbuffer = 0;
-	lightcull = 0;
-	lightaccum = 0;
-	teapot = 0;
-	texture1 = 0;
 
 	GLKillAnyRogueObject();
 }
@@ -553,6 +570,7 @@ void RenderScene(OpenGLEffect* effect)
 {
 	float world[16];
 	float worldinv[16];
+	float tmp[16];
 
 	GLMatrixIdentity(world);
 
@@ -560,13 +578,12 @@ void RenderScene(OpenGLEffect* effect)
 	{
 		const SceneObject& obj = objects[i];
 
-		world[0] = obj.scale[0];
-		world[5] = obj.scale[1];
-		world[10] = obj.scale[2];
+		GLMatrixScaling(tmp, obj.scale[0], obj.scale[1], obj.scale[2]);
+		GLMatrixRotationAxis(world, obj.angle, 0, 1, 0);
+		GLMatrixMultiply(world, tmp, world);
 
-		world[12] = obj.position[0];
-		world[13] = obj.position[1];
-		world[14] = obj.position[2];
+		GLMatrixTranslation(tmp, obj.position[0], obj.position[1], obj.position[2]);
+		GLMatrixMultiply(world, world, tmp);
 
 		GLMatrixInverse(worldinv, world);
 
@@ -600,6 +617,7 @@ void RenderScene(OpenGLEffect* effect)
 //*************************************************************************************************************
 void Render(float alpha, float elapsedtime)
 {
+	float tmp[16];
 	float texmat[16];
 	float view[16];
 	float viewinv[16];
@@ -609,7 +627,7 @@ void Render(float alpha, float elapsedtime)
 	float lightproj[16];
 	float lightviewproj[16];
 
-	float globalambient[4]	= { 0, 0, 0, 1.0f };
+	float globalambient[4]	= { 0.01f, 0.01f, 0.01f, 1.0f };
 	float moonlight[]		= { -0.25f, 0.65f, -1, 0 };
 	float mooncolor[]		= { 0.6f, 0.6f, 1, 1 };
 
@@ -642,34 +660,18 @@ void Render(float alpha, float elapsedtime)
 	// but let y stay in world space, so we see shadow
 	moonlight[1] = 0.65f;
 
-	float x[3], y[3], z[3];
-
-	GLVec3Normalize(z, moonlight);
-	GLVec3Cross(x, up, z);
-	GLVec3Cross(y, z, x);
-
-	GLMatrixIdentity(lightview);
-
-	lightview[0] = x[0];	lightview[1] = y[0];	lightview[2] = z[0];
-	lightview[4] = x[1];	lightview[5] = y[1];	lightview[6] = z[1];
-	lightview[8] = x[2];	lightview[9] = y[2];	lightview[10] = z[2];
-
-	//GLMatrixRotationYawPitchRoll(lightview, atan2f(moonlight[0], moonlight[2]), asinf(moonlight[1]), 0);
+	GLMatrixViewVector(lightview, moonlight);
 	GLFitToBox(lightproj, lightview, scenebox);
 	GLMatrixMultiply(lightviewproj, lightview, lightproj);
 
-	/*
-	memcpy(view, lightview, 16 * sizeof(float));
-	memcpy(proj, lightproj, 16 * sizeof(float));
-	memcpy(viewproj, lightviewproj, 16 * sizeof(float));
-	*/
-
 	// render shadow map
+	glViewport(0, 0, SHADOWMAP_SIZE, SHADOWMAP_SIZE);
+	glClearColor(0, 0, 0, 1);
+
 	varianceshadow->SetMatrix("matViewProj", lightviewproj);
 
 	shadowmap->Set();
 	{
-		glViewport(0, 0, SHADOWMAP_SIZE, SHADOWMAP_SIZE);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 		varianceshadow->Begin();
@@ -677,10 +679,33 @@ void Render(float alpha, float elapsedtime)
 			RenderScene(varianceshadow);
 		}
 		varianceshadow->End();
-
-		glViewport(0, 0, screenwidth, screenheight);
 	}
 	shadowmap->Unset();
+
+	// blur it
+	float texelsize[] = { 1.0f / SHADOWMAP_SIZE, 1.0f / SHADOWMAP_SIZE };
+
+	glDepthMask(GL_FALSE);
+	glBindTexture(GL_TEXTURE_2D, shadowmap->GetColorAttachment(0));
+
+	GLMatrixIdentity(texmat);
+
+	boxblur3x3->SetMatrix("matTexture", texmat);
+	boxblur3x3->SetMatrix("texelSize", texelsize);
+	boxblur3x3->SetInt("sampler0", 0);
+
+	blurredshadow->Set();
+	{
+		boxblur3x3->Begin();
+		{
+			screenquad->Draw();
+		}
+		boxblur3x3->End();
+	}
+	blurredshadow->Unset();
+
+	glViewport(0, 0, screenwidth, screenheight);
+	glDepthMask(GL_TRUE);
 
 	// STEP 1: z pass
 	ambient->SetMatrix("matViewProj", viewproj);
@@ -695,7 +720,18 @@ void Render(float alpha, float elapsedtime)
 		glDepthMask(GL_FALSE);
 		glBindTexture(GL_TEXTURE_2D, texture3);
 
-		GLMatrixRotationAxis(texmat, M_PI, 0, 0, 1);
+		float scaledx = 1360.0f * (screenheight / 768.0f);
+		float scale = screenwidth / scaledx;
+
+		GLMatrixTranslation(tmp, -0.5f, 0, 0);
+		GLMatrixScaling(texmat, scale, 1, 1);
+		GLMatrixMultiply(texmat, tmp, texmat);
+
+		GLMatrixTranslation(tmp, 0.5f, 0, 0);
+		GLMatrixMultiply(texmat, texmat, tmp);
+
+		GLMatrixRotationAxis(tmp, M_PI, 0, 0, 1);
+		GLMatrixMultiply(texmat, texmat, tmp);
 
 		basic2D->SetInt("sampler0", 0);
 		basic2D->SetMatrix("matTexture", texmat);
@@ -718,36 +754,39 @@ void Render(float alpha, float elapsedtime)
 	framebuffer->Unset();
 
 	// STEP 2: cull lights
-	lightcull->SetInt("depthSampler", 0);
-	lightcull->SetInt("numLights", NUM_LIGHTS);
-	lightcull->SetFloat("alpha", alpha);
-	lightcull->SetVector("clipPlanes", clipplanes);
-	lightcull->SetVector("screenSize", screensize);
-	lightcull->SetMatrix("matProj", proj);
-	lightcull->SetMatrix("matView", view);
-	lightcull->SetMatrix("matViewProj", viewproj);
-
-	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
-	GLuint* counter = (GLuint*)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_WRITE_ONLY);
-	
-	*counter = 0;
-	glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
-
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, headbuffer);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, nodebuffer);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightbuffer);
-	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, counterbuffer);
-	glBindTexture(GL_TEXTURE_2D, framebuffer->GetDepthAttachment());
-
-	lightcull->Begin();
+	if( lightcull )
 	{
-		glDispatchCompute(workgroupsx, workgroupsy, 1);
-	}
-	lightcull->End();
+		lightcull->SetInt("depthSampler", 0);
+		lightcull->SetInt("numLights", NUM_LIGHTS);
+		lightcull->SetFloat("alpha", alpha);
+		lightcull->SetVector("clipPlanes", clipplanes);
+		lightcull->SetVector("screenSize", screensize);
+		lightcull->SetMatrix("matProj", proj);
+		lightcull->SetMatrix("matView", view);
+		lightcull->SetMatrix("matViewProj", viewproj);
 
-	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, 0);
-	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D, 0);
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, counterbuffer);
+		GLuint* counter = (GLuint*)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_WRITE_ONLY);
+	
+		*counter = 0;
+		glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, headbuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, nodebuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightbuffer);
+		glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, counterbuffer);
+		glBindTexture(GL_TEXTURE_2D, framebuffer->GetDepthAttachment());
+
+		lightcull->Begin();
+		{
+			glDispatchCompute(workgroupsx, workgroupsy, 1);
+		}
+		lightcull->End();
+
+		glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, 0);
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
 
 	// STEP 3: add some moonlight with shadow
 	glEnable(GL_BLEND);
@@ -765,7 +804,7 @@ void Render(float alpha, float elapsedtime)
 	shadowedlight->SetInt("sampler1", 1);
 
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, shadowmap->GetColorAttachment(0));
+	glBindTexture(GL_TEXTURE_2D, blurredshadow->GetColorAttachment(0));
 	glActiveTexture(GL_TEXTURE0);
 
 	shadowedlight->Begin();
@@ -774,31 +813,30 @@ void Render(float alpha, float elapsedtime)
 	}
 	shadowedlight->End();
 
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE0);
-
 	// STEP 4: accumulate lighting
-	lightaccum->SetMatrix("matViewProj", viewproj);
-	lightaccum->SetVector("eyePos", eye);
-	lightaccum->SetFloat("alpha", alpha);
-	lightaccum->SetInt("sampler0", 0);
-	lightaccum->SetInt("numTilesX", workgroupsx);
-
-	lightaccum->Begin();
+	if( lightaccum )
 	{
-		RenderScene(lightaccum);
+		lightaccum->SetMatrix("matViewProj", viewproj);
+		lightaccum->SetVector("eyePos", eye);
+		lightaccum->SetFloat("alpha", alpha);
+		lightaccum->SetInt("sampler0", 0);
+		lightaccum->SetInt("numTilesX", workgroupsx);
+
+		lightaccum->Begin();
+		{
+			RenderScene(lightaccum);
+		}
+		lightaccum->End();
+		
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
 	}
-	lightaccum->End();
 
 	framebuffer->Unset();
 
 	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
-
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
 
 	// STEP 4: gamma correct
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);

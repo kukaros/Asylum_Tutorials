@@ -259,7 +259,7 @@ public:
 	~OpenGLFramebuffer();
 
 	bool AttachRenderbuffer(GLenum target, OpenGLFormat format);
-	bool AttachTexture(GLenum target, OpenGLFormat format);
+	bool AttachTexture(GLenum target, OpenGLFormat format, GLenum filter = GL_NEAREST);
 	bool Validate();
 
 	void Set();
@@ -323,6 +323,7 @@ void GLVec4Transform(float out[4], const float v[4], const float m[16]);
 void GLVec4TransformTranspose(float out[4], const float m[16], const float v[4]);
 void GLPlaneNormalize(float out[4], const float p[4]);
 
+void GLMatrixViewVector(float out[16], const float viewdir[3]);
 void GLMatrixLookAtRH(float out[16], const float eye[3], const float look[3], const float up[3]);
 void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearplane, float farplane);
 void GLMatrixMultiply(float out[16], const float a[16], const float b[16]);

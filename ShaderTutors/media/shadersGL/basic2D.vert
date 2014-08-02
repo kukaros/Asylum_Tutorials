@@ -9,6 +9,6 @@ out vec2 tex;
 
 void main()
 {
-	tex = (vec4(my_Texcoord0, 0, 1) * matTexture).xy;
+	tex = (matTexture * vec4(my_Texcoord0, 0, 1)).xy;
 	gl_Position = vec4(my_Position, 1);
 }
