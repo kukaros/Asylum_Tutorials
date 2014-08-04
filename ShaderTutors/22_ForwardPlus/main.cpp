@@ -10,7 +10,7 @@
 // - include
 
 // helper macros
-#define TITLE				"Shader tutorial 22.1: Forward+ renderer"
+#define TITLE				"Shader sample 22.1: Forward+ renderer"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_DELETE(x)		if( (x) ) { delete (x); (x) = 0; }
 
@@ -373,6 +373,14 @@ void UninitScene()
 
 	if( counterbuffer )
 		glDeleteBuffers(1, &counterbuffer);
+
+	texture1		= 0;
+	texture2		= 0;
+	texture3		= 0;
+	headbuffer		= 0;
+	nodebuffer		= 0;
+	lightbuffer		= 0;
+	counterbuffer	= 0;
 
 	GLKillAnyRogueObject();
 }
