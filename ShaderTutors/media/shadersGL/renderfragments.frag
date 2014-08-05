@@ -18,17 +18,30 @@ layout(std140, binding = 1) readonly buffer NodeBuffer {
 	ListNode data[];
 } nodebuffer;
 
+uniform int screenWidth;
+
 out vec4 my_FragColor0;
 
 void main()
 {
 	ivec2	fragID = ivec2(gl_FragCoord.xy);
-	int		index = fragID.y * 800 + fragID.x;	//
+	int		index = fragID.y * screenWidth + fragID.x;
 	uint	nodeID = headbuffer.data[index].StartAndCount.x;
 	uint	count = headbuffer.data[index].StartAndCount.y;
 	vec4	color = vec4(0.0, 0.0, 0.0, 1.0);
 	vec4	fragment;
 
+	if( count > 0 )
+		color = vec4(0.0, 1.0, 0.0, 1.0);
+
+	if( count > 3 )
+		color = vec4(1.0, 1.0, 0.0, 1.0);
+
+	if( count > 4 )
+		color = vec4(1.0, 0.0, 0.0, 1.0);
+
+	// CAUSES CRASH (not just on sucky AMD)
+	/*
 	for( int i = 0; i < count; ++i )
 	{
 		fragment = unpackUnorm4x8(nodebuffer.data[nodeID].ColorDepthNext.x);
@@ -38,6 +51,7 @@ void main()
 
 		nodeID = nodebuffer.data[nodeID].ColorDepthNext.z;
 	}
+	*/
 
 	my_FragColor0 = color;
 }

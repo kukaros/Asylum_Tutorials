@@ -314,6 +314,9 @@ float GLVec3Dot(const float a[3], const float b[3]);
 float GLVec3Length(const float a[3]);
 float GLVec3Distance(const float a[3], const float b[3]);
 
+void GLVec3Set(float out[3], float x, float y, float z);
+void GLVec3Add(float out[3], const float a[3], const float b[3]);
+void GLVec3Subtract(float out[3], const float a[3], const float b[3]);
 void GLVec3Normalize(float out[3], const float v[3]);
 void GLVec3Cross(float out[3], const float a[3], const float b[3]);
 void GLVec3Transform(float out[3], const float v[3], const float m[16]);

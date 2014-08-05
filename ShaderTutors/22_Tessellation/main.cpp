@@ -5,7 +5,7 @@
 #include "../common/glext.h"
 
 // helper macros
-#define TITLE				"Shader tutorial 22.3: Tessellating NURBS surfaces"
+#define TITLE				"Shader sample 22.3: Tessellating NURBS surfaces"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define M_PI				3.141592f
 

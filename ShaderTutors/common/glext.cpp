@@ -875,7 +875,7 @@ void OpenGLFramebuffer::Set()
 	glBindFramebuffer(GL_FRAMEBUFFER, fboid);
 
 	if( count > 0 )
-		glDrawBuffers(count, buffs);
+		glDrawBuffers(count + 1, buffs);
 }
 
 void OpenGLFramebuffer::Unset()
@@ -1632,6 +1632,27 @@ float GLVec3Distance(const float a[3], const float b[3])
 	return GLVec3Length(c);
 }
 
+void GLVec3Set(float out[3], float x, float y, float z)
+{
+	out[0] = x;
+	out[1] = y;
+	out[2] = z;
+}
+
+void GLVec3Add(float out[3], const float a[3], const float b[3])
+{
+	out[0] = a[0] + b[0];
+	out[1] = a[1] + b[1];
+	out[2] = a[2] + b[2];
+}
+
+void GLVec3Subtract(float out[3], const float a[3], const float b[3])
+{
+	out[0] = a[0] - b[0];
+	out[1] = a[1] - b[1];
+	out[2] = a[2] - b[2];
+}
+
 void GLVec3Normalize(float out[3], const float v[3])
 {
 	float il = 1.0f / GLVec3Length(v);
@@ -1773,8 +1794,8 @@ void GLMatrixLookAtRH(float out[16], const float eye[3], const float look[3], co
 	out[4] = x[1];		out[5] = y[1];		out[6] = -z[1];		out[7] = 0.0f;
 	out[8] = x[2];		out[9] = y[2];		out[10] = -z[2];	out[11] = 0.0f;
 
-	out[12] = GLVec3Dot(x, eye);
-	out[13] = GLVec3Dot(y, eye);
+	out[12] = -GLVec3Dot(x, eye);
+	out[13] = -GLVec3Dot(y, eye);
 	out[14] = GLVec3Dot(z, eye);
 	out[15] = 1.0f;
 }

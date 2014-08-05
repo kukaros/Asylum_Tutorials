@@ -8,6 +8,7 @@
 // - padlora normalmap
 // - timer
 // - include
+// - r * r-el kell osztani attenben
 
 // helper macros
 #define TITLE				"Shader sample 22.1: Forward+ renderer"

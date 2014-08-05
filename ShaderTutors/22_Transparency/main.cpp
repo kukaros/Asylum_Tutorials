@@ -4,8 +4,13 @@
 
 #include "../common/glext.h"
 
+// TODO:
+// - ARB_clear_buffer_object
+// - ARB_robustness_isolation
+// - elszall
+
 // helper macros
-#define TITLE				"Shader tutorial 22.2: Order independent transparency"
+#define TITLE				"Shader sample 22.2: Order independent transparency"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define M_PI				3.141592f
 
@@ -296,6 +301,8 @@ void Render(float alpha, float elapsedtime)
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, headbuffer);
 
+	init->SetInt("screenWidth", screenwidth);
+
 	init->Begin();
 	{
 		screenquad->Draw();
@@ -353,8 +360,10 @@ void Render(float alpha, float elapsedtime)
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+
+	render->SetInt("screenWidth", screenwidth);
 
 	render->Begin();
 	{

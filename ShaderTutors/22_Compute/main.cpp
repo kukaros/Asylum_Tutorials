@@ -6,7 +6,7 @@
 #include "../common/glext.h"
 
 // helper macros
-#define TITLE				"Shader tutorial 22.0: Hello compute!"
+#define TITLE				"Shader sample 22.0: Hello compute!"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 
 // external variables

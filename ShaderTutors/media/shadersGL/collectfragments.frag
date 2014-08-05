@@ -78,7 +78,7 @@ void main()
 			nodebuffer.data[node].ColorDepthNext.w = 0;
 
 			headbuffer.data[index].StartAndCount.x = node;
-			headbuffer.data[index].StartAndCount.y = count + 1;
+			headbuffer.data[index].StartAndCount.y = min(count + 1, MAX_LAYERS);
 		}
 		else
 		{
