@@ -83,7 +83,7 @@ static HRESULT InitXAudio2()
 	// this is important!!!
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 
-	if( FAILED(hr = XAudio2Create(&xaudio2, XAUDIO2_DEBUG_ENGINE)) )
+	if( FAILED(hr = XAudio2Create(&xaudio2)) ) // XAUDIO2_DEBUG_ENGINE
 	{
 		MYERROR("Could not create XAudio2 object");
 		return E_FAIL;
