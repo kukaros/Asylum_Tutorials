@@ -138,6 +138,30 @@ static Gdiplus::Bitmap* Win32LoadPicture(const std::wstring& file)
 
 // *****************************************************************************************************************************
 //
+// OpenGLColor impl
+//
+// *****************************************************************************************************************************
+
+OpenGLColor::OpenGLColor()
+	: r(0), g(0), b(0), a(1)
+{
+}
+
+OpenGLColor::OpenGLColor(float _r, float _g, float _b, float _a)
+	: r(_r), g(_g), b(_b), a(_a)
+{
+}
+
+OpenGLColor::OpenGLColor(unsigned int argb32)
+{
+	a = ArgbA32(argb32) / 255.0f;
+	r = ArgbR32(argb32) / 255.0f;
+	g = ArgbG32(argb32) / 255.0f;
+	b = ArgbB32(argb32) / 255.0f;
+}
+
+// *****************************************************************************************************************************
+//
 // OpenGLAABox impl
 //
 // *****************************************************************************************************************************
@@ -929,11 +953,11 @@ OpenGLScreenQuad::OpenGLScreenQuad()
 
 OpenGLScreenQuad::~OpenGLScreenQuad()
 {
-	if( vertexbuffer )
-		glDeleteBuffers(1, &vertexbuffer);
-
 	if( vertexlayout )
 		glDeleteVertexArrays(1, &vertexlayout);
+
+	if( vertexbuffer )
+		glDeleteBuffers(1, &vertexbuffer);
 }
 
 void OpenGLScreenQuad::Draw()
@@ -1323,12 +1347,13 @@ static GLuint GLCompileShader(GLenum type, const char* file, const char* defines
 	return shader;
 }
 
-bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect)
+bool GLCreateEffectFromFile(const char* vsfile, const char* gsfile, const char* psfile, OpenGLEffect** effect)
 {
 	char			log[1024];
 	OpenGLEffect*	neweffect;
 	GLuint			vertexshader = 0;
 	GLuint			fragmentshader = 0;
+	GLuint			geometryshader = 0;
 	GLint			success;
 	GLint			length;
 
@@ -1341,11 +1366,26 @@ bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect
 		return false;
 	}
 
+	if( gsfile )
+	{
+		if( 0 == (geometryshader = GLCompileShader(GL_GEOMETRY_SHADER, gsfile, 0)) )
+		{
+			glDeleteShader(vertexshader);
+			glDeleteShader(fragmentshader);
+
+			return false;
+		}
+	}
+
 	neweffect = new OpenGLEffect();
 	neweffect->program = glCreateProgram();
 
 	glAttachShader(neweffect->program, vertexshader);
 	glAttachShader(neweffect->program, fragmentshader);
+
+	if( geometryshader )
+		glAttachShader(neweffect->program, geometryshader);
+
 	glLinkProgram(neweffect->program);
 	glGetProgramiv(neweffect->program, GL_LINK_STATUS, &success);
 
@@ -1412,7 +1452,7 @@ bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, Ope
 	return true;
 }
 
-bool GLCreateTessellatorProgramFromFile(
+bool GLCreateTessellationProgramFromFile(
 	const char* vsfile,
 	const char* tcfile,
 	const char* tefile,
@@ -1445,12 +1485,37 @@ bool GLCreateTessellatorProgramFromFile(
 	{
 		glDeleteShader(vertexshader);
 		glDeleteShader(fragmentshader);
+
 		return false;
 	}
 
 	// others are optional
-	tesscontrolshader = GLCompileShader(GL_TESS_CONTROL_SHADER, tcfile, 0);
-	geometryshader = GLCompileShader(GL_GEOMETRY_SHADER, gsfile, 0);
+	if( tcfile )
+	{
+		if( 0 == (tesscontrolshader = GLCompileShader(GL_TESS_CONTROL_SHADER, tcfile, 0)) )
+		{
+			glDeleteShader(vertexshader);
+			glDeleteShader(fragmentshader);
+			glDeleteShader(tessevalshader);
+
+			return false;
+		}
+	}
+
+	if( gsfile )
+	{
+		if( 0 == (geometryshader = GLCompileShader(GL_GEOMETRY_SHADER, gsfile, 0)) )
+		{
+			glDeleteShader(vertexshader);
+			glDeleteShader(fragmentshader);
+			glDeleteShader(tessevalshader);
+
+			if( tesscontrolshader )
+				glDeleteShader(tesscontrolshader);
+
+			return false;
+		}
+	}
 
 	neweffect = new OpenGLEffect();
 	neweffect->program = glCreateProgram();
@@ -1651,6 +1716,13 @@ void GLVec3Subtract(float out[3], const float a[3], const float b[3])
 	out[0] = a[0] - b[0];
 	out[1] = a[1] - b[1];
 	out[2] = a[2] - b[2];
+}
+
+void GLVec3Scale(float out[3], const float a[3], float scale)
+{
+	out[0] = a[0] * scale;
+	out[1] = a[1] * scale;
+	out[2] = a[2] * scale;
 }
 
 void GLVec3Normalize(float out[3], const float v[3])

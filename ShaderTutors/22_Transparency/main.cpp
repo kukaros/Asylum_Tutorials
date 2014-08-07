@@ -188,21 +188,21 @@ bool InitScene()
 	}
 
 	// head pointer initializer
-	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/initheadpointers.frag", &init) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/initheadpointers.frag", &init) )
 	{
 		MYERROR("Could not load initializer shader");
 		return false;
 	}
 
 	// fragment collector shader
-	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", "../media/shadersGL/collectfragments.frag", &collect) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", 0, "../media/shadersGL/collectfragments.frag", &collect) )
 	{
 		MYERROR("Could not load collector shader");
 		return false;
 	}
 
-	// sorting shader
-	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/renderfragments.frag", &render) )
+	// renderer shader
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/renderfragments.frag", &render) )
 	{
 		MYERROR("Could not load rendering shader");
 		return false;

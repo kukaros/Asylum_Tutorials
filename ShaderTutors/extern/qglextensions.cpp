@@ -18,100 +18,102 @@
 // end
 
 #ifdef _Q_WINDOWS
-PFNGLACTIVETEXTUREARBPROC				glActiveTexture = 0;
-PFNGLCLIENTACTIVETEXTUREARBPROC			glClientActiveTexture = 0;
-PFNGLDELETEBUFFERSARBPROC				glDeleteBuffers = 0;
-PFNGLBINDBUFFERARBPROC					glBindBuffer = 0;
-PFNGLGENBUFFERSARBPROC					glGenBuffers = 0;
-PFNGLBUFFERDATAARBPROC					glBufferData = 0;
-PFNGLBUFFERSUBDATAARBPROC				glBufferSubData = 0;
+PFNGLACTIVETEXTUREARBPROC					glActiveTexture = 0;
+PFNGLCLIENTACTIVETEXTUREARBPROC				glClientActiveTexture = 0;
+PFNGLDELETEBUFFERSARBPROC					glDeleteBuffers = 0;
+PFNGLBINDBUFFERARBPROC						glBindBuffer = 0;
+PFNGLGENBUFFERSARBPROC						glGenBuffers = 0;
+PFNGLBUFFERDATAARBPROC						glBufferData = 0;
+PFNGLBUFFERSUBDATAARBPROC					glBufferSubData = 0;
 
-PFNGLCREATEPROGRAMOBJECTARBPROC			glCreateProgram = 0;
-PFNGLCREATESHADEROBJECTARBPROC			glCreateShader = 0;
-PFNGLSHADERSOURCEARBPROC				glShaderSource = 0;
-PFNGLCOMPILESHADERARBPROC				glCompileShader = 0;
-PFNGLATTACHOBJECTARBPROC				glAttachShader = 0;
-PFNGLDETACHOBJECTARBPROC				glDetachShader = 0;
-PFNGLLINKPROGRAMARBPROC					glLinkProgram = 0;
-PFNGLGETINFOLOGARBPROC					glGetShaderInfoLog = 0;
-PFNGLGETINFOLOGARBPROC					glGetProgramInfoLog = 0;
-PFNGLGETUNIFORMLOCATIONARBPROC			glGetUniformLocation = 0;
+PFNGLCREATEPROGRAMOBJECTARBPROC				glCreateProgram = 0;
+PFNGLCREATESHADEROBJECTARBPROC				glCreateShader = 0;
+PFNGLSHADERSOURCEARBPROC					glShaderSource = 0;
+PFNGLCOMPILESHADERARBPROC					glCompileShader = 0;
+PFNGLATTACHOBJECTARBPROC					glAttachShader = 0;
+PFNGLDETACHOBJECTARBPROC					glDetachShader = 0;
+PFNGLLINKPROGRAMARBPROC						glLinkProgram = 0;
+PFNGLGETINFOLOGARBPROC						glGetShaderInfoLog = 0;
+PFNGLGETINFOLOGARBPROC						glGetProgramInfoLog = 0;
+PFNGLGETUNIFORMLOCATIONARBPROC				glGetUniformLocation = 0;
 
-PFNGLUNIFORMMATRIX2FVARBPROC			glUniformMatrix2fv = 0;
-PFNGLUNIFORMMATRIX3FVARBPROC			glUniformMatrix3fv = 0;
-PFNGLUNIFORMMATRIX4FVARBPROC			glUniformMatrix4fv = 0;
+PFNGLUNIFORMMATRIX2FVARBPROC				glUniformMatrix2fv = 0;
+PFNGLUNIFORMMATRIX3FVARBPROC				glUniformMatrix3fv = 0;
+PFNGLUNIFORMMATRIX4FVARBPROC				glUniformMatrix4fv = 0;
 
-PFNGLUNIFORM1IARBPROC					glUniform1i = 0;
-PFNGLUNIFORM1FARBPROC					glUniform1f = 0;
-PFNGLUNIFORM2FARBPROC					glUniform2f = 0;
-PFNGLUNIFORM3FARBPROC					glUniform3f = 0;
-PFNGLUNIFORM4FARBPROC					glUniform4f = 0;
-PFNGLUNIFORM1FVARBPROC					glUniform1fv = 0;
-PFNGLUNIFORM2FVARBPROC					glUniform2fv = 0;
-PFNGLUNIFORM3FVARBPROC					glUniform3fv = 0;
-PFNGLUNIFORM4FVARBPROC					glUniform4fv = 0;
+PFNGLUNIFORM1IARBPROC						glUniform1i = 0;
+PFNGLUNIFORM1FARBPROC						glUniform1f = 0;
+PFNGLUNIFORM2FARBPROC						glUniform2f = 0;
+PFNGLUNIFORM3FARBPROC						glUniform3f = 0;
+PFNGLUNIFORM4FARBPROC						glUniform4f = 0;
+PFNGLUNIFORM1FVARBPROC						glUniform1fv = 0;
+PFNGLUNIFORM2FVARBPROC						glUniform2fv = 0;
+PFNGLUNIFORM3FVARBPROC						glUniform3fv = 0;
+PFNGLUNIFORM4FVARBPROC						glUniform4fv = 0;
 
-PFNGLGETPROGRAMIVPROC					glGetProgramiv = 0;
-PFNGLGETSHADERIVPROC					glGetShaderiv = 0;
-PFNGLDELETEPROGRAMPROC					glDeleteProgram = 0;
-PFNGLDELETESHADERPROC					glDeleteShader = 0;
+PFNGLGETPROGRAMIVPROC						glGetProgramiv = 0;
+PFNGLGETSHADERIVPROC						glGetShaderiv = 0;
+PFNGLDELETEPROGRAMPROC						glDeleteProgram = 0;
+PFNGLDELETESHADERPROC						glDeleteShader = 0;
 
-PFNGLUSEPROGRAMOBJECTARBPROC			glUseProgram = 0;
-PFNGLGETACTIVEUNIFORMARBPROC			glGetActiveUniform = 0;
-PFNGLGETACTIVEATTRIBPROC				glGetActiveAttrib = 0;
-PFNGLGETATTRIBLOCATIONPROC				glGetAttribLocation = 0;
-PFNGLENABLEVERTEXATTRIBARRAYARBPROC		glEnableVertexAttribArray = 0;
-PFNGLDISABLEVERTEXATTRIBARRAYARBPROC	glDisableVertexAttribArray = 0;
-PFNGLVERTEXATTRIBPOINTERARBPROC			glVertexAttribPointer = 0;
-PFNGLBINDATTRIBLOCATIONARBPROC			glBindAttribLocation = 0;
-PFNGLBINDFRAGDATALOCATIONPROC			glBindFragDataLocation = 0;
+PFNGLUSEPROGRAMOBJECTARBPROC				glUseProgram = 0;
+PFNGLGETACTIVEUNIFORMARBPROC				glGetActiveUniform = 0;
+PFNGLGETACTIVEATTRIBPROC					glGetActiveAttrib = 0;
+PFNGLGETATTRIBLOCATIONPROC					glGetAttribLocation = 0;
+PFNGLENABLEVERTEXATTRIBARRAYARBPROC			glEnableVertexAttribArray = 0;
+PFNGLDISABLEVERTEXATTRIBARRAYARBPROC		glDisableVertexAttribArray = 0;
+PFNGLVERTEXATTRIBPOINTERARBPROC				glVertexAttribPointer = 0;
+PFNGLBINDATTRIBLOCATIONARBPROC				glBindAttribLocation = 0;
+PFNGLBINDFRAGDATALOCATIONPROC				glBindFragDataLocation = 0;
 
-PFNGLGENFRAMEBUFFERSEXTPROC				glGenFramebuffers = 0;
-PFNGLGENRENDERBUFFERSEXTPROC			glGenRenderbuffers = 0;
-PFNGLBINDFRAMEBUFFEREXTPROC				glBindFramebuffer = 0;
-PFNGLFRAMEBUFFERTEXTURE2DEXTPROC		glFramebufferTexture2D = 0;
-PFNGLBINDRENDERBUFFEREXTPROC			glBindRenderbuffer = 0;
-PFNGLRENDERBUFFERSTORAGEEXTPROC			glRenderbufferStorage = 0;
-PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC		glFramebufferRenderbuffer = 0;
-PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC		glCheckFramebufferStatus = 0;
-PFNGLDELETEFRAMEBUFFERSEXTPROC			glDeleteFramebuffers = 0;
-PFNGLDELETERENDERBUFFERSEXTPROC			glDeleteRenderbuffers = 0;
-PFNGLGENERATEMIPMAPEXTPROC				glGenerateMipmap = 0;
+PFNGLGENFRAMEBUFFERSEXTPROC					glGenFramebuffers = 0;
+PFNGLGENRENDERBUFFERSEXTPROC				glGenRenderbuffers = 0;
+PFNGLBINDFRAMEBUFFEREXTPROC					glBindFramebuffer = 0;
+PFNGLFRAMEBUFFERTEXTURE2DEXTPROC			glFramebufferTexture2D = 0;
+PFNGLBINDRENDERBUFFEREXTPROC				glBindRenderbuffer = 0;
+PFNGLRENDERBUFFERSTORAGEEXTPROC				glRenderbufferStorage = 0;
+PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC			glFramebufferRenderbuffer = 0;
+PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC			glCheckFramebufferStatus = 0;
+PFNGLDELETEFRAMEBUFFERSEXTPROC				glDeleteFramebuffers = 0;
+PFNGLDELETERENDERBUFFERSEXTPROC				glDeleteRenderbuffers = 0;
+PFNGLGENERATEMIPMAPEXTPROC					glGenerateMipmap = 0;
 PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC	glRenderbufferStorageMultisample = 0;
-PFNGLBLITFRAMEBUFFEREXTPROC				glBlitFramebuffer = 0;
+PFNGLBLITFRAMEBUFFEREXTPROC					glBlitFramebuffer = 0;
 
-PFNGLGETBUFFERSUBDATAARBPROC			glGetBufferSubData = 0;
-PFNGLMAPBUFFERARBPROC					glMapBuffer = 0;
-PFNGLUNMAPBUFFERARBPROC					glUnmapBuffer = 0;
-PFNGLCOMPRESSEDTEXIMAGE2DPROC			glCompressedTexImage2D = 0;
-PFNGLCOMPRESSEDTEXIMAGE1DPROC			glCompressedTexImage1D = 0;
-PFNGLDRAWBUFFERSARBPROC					glDrawBuffers = 0;
-PFNGLDRAWRANGEELEMENTSPROC				glDrawRangeElements = 0;
+PFNGLGETBUFFERSUBDATAARBPROC				glGetBufferSubData = 0;
+PFNGLMAPBUFFERARBPROC						glMapBuffer = 0;
+PFNGLMAPBUFFERRANGEPROC						glMapBufferRange = 0;
+PFNGLUNMAPBUFFERARBPROC						glUnmapBuffer = 0;
+PFNGLCOMPRESSEDTEXIMAGE2DPROC				glCompressedTexImage2D = 0;
+PFNGLCOMPRESSEDTEXIMAGE1DPROC				glCompressedTexImage1D = 0;
+PFNGLDRAWBUFFERSARBPROC						glDrawBuffers = 0;
+PFNGLDRAWRANGEELEMENTSPROC					glDrawRangeElements = 0;
 
-PFNGLGENVERTEXARRAYSPROC				glGenVertexArrays = 0;
-PFNGLBINDVERTEXARRAYPROC				glBindVertexArray = 0;
-PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays = 0;
+PFNGLGENVERTEXARRAYSPROC					glGenVertexArrays = 0;
+PFNGLBINDVERTEXARRAYPROC					glBindVertexArray = 0;
+PFNGLDELETEVERTEXARRAYSPROC					glDeleteVertexArrays = 0;
 
-PFNGLPATCHPARAMETERIPROC				glPatchParameteri = 0;
-PFNGLPATCHPARAMETERFVPROC				glPatchParameterfv = 0;
+PFNGLPATCHPARAMETERIPROC					glPatchParameteri = 0;
+PFNGLPATCHPARAMETERFVPROC					glPatchParameterfv = 0;
 
-PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = 0;
-PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = 0;
-PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = 0;
-PFNGLBINDBUFFERBASEPROC					glBindBufferBase = 0;
+PFNGLDISPATCHCOMPUTEPROC					glDispatchCompute = 0;
+PFNGLDISPATCHCOMPUTEINDIRECTPROC			glDispatchComputeIndirect = 0;
+PFNGLBINDIMAGETEXTUREPROC					glBindImageTexture = 0;
+PFNGLBINDBUFFERBASEPROC						glBindBufferBase = 0;
 
-PFNGLDEBUGMESSAGECONTROLPROC			glDebugMessageControl = 0;
-PFNGLDEBUGMESSAGECALLBACKPROC			glDebugMessageCallback = 0;
-PFNGLGETDEBUGMESSAGELOGPROC				glGetDebugMessageLog = 0;
+PFNGLDEBUGMESSAGECONTROLPROC				glDebugMessageControl = 0;
+PFNGLDEBUGMESSAGECALLBACKPROC				glDebugMessageCallback = 0;
+PFNGLGETDEBUGMESSAGELOGPROC					glGetDebugMessageLog = 0;
 
-PFNWGLSWAPINTERVALFARPROC				wglSwapInterval = 0;
-WGLCREATECONTEXTATTRIBSARBPROC			wglCreateContextAttribs = 0;
-WGLGETEXTENSIONSSTRINGARBPROC			wglGetExtensionsString = 0;
-WGLGETPIXELFORMATATTRIBIVARBPROC		wglGetPixelFormatAttribiv = 0;
-WGLGETPIXELFORMATATTRIBFVARBPROC		wglGetPixelFormatAttribfv = 0;
-WGLCHOOSEPIXELFORMATARBPROC				wglChoosePixelFormat = 0;
-GLGETSTRINGIPROC						glGetStringi = 0;
-PFNGLGETINTEGERI_VPROC					glGetIntegeri_v = 0;
+PFNWGLSWAPINTERVALFARPROC					wglSwapInterval = 0;
+WGLCREATECONTEXTATTRIBSARBPROC				wglCreateContextAttribs = 0;
+WGLGETEXTENSIONSSTRINGARBPROC				wglGetExtensionsString = 0;
+WGLGETPIXELFORMATATTRIBIVARBPROC			wglGetPixelFormatAttribiv = 0;
+WGLGETPIXELFORMATATTRIBFVARBPROC			wglGetPixelFormatAttribfv = 0;
+WGLCHOOSEPIXELFORMATARBPROC					wglChoosePixelFormat = 0;
+
+GLGETSTRINGIPROC							glGetStringi = 0;
+PFNGLGETINTEGERI_VPROC						glGetIntegeri_v = 0;
 #endif
 
 namespace Quadron
@@ -129,6 +131,7 @@ namespace Quadron
 	bool qGLExtensions::ARB_texture_compression = false;
 	bool qGLExtensions::ARB_draw_buffers = false;
 	bool qGLExtensions::ARB_vertex_array_object = false;
+	bool qGLExtensions::ARB_geometry_shader4 = false;
 	bool qGLExtensions::ARB_tessellation_shader = false;
 	bool qGLExtensions::ARB_compute_shader = false;
 	bool qGLExtensions::ARB_shader_image_load_store = false;
@@ -243,6 +246,7 @@ namespace Quadron
 			EXT_packed_depth_stencil		= true;
 
 			ARB_debug_output					= IsSupported("GL_ARB_debug_output");
+			ARB_geometry_shader4				= IsSupported("GL_ARB_geometry_shader4");
 			ARB_tessellation_shader				= IsSupported("GL_ARB_tessellation_shader");
 			ARB_compute_shader					= IsSupported("GL_ARB_compute_shader");
 			ARB_shader_image_load_store			= IsSupported("GL_ARB_shader_image_load_store");
@@ -288,11 +292,6 @@ namespace Quadron
 		GET_ADDRESS(glGenerateMipmap, PFNGLGENERATEMIPMAPEXTPROC, "glGenerateMipmapEXT");
 		GET_ADDRESS(glMapBuffer, PFNGLMAPBUFFERARBPROC, "glMapBufferARB");
 		GET_ADDRESS(glUnmapBuffer, PFNGLUNMAPBUFFERARBPROC, "glUnmapBufferARB");
-
-		if( coreprofile )
-		{
-			GET_ADDRESS(glGetIntegeri_v, PFNGLGETINTEGERI_VPROC, "");
-		}
 
 		if( ARB_texture_compression )
 		{
@@ -386,6 +385,12 @@ namespace Quadron
 		}
 
 		// core profile only
+		if( coreprofile )
+		{
+			GET_ADDRESS(glMapBufferRange, PFNGLMAPBUFFERRANGEPROC, "");
+			GET_ADDRESS(glGetIntegeri_v, PFNGLGETINTEGERI_VPROC, "");
+		}
+
 		if( ARB_tessellation_shader )
 		{
 			GET_ADDRESS(glPatchParameteri, PFNGLPATCHPARAMETERIPROC, "");

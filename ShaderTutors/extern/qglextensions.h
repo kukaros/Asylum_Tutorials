@@ -114,93 +114,94 @@ typedef unsigned int quint32;
 	((0xff00 & (major << 8)) | minor)
 
 #ifdef _Q_WINDOWS
-extern PFNGLACTIVETEXTUREARBPROC				glActiveTexture;
-extern PFNGLCLIENTACTIVETEXTUREARBPROC			glClientActiveTexture;
-extern PFNGLDELETEBUFFERSARBPROC				glDeleteBuffers;
-extern PFNGLBINDBUFFERARBPROC					glBindBuffer;
-extern PFNGLGENBUFFERSARBPROC					glGenBuffers;
-extern PFNGLBUFFERDATAARBPROC					glBufferData;
-extern PFNGLBUFFERSUBDATAARBPROC				glBufferSubData;
+extern PFNGLACTIVETEXTUREARBPROC					glActiveTexture;
+extern PFNGLCLIENTACTIVETEXTUREARBPROC				glClientActiveTexture;
+extern PFNGLDELETEBUFFERSARBPROC					glDeleteBuffers;
+extern PFNGLBINDBUFFERARBPROC						glBindBuffer;
+extern PFNGLGENBUFFERSARBPROC						glGenBuffers;
+extern PFNGLBUFFERDATAARBPROC						glBufferData;
+extern PFNGLBUFFERSUBDATAARBPROC					glBufferSubData;
 
-extern PFNGLCREATEPROGRAMOBJECTARBPROC			glCreateProgram;
-extern PFNGLCREATESHADEROBJECTARBPROC			glCreateShader;
-extern PFNGLSHADERSOURCEARBPROC					glShaderSource;
-extern PFNGLCOMPILESHADERARBPROC				glCompileShader;
-extern PFNGLATTACHOBJECTARBPROC					glAttachShader;
-extern PFNGLDETACHOBJECTARBPROC					glDetachShader;
-extern PFNGLLINKPROGRAMARBPROC					glLinkProgram;
-extern PFNGLGETINFOLOGARBPROC					glGetShaderInfoLog;
-extern PFNGLGETINFOLOGARBPROC					glGetProgramInfoLog;
-extern PFNGLGETUNIFORMLOCATIONARBPROC			glGetUniformLocation;
+extern PFNGLCREATEPROGRAMOBJECTARBPROC				glCreateProgram;
+extern PFNGLCREATESHADEROBJECTARBPROC				glCreateShader;
+extern PFNGLSHADERSOURCEARBPROC						glShaderSource;
+extern PFNGLCOMPILESHADERARBPROC					glCompileShader;
+extern PFNGLATTACHOBJECTARBPROC						glAttachShader;
+extern PFNGLDETACHOBJECTARBPROC						glDetachShader;
+extern PFNGLLINKPROGRAMARBPROC						glLinkProgram;
+extern PFNGLGETINFOLOGARBPROC						glGetShaderInfoLog;
+extern PFNGLGETINFOLOGARBPROC						glGetProgramInfoLog;
+extern PFNGLGETUNIFORMLOCATIONARBPROC				glGetUniformLocation;
 
-extern PFNGLUNIFORMMATRIX2FVARBPROC				glUniformMatrix2fv;
-extern PFNGLUNIFORMMATRIX3FVARBPROC				glUniformMatrix3fv;
-extern PFNGLUNIFORMMATRIX4FVARBPROC				glUniformMatrix4fv;
+extern PFNGLUNIFORMMATRIX2FVARBPROC					glUniformMatrix2fv;
+extern PFNGLUNIFORMMATRIX3FVARBPROC					glUniformMatrix3fv;
+extern PFNGLUNIFORMMATRIX4FVARBPROC					glUniformMatrix4fv;
 
-extern PFNGLUNIFORM1IARBPROC					glUniform1i;
-extern PFNGLUNIFORM1FARBPROC					glUniform1f;
-extern PFNGLUNIFORM2FARBPROC					glUniform2f;
-extern PFNGLUNIFORM3FARBPROC					glUniform3f;
-extern PFNGLUNIFORM4FARBPROC					glUniform4f;
-extern PFNGLUNIFORM1FVARBPROC					glUniform1fv;
-extern PFNGLUNIFORM2FVARBPROC					glUniform2fv;
-extern PFNGLUNIFORM3FVARBPROC					glUniform3fv;
-extern PFNGLUNIFORM4FVARBPROC					glUniform4fv;
+extern PFNGLUNIFORM1IARBPROC						glUniform1i;
+extern PFNGLUNIFORM1FARBPROC						glUniform1f;
+extern PFNGLUNIFORM2FARBPROC						glUniform2f;
+extern PFNGLUNIFORM3FARBPROC						glUniform3f;
+extern PFNGLUNIFORM4FARBPROC						glUniform4f;
+extern PFNGLUNIFORM1FVARBPROC						glUniform1fv;
+extern PFNGLUNIFORM2FVARBPROC						glUniform2fv;
+extern PFNGLUNIFORM3FVARBPROC						glUniform3fv;
+extern PFNGLUNIFORM4FVARBPROC						glUniform4fv;
 
-extern PFNGLUSEPROGRAMOBJECTARBPROC				glUseProgram;
-extern PFNGLGETPROGRAMIVPROC					glGetProgramiv;
-extern PFNGLGETSHADERIVPROC						glGetShaderiv;
-extern PFNGLDELETEPROGRAMPROC					glDeleteProgram;
-extern PFNGLDELETESHADERPROC					glDeleteShader;
+extern PFNGLUSEPROGRAMOBJECTARBPROC					glUseProgram;
+extern PFNGLGETPROGRAMIVPROC						glGetProgramiv;
+extern PFNGLGETSHADERIVPROC							glGetShaderiv;
+extern PFNGLDELETEPROGRAMPROC						glDeleteProgram;
+extern PFNGLDELETESHADERPROC						glDeleteShader;
 
-extern PFNGLGETACTIVEUNIFORMARBPROC				glGetActiveUniform;
-extern PFNGLGETACTIVEATTRIBPROC					glGetActiveAttrib;
-extern PFNGLGETATTRIBLOCATIONPROC				glGetAttribLocation;
-extern PFNGLENABLEVERTEXATTRIBARRAYARBPROC		glEnableVertexAttribArray;
-extern PFNGLDISABLEVERTEXATTRIBARRAYARBPROC		glDisableVertexAttribArray;
-extern PFNGLVERTEXATTRIBPOINTERARBPROC			glVertexAttribPointer;
-extern PFNGLBINDATTRIBLOCATIONARBPROC			glBindAttribLocation;
-extern PFNGLBINDFRAGDATALOCATIONPROC			glBindFragDataLocation;
+extern PFNGLGETACTIVEUNIFORMARBPROC					glGetActiveUniform;
+extern PFNGLGETACTIVEATTRIBPROC						glGetActiveAttrib;
+extern PFNGLGETATTRIBLOCATIONPROC					glGetAttribLocation;
+extern PFNGLENABLEVERTEXATTRIBARRAYARBPROC			glEnableVertexAttribArray;
+extern PFNGLDISABLEVERTEXATTRIBARRAYARBPROC			glDisableVertexAttribArray;
+extern PFNGLVERTEXATTRIBPOINTERARBPROC				glVertexAttribPointer;
+extern PFNGLBINDATTRIBLOCATIONARBPROC				glBindAttribLocation;
+extern PFNGLBINDFRAGDATALOCATIONPROC				glBindFragDataLocation;
 
-extern PFNGLGENFRAMEBUFFERSEXTPROC				glGenFramebuffers;
-extern PFNGLGENRENDERBUFFERSEXTPROC				glGenRenderbuffers;
-extern PFNGLBINDFRAMEBUFFEREXTPROC				glBindFramebuffer;
-extern PFNGLFRAMEBUFFERTEXTURE2DEXTPROC			glFramebufferTexture2D;
-extern PFNGLBINDRENDERBUFFEREXTPROC				glBindRenderbuffer;
-extern PFNGLRENDERBUFFERSTORAGEEXTPROC			glRenderbufferStorage;
-extern PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC		glFramebufferRenderbuffer;
-extern PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC		glCheckFramebufferStatus;
-extern PFNGLDELETEFRAMEBUFFERSEXTPROC			glDeleteFramebuffers;
-extern PFNGLDELETERENDERBUFFERSEXTPROC			glDeleteRenderbuffers;
-extern PFNGLGENERATEMIPMAPEXTPROC				glGenerateMipmap;
+extern PFNGLGENFRAMEBUFFERSEXTPROC					glGenFramebuffers;
+extern PFNGLGENRENDERBUFFERSEXTPROC					glGenRenderbuffers;
+extern PFNGLBINDFRAMEBUFFEREXTPROC					glBindFramebuffer;
+extern PFNGLFRAMEBUFFERTEXTURE2DEXTPROC				glFramebufferTexture2D;
+extern PFNGLBINDRENDERBUFFEREXTPROC					glBindRenderbuffer;
+extern PFNGLRENDERBUFFERSTORAGEEXTPROC				glRenderbufferStorage;
+extern PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC			glFramebufferRenderbuffer;
+extern PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC			glCheckFramebufferStatus;
+extern PFNGLDELETEFRAMEBUFFERSEXTPROC				glDeleteFramebuffers;
+extern PFNGLDELETERENDERBUFFERSEXTPROC				glDeleteRenderbuffers;
+extern PFNGLGENERATEMIPMAPEXTPROC					glGenerateMipmap;
 extern PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC	glRenderbufferStorageMultisample;
-extern PFNGLBLITFRAMEBUFFEREXTPROC				glBlitFramebuffer;
+extern PFNGLBLITFRAMEBUFFEREXTPROC					glBlitFramebuffer;
 
-extern PFNGLGETBUFFERSUBDATAARBPROC				glGetBufferSubData;
-extern PFNGLMAPBUFFERARBPROC					glMapBuffer;
-extern PFNGLUNMAPBUFFERARBPROC					glUnmapBuffer;
-extern PFNGLCOMPRESSEDTEXIMAGE2DPROC			glCompressedTexImage2D;
-extern PFNGLCOMPRESSEDTEXIMAGE1DPROC			glCompressedTexImage1D;
-extern PFNGLDRAWBUFFERSARBPROC					glDrawBuffers;
-extern PFNGLDRAWRANGEELEMENTSPROC				glDrawRangeElements;
+extern PFNGLGETBUFFERSUBDATAARBPROC					glGetBufferSubData;
+extern PFNGLMAPBUFFERARBPROC						glMapBuffer;
+extern PFNGLMAPBUFFERRANGEPROC						glMapBufferRange;
+extern PFNGLUNMAPBUFFERARBPROC						glUnmapBuffer;
+extern PFNGLCOMPRESSEDTEXIMAGE2DPROC				glCompressedTexImage2D;
+extern PFNGLCOMPRESSEDTEXIMAGE1DPROC				glCompressedTexImage1D;
+extern PFNGLDRAWBUFFERSARBPROC						glDrawBuffers;
+extern PFNGLDRAWRANGEELEMENTSPROC					glDrawRangeElements;
 
 // 3.2
-extern PFNGLGENVERTEXARRAYSPROC					glGenVertexArrays;
-extern PFNGLBINDVERTEXARRAYPROC					glBindVertexArray;
-extern PFNGLDELETEVERTEXARRAYSPROC				glDeleteVertexArrays;
-extern PFNGLPATCHPARAMETERIPROC					glPatchParameteri;
-extern PFNGLPATCHPARAMETERFVPROC				glPatchParameterfv;
+extern PFNGLGENVERTEXARRAYSPROC						glGenVertexArrays;
+extern PFNGLBINDVERTEXARRAYPROC						glBindVertexArray;
+extern PFNGLDELETEVERTEXARRAYSPROC					glDeleteVertexArrays;
+extern PFNGLPATCHPARAMETERIPROC						glPatchParameteri;
+extern PFNGLPATCHPARAMETERFVPROC					glPatchParameterfv;
 
 // 4.3
-extern PFNGLDISPATCHCOMPUTEPROC					glDispatchCompute;
-extern PFNGLDISPATCHCOMPUTEINDIRECTPROC			glDispatchComputeIndirect;
-extern PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture;
-extern PFNGLBINDBUFFERBASEPROC					glBindBufferBase;
+extern PFNGLDISPATCHCOMPUTEPROC						glDispatchCompute;
+extern PFNGLDISPATCHCOMPUTEINDIRECTPROC				glDispatchComputeIndirect;
+extern PFNGLBINDIMAGETEXTUREPROC					glBindImageTexture;
+extern PFNGLBINDBUFFERBASEPROC						glBindBufferBase;
 
-extern PFNGLGETINTEGERI_VPROC					glGetIntegeri_v;
-extern PFNGLDEBUGMESSAGECONTROLPROC				glDebugMessageControl;
-extern PFNGLDEBUGMESSAGECALLBACKPROC			glDebugMessageCallback;
-extern PFNGLGETDEBUGMESSAGELOGPROC				glGetDebugMessageLog;
+extern PFNGLGETINTEGERI_VPROC						glGetIntegeri_v;
+extern PFNGLDEBUGMESSAGECONTROLPROC					glDebugMessageControl;
+extern PFNGLDEBUGMESSAGECALLBACKPROC				glDebugMessageCallback;
+extern PFNGLGETDEBUGMESSAGELOGPROC					glGetDebugMessageLog;
 
 // WGL specific
 typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)(int);
@@ -289,6 +290,7 @@ namespace Quadron
 		static bool ARB_texture_compression;
 		static bool ARB_draw_buffers;
 		static bool ARB_vertex_array_object;
+		static bool ARB_geometry_shader4;
 		static bool ARB_tessellation_shader;
 		static bool ARB_compute_shader;
 		static bool ARB_shader_image_load_store;

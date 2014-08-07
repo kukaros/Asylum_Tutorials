@@ -64,7 +64,7 @@ bool InitScene()
 	}
 
 	// effect
-	if( !(ok = GLCreateEffectFromFile("../media/shadersGL/simplelight.vert", "../media/shadersGL/simplelight.frag", &effect)) )
+	if( !(ok = GLCreateEffectFromFile("../media/shadersGL/simplelight.vert", 0, "../media/shadersGL/simplelight.frag", &effect)) )
 	{
 		MYERROR("Could not load effect");
 		return false;

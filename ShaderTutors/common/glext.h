@@ -5,7 +5,7 @@
 #include "../extern/qglextensions.h"
 #include "../common/orderedarray.hpp"
 
-// NOTE: don't freak out. It was easier to copy-paste...
+// NOTE: you can freak out.
 
 enum OpenGLDeclType
 {
@@ -52,18 +52,29 @@ enum OpenGLFormat
 	GLFMT_A32B32G32R32F
 };
 
-struct OpenGLColor
+class OpenGLColor
 {
+public:
 	float r, g, b, a;
 
-	OpenGLColor()
-		: r(0), g(0), b(0), a(1)
-	{
+	OpenGLColor();
+	OpenGLColor(float _r, float _g, float _b, float _a);
+	OpenGLColor(unsigned int argb32);
+
+	static inline unsigned char ArgbA32(unsigned int c) {
+		return ((unsigned char)((c >> 24) & 0xff));
 	}
 
-	OpenGLColor(float _r, float _g, float _b, float _a)
-		: r(_r), g(_g), b(_b), a(_a)
-	{
+	static inline unsigned char ArgbR32(unsigned int c) {
+		return ((unsigned char)((c >> 16) & 0xff));
+	}
+
+	static inline unsigned char ArgbG32(unsigned int c) {
+		return ((unsigned char)((c >> 8) & 0xff));
+	}
+
+	static inline unsigned char ArgbB32(unsigned int c) {
+		return ((unsigned char)(c & 0xff));
 	}
 };
 
@@ -183,9 +194,10 @@ public:
  */
 class OpenGLEffect
 {
-	friend bool GLCreateEffectFromFile(const char*, const char*, OpenGLEffect**);
+	// this is a bad habit...
+	friend bool GLCreateEffectFromFile(const char*, const char*, const char*, OpenGLEffect**);
 	friend bool GLCreateComputeProgramFromFile(const char*, const char*, OpenGLEffect**);
-	friend bool GLCreateTessellatorProgramFromFile(const char*, const char*, const char*, const char*, const char*, OpenGLEffect**);
+	friend bool GLCreateTessellationProgramFromFile(const char*, const char*, const char*, const char*, const char*, OpenGLEffect**);
 
 	struct Uniform
 	{
@@ -234,7 +246,7 @@ public:
 };
 
 /**
- * brief FBO with attachments
+ * \brief FBO with attachments
  */
 class OpenGLFramebuffer
 {
@@ -275,7 +287,7 @@ public:
 };
 
 /**
- * Simple quad for 2D rendering
+ * \brief Simple quad for 2D rendering
  */
 class OpenGLScreenQuad
 {
@@ -294,9 +306,9 @@ public:
 bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out);
 bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
 bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
-bool GLCreateEffectFromFile(const char* vsfile, const char* psfile, OpenGLEffect** effect);
+bool GLCreateEffectFromFile(const char* vsfile, const char* gsfile, const char* psfile, OpenGLEffect** effect);
 bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
-bool GLCreateTessellatorProgramFromFile(
+bool GLCreateTessellationProgramFromFile(
 	const char* vsfile,
 	const char* tcfile,
 	const char* tefile,
@@ -317,6 +329,7 @@ float GLVec3Distance(const float a[3], const float b[3]);
 void GLVec3Set(float out[3], float x, float y, float z);
 void GLVec3Add(float out[3], const float a[3], const float b[3]);
 void GLVec3Subtract(float out[3], const float a[3], const float b[3]);
+void GLVec3Scale(float out[3], const float a[3], float scale);
 void GLVec3Normalize(float out[3], const float v[3]);
 void GLVec3Cross(float out[3], const float a[3], const float b[3]);
 void GLVec3Transform(float out[3], const float v[3], const float m[16]);
@@ -329,6 +342,7 @@ void GLPlaneNormalize(float out[4], const float p[4]);
 void GLMatrixViewVector(float out[16], const float viewdir[3]);
 void GLMatrixLookAtRH(float out[16], const float eye[3], const float look[3], const float up[3]);
 void GLMatrixPerspectiveRH(float out[16], float fovy, float aspect, float nearplane, float farplane);
+void GLMatrixOrthoRH(float out[16], float left, float right, float bottom, float top, float nearplane, float farplane);
 void GLMatrixMultiply(float out[16], const float a[16], const float b[16]);
 void GLMatrixTranslation(float out[16], float x, float y, float z);
 void GLMatrixScaling(float out[16], float x, float y, float z);
@@ -361,5 +375,17 @@ struct array_state
 			out[i] = prev[i] + alpha * (curr[i] - prev[i]);
 	}
 };
+
+template <typename T>
+inline const T& GLMin(const T& a, const T& b)
+{
+	return ((a < b) ? a : b);
+}
+
+template <typename T>
+inline const T& GLMax(const T& a, const T& b)
+{
+	return ((a > b) ? a : b);
+}
 
 #endif

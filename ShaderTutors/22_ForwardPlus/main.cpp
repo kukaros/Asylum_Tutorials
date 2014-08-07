@@ -278,37 +278,37 @@ bool InitScene()
 	}
 
 	// load effects
-	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/basic2D.frag", &basic2D) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/basic2D.frag", &basic2D) )
 	{
 		MYERROR("Could not load basic 2D shader");
 		return false;
 	}
 
-	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/boxblur3x3.frag", &boxblur3x3) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/boxblur3x3.frag", &boxblur3x3) )
 	{
 		MYERROR("Could not load blur shader");
 		return false;
 	}
 
-	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", "../media/shadersGL/gammacorrect.frag", &gammacorrect) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/gammacorrect.frag", &gammacorrect) )
 	{
 		MYERROR("Could not load gamma correction shader");
 		return false;
 	}
 
-	if( !GLCreateEffectFromFile("../media/shadersGL/shadowmap_variance.vert", "../media/shadersGL/shadowmap_variance.frag", &varianceshadow) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/shadowmap_variance.vert", 0, "../media/shadersGL/shadowmap_variance.frag", &varianceshadow) )
 	{
 		MYERROR("Could not load shadowmap shader");
 		return false;
 	}
 
-	if( !GLCreateEffectFromFile("../media/shadersGL/blinnphong_variance.vert", "../media/shadersGL/blinnphong_variance.frag", &shadowedlight) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/blinnphong_variance.vert", 0, "../media/shadersGL/blinnphong_variance.frag", &shadowedlight) )
 	{
 		MYERROR("Could not load shadowed light shader");
 		return false;
 	}
 
-	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", "../media/shadersGL/ambient.frag", &ambient) )
+	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", 0, "../media/shadersGL/ambient.frag", &ambient) )
 	{
 		MYERROR("Could not load ambient shader");
 		return false;
@@ -317,7 +317,7 @@ bool InitScene()
 	if( hascompute )
 	{
 		// light accumulation shader
-		if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", "../media/shadersGL/lightaccum.frag", &lightaccum) )
+		if( !GLCreateEffectFromFile("../media/shadersGL/lightaccum.vert", 0, "../media/shadersGL/lightaccum.frag", &lightaccum) )
 		{
 			MYERROR("Could not load light accumulation shader");
 			return false;
