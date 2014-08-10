@@ -81,7 +81,7 @@ static float CalculateCoeff(GLuint i, int n, int k, float u)
 
 	if( n == 0 )
 	{
-		if( knot[i] <= u && u < knot[i + 1] || (u == 1.0f && i >= numcontrolvertices - 1) )
+		if( knot[i] <= u && u < knot[i + 1] || (u == knot[numknots - 1] && i >= numcontrolvertices - 1) )
 			return 1.0f;
 	}
 	else if( k == 0 )
@@ -114,13 +114,14 @@ static float CalculateCoeff(GLuint i, int n, int k, float u)
 
 static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 {
-	typedef float coefftable[4][4];
+	typedef float CoeffTable[4][4];
 
-	coefftable*	coeffs = new coefftable[numknots - 1];
+	CoeffTable*	coeffs = new CoeffTable[numknots - 1];
 	GLuint		span;
 	GLuint		cp;
 	float		u;
 	float		nom, denom;
+	float		poly[4];
 
 	// precalculate basis function coefficients
 	for( span = 0; span < numknots - 1; ++span )
@@ -152,6 +153,11 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		u = (float)i / (numsplinevertices - 1);
 		GLVec3Set(outvert[i], 0, 0, 0);
 
+		poly[0] = 1;
+		poly[1] = u;
+		poly[2] = u * u;
+		poly[3] = u * u * u;
+
 		// find span
 		for( span = 0; span < numknots - 1; ++span )
 		{
@@ -162,16 +168,13 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		if( span >= numknots - 1 )
 			span = numknots - 2;
 
-		const coefftable& table = coeffs[span];
+		const CoeffTable& table = coeffs[span];
 
 		// calculate normalization factor
 		denom = 0;
 
 		for( GLuint k = 0; k < 4; ++k )
-		{
-			const float (&coeffs)[4] = table[k];
-			denom += (coeffs[0] + coeffs[1] * u + coeffs[2] * u * u + coeffs[3] * u * u * u);
-		}
+			denom += GLVec4Dot(table[k], poly);
 
 		// sum contributions
 		if( denom > 1e-5f )
@@ -180,8 +183,7 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 
 			for( GLuint k = 0; k < 4; ++k )
 			{
-				const float (&coeffs)[4] = table[k];
-				nom = (coeffs[0] + coeffs[1] * u + coeffs[2] * u * u + coeffs[3] * u * u * u);
+				nom = GLVec4Dot(table[k], poly);
 
 				cp = span - (3 - k) % numcontrolvertices;
 				nom = nom * weights[cp] * denom;
@@ -203,69 +205,124 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 	}
 }
 
-static float EvalBSplineBasisFunction(int i, int n, float u)
+static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
 {
-	float c30 = CalculateCoeff(i, n, 0, u);
-	float c31 = CalculateCoeff(i, n, 1, u);
-	float c32 = CalculateCoeff(i, n, 2, u);
-	float c33 = CalculateCoeff(i, n, 3, u);
+	typedef float CoeffTable[4][4];
 
-	return ((c33 * u + c32) * u + c31) * u + c30;
-}
+	CoeffTable*	ucoeffs = new CoeffTable[numknots - 1];
+	CoeffTable*	vcoeffs = ucoeffs; // lucky now
+	GLuint		uspan, vspan;
+	GLuint		cpu, cpv, index;
+	GLsizei		tile, row, col;
+	float		u, v;
+	float		nom, denom;
+	float		upoly[4], vpoly[4];
 
-static void EvaluateNURBSSurface(float out[3], float u, float v)
-{
-	GLuint k = numcontrolvertices;
-	GLuint l = numcontrolvertices;
-	float nom, denom = 0;
-
-	GLVec3Set(out, 0, 0, 0);
-
-	for( GLuint p = 0; p < k; ++p )
+	// precalculate basis function coefficients
+	for( uspan = 0; uspan < numknots - 1; ++uspan )
 	{
-		for( GLuint q = 0; q < l; ++q )
+		for( GLuint k = 0; k < 4; ++k )
 		{
-			denom +=
-				EvalBSplineBasisFunction(p, 3, u) *
-				EvalBSplineBasisFunction(q, 3, v) * weights[p] * weights[q];
-		}
-	}
-
-	if( denom > 1e-5f )
-	{
-		for( GLuint i = 0; i < k; ++i )
-		{
-			for( GLuint j = 0; j < l; ++j )
+			if( uspan >= 3 - k && uspan < numcontrolvertices - k + 3 )
 			{
-				nom =
-					EvalBSplineBasisFunction(i, 3, u) *
-					EvalBSplineBasisFunction(j, 3, v) * weights[i] * weights[j];
+				cpu = uspan - (3 - k);
 
-				nom /= denom;
-
-				out[0] += controlpoints[i][0] * nom;
-				out[1] += (controlpoints[i][1] + controlpoints[j][1]) * 0.5f * nom;
-				out[2] += controlpoints[j][0] * nom;
+				ucoeffs[uspan][k][0] = CalculateCoeff(cpu, 3, 0, knot[uspan]);
+				ucoeffs[uspan][k][1] = CalculateCoeff(cpu, 3, 1, knot[uspan]);
+				ucoeffs[uspan][k][2] = CalculateCoeff(cpu, 3, 2, knot[uspan]);
+				ucoeffs[uspan][k][3] = CalculateCoeff(cpu, 3, 3, knot[uspan]);
+			}
+			else
+			{
+				ucoeffs[uspan][k][0] = 0;
+				ucoeffs[uspan][k][1] = 0;
+				ucoeffs[uspan][k][2] = 0;
+				ucoeffs[uspan][k][3] = 0;
 			}
 		}
 	}
-}
-
-static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
-{
-	GLsizei numcvs = sizeof(controlpoints) / sizeof(controlpoints[0]);
-	GLsizei tile, row, col;
 
 	for( GLuint i = 0; i < numsplinevertices; ++i )
 	{
+		u = (float)i / (numsplinevertices - 1);
+
+		upoly[0] = 1;
+		upoly[1] = u;
+		upoly[2] = u * u;
+		upoly[3] = u * u * u;
+
+		// find u span
+		for( uspan = 0; uspan < numknots - 1; ++uspan )
+		{
+			if( knot[uspan] <= u && u < knot[uspan + 1] )
+				break;
+		}
+
+		if( uspan >= numknots - 1 )
+			uspan = numknots - 2;
+
+		const CoeffTable& utable = ucoeffs[uspan];
+
 		for( GLuint j = 0; j < numsplinevertices; ++j )
 		{
-			EvaluateNURBSSurface(
-				outvert[i * numsplinevertices + j],
-				(float)i / (numsplinevertices - 1),
-				(float)j / (numsplinevertices - 1));
+			index = i * numsplinevertices + j;
+			GLVec3Set(outvert[index], 0, 0, 0);
+
+			v = (float)j / (numsplinevertices - 1);
+
+			vpoly[0] = 1;
+			vpoly[1] = v;
+			vpoly[2] = v * v;
+			vpoly[3] = v * v * v;
+
+			// find v span
+			for( vspan = 0; vspan < numknots - 1; ++vspan )
+			{
+				if( knot[vspan] <= v && v < knot[vspan + 1] )
+					break;
+			}
+
+			if( vspan >= numknots - 1 )
+				vspan = numknots - 2;
+
+			const CoeffTable& vtable = vcoeffs[vspan];
+
+			// calculate normalization factor
+			denom = 0;
+
+			for( GLuint k = 0; k < 4; ++k )
+				for( GLuint l = 0; l < 4; ++l )
+					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
+
+			// sum contributions
+			if( denom > 1e-5f )
+			{
+				denom = 1.0f / denom;
+
+				for( GLuint k = 0; k < 4; ++k )
+				{
+					for( GLuint l = 0; l < 4; ++l )
+					{
+						nom = GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
+
+						cpu = uspan - (3 - k) % numcontrolvertices;
+						cpv = vspan - (3 - l) % numcontrolvertices;
+
+						nom = nom * weights[cpu] * weights[cpv] * denom;
+
+						outvert[index][0] += controlpoints[cpu][0] * nom;
+						outvert[index][1] += (controlpoints[cpu][1] + controlpoints[cpv][1]) * 0.5f * nom;
+						outvert[index][2] += controlpoints[cpv][0] * nom;
+					}
+				}
+			}
 		}
 	}
+
+	if( vcoeffs != ucoeffs )
+		delete[] vcoeffs;
+
+	delete[] ucoeffs;
 
 	for( GLuint i = 0; i < numsurfaceindices; i += 6 )
 	{
