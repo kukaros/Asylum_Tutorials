@@ -5,8 +5,7 @@
 #include "../common/glext.h"
 
 // TODO:
-// - surfacet megjeleniteni
-// - kiböviteni az openglmesh-t es inkabb azt hasznalni
+// - normalok, shading
 // - alulra valami
 // - MSAA
 
@@ -49,28 +48,20 @@ float knot[] =
 	0, 0, 0, 0, 0.4f, 0.4f, 0.4f, 1, 1, 1, 1
 };
 
+const GLuint numcontrolvertices		= sizeof(controlpoints) / sizeof(controlpoints[0]);
+const GLuint numcontrolindices		= (numcontrolvertices - 1) * 2;
+const GLuint numknots				= sizeof(knot) / sizeof(knot[0]);
+const GLuint numsplinevertices		= NUM_SEGMENTS + 1;
+const GLuint numsplineindices		= (numsplinevertices - 1) * 2;
+const GLuint numsurfacevertices		= numsplinevertices * numsplinevertices;
+const GLuint numsurfaceindices		= NUM_SEGMENTS * NUM_SEGMENTS * 6;
+
 OpenGLEffect*	renderpoints			= 0;
 OpenGLEffect*	renderlines				= 0;
-
-GLuint			controlvb				= 0;
-GLuint			controlib				= 0;
-GLuint			controlvao				= 0;
-
-GLuint			splinevb				= 0;
-GLuint			splineib				= 0;
-GLuint			splinevao				= 0;
-
-GLuint			gridvb					= 0;
-GLuint			gridvao					= 0;
-
-GLuint			surfacevb				= 0;
-GLuint			surfaceib				= 0;
-GLuint			surfacevao				= 0;	// beginning to hate vaos -.-
-
-GLsizei			numsplinevertices		= NUM_SEGMENTS * 2;
-GLsizei			numsplineindices		= (numsplinevertices - 1) * 2;
-GLsizei			numcontrolvertices		= sizeof(controlpoints) / sizeof(controlpoints[0]);
-GLsizei			numcontrolindices		= (numcontrolvertices - 1) * 2;
+OpenGLEffect*	rendersurface			= 0;
+OpenGLMesh*		supportlines			= 0;
+OpenGLMesh*		curve					= 0;
+OpenGLMesh*		surface					= 0;
 GLsizei			selectedcontrolpoint	= -1;
 float			selectiondx, selectiondy;
 
@@ -79,75 +70,213 @@ array_state<float, 2> cameraangle;
 // sample functions
 void UpdateControlPoints(float mx, float my);
 
-static float EvalBSplineBasisFunction(int i, int n, float u)
+static float CalculateCoeff(GLuint i, int n, int k, float u)
 {
-	float a, b;
+	float kin1	= knot[i + n + 1];
+	float ki1	= knot[i + 1];
+	float ki	= knot[i];
+	float kin	= knot[i + n];
+	float a		= 0;
+	float b		= 0;
 
 	if( n == 0 )
 	{
-		if( u >= knot[i] && u < knot[i + 1] )
-			return 1;
-		else
-			return 0;
+		if( knot[i] <= u && u < knot[i + 1] || (u == 1.0f && i >= numcontrolvertices - 1) )
+			return 1.0f;
+	}
+	else if( k == 0 )
+	{
+		if( kin1 != ki1 )
+			a = (kin1 * CalculateCoeff(i + 1, n - 1, 0, u)) / (kin1 - ki1);
+
+		if( ki != kin )
+			b = (ki * CalculateCoeff(i, n - 1, 0, u) / (kin - ki));
+	}
+	else if( k == n )
+	{
+		if( ki != kin )
+			a = CalculateCoeff(i, n - 1, n - 1, u) / (kin - ki);
+
+		if( kin1 != ki1 )
+			b = CalculateCoeff(i + 1, n - 1, n - 1, u) / (kin1 - ki1);
+	}
+	else if( n > k )
+	{
+		if( ki != kin )
+			a = (CalculateCoeff(i, n - 1, k - 1, u) - ki * CalculateCoeff(i, n - 1, k, u)) / (kin - ki);
+
+		if( kin1 != ki1 )
+			b = (CalculateCoeff(i + 1, n - 1, k - 1, u) - kin1 * CalculateCoeff(i + 1, n - 1, k, u)) / (kin1 - ki1);
 	}
 
-	if( knot[i + n] == knot[i] )
-		a = 0;
-	else
-		a = (u - knot[i]) / (knot[i + n] - knot[i]) * EvalBSplineBasisFunction(i, n - 1, u);
-
-	if( knot[i + n + 1] == knot[i + 1] )
-		b = 0;
-	else
-		b = (knot[i + n + 1] - u) / (knot[i + n + 1] - knot[i + 1]) * EvalBSplineBasisFunction(i + 1, n - 1, u);
-
-	return a + b;
+	return a - b;
 }
 
-static void EvaluateNURBS(float out[3], float u)
+static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 {
-	GLsizei k = numcontrolvertices;
-	float nom, denom;
-	bool valid = false;
+	typedef float coefftable[4][4];
 
-	GLVec3Set(out, 0, 0, 0);
+	coefftable*	coeffs = new coefftable[numknots - 1];
+	GLuint		span;
+	GLuint		cp;
+	float		u;
+	float		nom, denom;
 
-	for( GLsizei i = 0; i < k; ++i )
+	// precalculate basis function coefficients
+	for( span = 0; span < numknots - 1; ++span )
 	{
-		nom = EvalBSplineBasisFunction(i, 3, u) * weights[i];
-		denom = 0;
-
-		for( GLsizei j = 0; j < k; ++j )
-			denom += EvalBSplineBasisFunction(j, 3, u) * weights[j];
-
-		if( denom < 1e-5f )
-			nom = 0;
-		else
+		for( GLuint k = 0; k < 4; ++k )
 		{
-			nom /= denom;
-			valid = true;
+			if( span >= 3 - k && span < numcontrolvertices - k + 3 )
+			{
+				cp = span - (3 - k);
+
+				coeffs[span][k][0] = CalculateCoeff(cp, 3, 0, knot[span]);
+				coeffs[span][k][1] = CalculateCoeff(cp, 3, 1, knot[span]);
+				coeffs[span][k][2] = CalculateCoeff(cp, 3, 2, knot[span]);
+				coeffs[span][k][3] = CalculateCoeff(cp, 3, 3, knot[span]);
+			}
+			else
+			{
+				coeffs[span][k][0] = 0;
+				coeffs[span][k][1] = 0;
+				coeffs[span][k][2] = 0;
+				coeffs[span][k][3] = 0;
+			}
+		}
+	}
+
+	// fill vertex buffer
+	for( GLuint i = 0; i < numsplinevertices; ++i )
+	{
+		u = (float)i / (numsplinevertices - 1);
+		GLVec3Set(outvert[i], 0, 0, 0);
+
+		// find span
+		for( span = 0; span < numknots - 1; ++span )
+		{
+			if( knot[span] <= u && u < knot[span + 1] )
+				break;
 		}
 
-		out[0] += controlpoints[i][0] * nom;
-		out[1] += controlpoints[i][1] * nom;
-		out[2] += controlpoints[i][2] * nom;
+		if( span >= numknots - 1 )
+			span = numknots - 2;
+
+		const coefftable& table = coeffs[span];
+
+		// calculate normalization factor
+		denom = 0;
+
+		for( GLuint k = 0; k < 4; ++k )
+		{
+			const float (&coeffs)[4] = table[k];
+			denom += (coeffs[0] + coeffs[1] * u + coeffs[2] * u * u + coeffs[3] * u * u * u);
+		}
+
+		// sum contributions
+		if( denom > 1e-5f )
+		{
+			denom = 1.0f / denom;
+
+			for( GLuint k = 0; k < 4; ++k )
+			{
+				const float (&coeffs)[4] = table[k];
+				nom = (coeffs[0] + coeffs[1] * u + coeffs[2] * u * u + coeffs[3] * u * u * u);
+
+				cp = span - (3 - k) % numcontrolvertices;
+				nom = nom * weights[cp] * denom;
+
+				outvert[i][0] += controlpoints[cp][0] * nom;
+				outvert[i][1] += controlpoints[cp][1] * nom;
+				outvert[i][2] += controlpoints[cp][2] * nom;
+			}
+		}
 	}
 
-	if( !valid )
-		GLVec3Set(out, controlpoints[k - 1][0], controlpoints[k - 1][1], controlpoints[k - 1][2]);
-}
+	delete[] coeffs;
 
-static void Tessellate(float (*outvert)[3], unsigned short* outind)
-{
-	GLsizei numcvs = sizeof(controlpoints) / sizeof(controlpoints[0]);
-
-	for( GLsizei i = 0; i < numsplinevertices; ++i )
-		EvaluateNURBS(outvert[i], (float)i / (numsplinevertices - 1));
-
-	for( GLsizei i = 0; i < numsplineindices; i += 2 )
+	// fill index buffer
+	for( GLuint i = 0; i < numsplineindices; i += 2 )
 	{
 		outind[i] = i / 2;
 		outind[i + 1] = i / 2 + 1;
+	}
+}
+
+static float EvalBSplineBasisFunction(int i, int n, float u)
+{
+	float c30 = CalculateCoeff(i, n, 0, u);
+	float c31 = CalculateCoeff(i, n, 1, u);
+	float c32 = CalculateCoeff(i, n, 2, u);
+	float c33 = CalculateCoeff(i, n, 3, u);
+
+	return ((c33 * u + c32) * u + c31) * u + c30;
+}
+
+static void EvaluateNURBSSurface(float out[3], float u, float v)
+{
+	GLuint k = numcontrolvertices;
+	GLuint l = numcontrolvertices;
+	float nom, denom = 0;
+
+	GLVec3Set(out, 0, 0, 0);
+
+	for( GLuint p = 0; p < k; ++p )
+	{
+		for( GLuint q = 0; q < l; ++q )
+		{
+			denom +=
+				EvalBSplineBasisFunction(p, 3, u) *
+				EvalBSplineBasisFunction(q, 3, v) * weights[p] * weights[q];
+		}
+	}
+
+	if( denom > 1e-5f )
+	{
+		for( GLuint i = 0; i < k; ++i )
+		{
+			for( GLuint j = 0; j < l; ++j )
+			{
+				nom =
+					EvalBSplineBasisFunction(i, 3, u) *
+					EvalBSplineBasisFunction(j, 3, v) * weights[i] * weights[j];
+
+				nom /= denom;
+
+				out[0] += controlpoints[i][0] * nom;
+				out[1] += (controlpoints[i][1] + controlpoints[j][1]) * 0.5f * nom;
+				out[2] += controlpoints[j][0] * nom;
+			}
+		}
+	}
+}
+
+static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
+{
+	GLsizei numcvs = sizeof(controlpoints) / sizeof(controlpoints[0]);
+	GLsizei tile, row, col;
+
+	for( GLuint i = 0; i < numsplinevertices; ++i )
+	{
+		for( GLuint j = 0; j < numsplinevertices; ++j )
+		{
+			EvaluateNURBSSurface(
+				outvert[i * numsplinevertices + j],
+				(float)i / (numsplinevertices - 1),
+				(float)j / (numsplinevertices - 1));
+		}
+	}
+
+	for( GLuint i = 0; i < numsurfaceindices; i += 6 )
+	{
+		tile = i / 6;
+		row = tile / NUM_SEGMENTS;
+		col = tile % NUM_SEGMENTS;
+
+		outind[i + 0] = outind[i + 3]	= row * numsplinevertices + col;
+		outind[i + 2]					= (row + 1) * numsplinevertices + col;
+		outind[i + 1] = outind[i + 5]	= (row + 1) * numsplinevertices + col + 1;
+		outind[i + 4]					= row * numsplinevertices + col + 1;
 	}
 }
 
@@ -182,6 +311,16 @@ void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severi
 
 bool InitScene()
 {
+	float		(*vdata)[3] = 0;
+	GLushort*	idata = 0;
+	GLuint*		idata32 = 0;
+
+	OpenGLVertexElement decl[] =
+	{
+		{ 0, 0, GLDECLTYPE_FLOAT3, GLDECLUSAGE_POSITION, 0 },
+		{ 0xff, 0, 0, 0, 0 }
+	};
+
 	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures(hdc);
 
@@ -205,13 +344,15 @@ bool InitScene()
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
 
-	// buffer for a nice and useless grid
-	glGenBuffers(1, &gridvb);
+	// create grid & control poly
+	if( !GLCreateMesh(44 + numcontrolvertices, numcontrolindices, GLMESH_DYNAMIC, decl, &supportlines) )
+	{
+		MYERROR("Could not create mesh");
+		return false;
+	}
 
-	glBindBuffer(GL_ARRAY_BUFFER, gridvb);
-	glBufferData(GL_ARRAY_BUFFER, 4 * 11 * 12, 0, GL_STATIC_DRAW);
-
-	float (*vdata)[3] = (float (*)[3])glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	supportlines->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&vdata);
+	supportlines->LockIndexBuffer(0, 0, GLLOCK_DISCARD, (void**)&idata);
 
 	for( int i = 0; i < 22; i += 2 )
 	{
@@ -220,110 +361,71 @@ bool InitScene()
 
 		vdata[i][1] = 0;
 		vdata[i + 1][1] = 10;
+
+		vdata[i + 22][1] = vdata[i + 23][1] = (float)(i / 2);
+		vdata[i + 22][2] = vdata[i + 23][2] = 0;
+
+		vdata[i + 22][0] = 0;
+		vdata[i + 23][0] = 10;
 	}
 
-	vdata += 22;
+	vdata += 44;
 
-	for( int i = 0; i < 22; i += 2 )
-	{
-		vdata[i][1] = vdata[i + 1][1] = (float)(i / 2);
-		vdata[i][2] = vdata[i + 1][2] = 0;
-
-		vdata[i][0] = 0;
-		vdata[i + 1][0] = 10;
-	}
-
-	glUnmapBuffer(GL_ARRAY_BUFFER);
-
-	glGenVertexArrays(1, &gridvao);
-	glBindVertexArray(gridvao);
-	{
-		glBindBuffer(GL_ARRAY_BUFFER, gridvb);
-
-		glEnableVertexAttribArray(GLDECLUSAGE_POSITION);
-		glVertexAttribPointer(GLDECLUSAGE_POSITION, 3, GL_FLOAT, GL_FALSE, 12, 0);
-	}
-	glBindVertexArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	// buffer for control points
-	glGenBuffers(1, &controlvb);
-	glGenBuffers(1, &controlib);
-
-	glBindBuffer(GL_ARRAY_BUFFER, controlvb);
-	glBufferData(GL_ARRAY_BUFFER, numcontrolvertices * 12, 0, GL_DYNAMIC_DRAW);
-
-	vdata = (float (*)[3])glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-
-	for( GLsizei i = 0; i < numsplinevertices; ++i )
+	for( GLsizei i = 0; i < numcontrolvertices; ++i )
 	{
 		vdata[i][0] = controlpoints[i][0];
 		vdata[i][1] = controlpoints[i][1];
 		vdata[i][2] = controlpoints[i][2];
 	}
 
-	glUnmapBuffer(GL_ARRAY_BUFFER);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, controlib);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, numcontrolindices * 2, 0, GL_STATIC_DRAW);
-
-	unsigned short* idata = (unsigned short*)glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-
 	for( GLsizei i = 0; i < numcontrolindices; i += 2 )
 	{
-		idata[i] = i / 2;
-		idata[i + 1] = i / 2 + 1;
+		idata[i] = 44 + i / 2;
+		idata[i + 1] = 44 + i / 2 + 1;
 	}
 
-	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+	supportlines->UnlockIndexBuffer();
+	supportlines->UnlockVertexBuffer();
 
-	glGenVertexArrays(1, &controlvao);
-	glBindVertexArray(controlvao);
+	OpenGLAttributeRange table[] =
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, controlvb);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, controlib);
+		{ GLPT_LINELIST, 0, 0, 0, 0, 44 },
+		{ GLPT_LINELIST, 1, 0, numcontrolindices, 44, numcontrolvertices }
+	};
 
-		glEnableVertexAttribArray(GLDECLUSAGE_POSITION);
-		glVertexAttribPointer(GLDECLUSAGE_POSITION, 3, GL_FLOAT, GL_FALSE, 12, 0);
-	}
-	glBindVertexArray(0);
+	supportlines->SetAttributeTable(table, 2);
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	// buffer for spline
-	glGenBuffers(1, &splinevb);
-	glGenBuffers(1, &splineib);
-
-	glBindBuffer(GL_ARRAY_BUFFER, splinevb);
-	glBufferData(GL_ARRAY_BUFFER, numsplinevertices * 12, 0, GL_STATIC_DRAW);
-
-	vdata = (float (*)[3])glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, splineib);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, numsplineindices * 2, 0, GL_STATIC_DRAW);
-
-	idata = (unsigned short*)glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-
-	Tessellate(vdata, idata);
-
-	glUnmapBuffer(GL_ARRAY_BUFFER);
-	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-
-	glGenVertexArrays(1, &splinevao);
-	glBindVertexArray(splinevao);
+	// create spline mesh
+	if( !GLCreateMesh(numsplinevertices, numsplineindices, 0, decl, &curve) )
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, splinevb);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, splineib);
-
-		glEnableVertexAttribArray(GLDECLUSAGE_POSITION);
-		glVertexAttribPointer(GLDECLUSAGE_POSITION, 3, GL_FLOAT, GL_FALSE, 12, 0);
+		MYERROR("Could not create curve");
+		return false;
 	}
-	glBindVertexArray(0);
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	curve->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&vdata);
+	curve->LockIndexBuffer(0, 0, GLLOCK_DISCARD, (void**)&idata);
+
+	TessellateCurve(vdata, idata);
+
+	curve->UnlockIndexBuffer();
+	curve->UnlockVertexBuffer();
+
+	curve->GetAttributeTable()->PrimitiveType = GLPT_LINELIST;
+
+	// create surface
+	if( !GLCreateMesh(numsurfacevertices, numsurfaceindices, GLMESH_32BIT, decl, &surface) )
+	{
+		MYERROR("Could not create surface");
+		return false;
+	}
+
+	surface->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&vdata);
+	surface->LockIndexBuffer(0, 0, GLLOCK_DISCARD, (void**)&idata32);
+
+	TessellateSurface(vdata, idata32);
+
+	surface->UnlockIndexBuffer();
+	surface->UnlockVertexBuffer();
 
 	// load effects
 	if( !GLCreateEffectFromFile("../media/shadersGL/color.vert", "../media/shadersGL/renderpoints.geom", "../media/shadersGL/color.frag", &renderpoints) )
@@ -338,7 +440,13 @@ bool InitScene()
 		return false;
 	}
 
-	float angles[2] = { -0.25f, 0.7f };
+	if( !GLCreateEffectFromFile("../media/shadersGL/rendersurface.vert", 0, "../media/shadersGL/rendersurface.frag", &rendersurface) )
+	{
+		MYERROR("Could not load surface renderer shader");
+		return false;
+	}
+
+	float angles[2] = { 0, 0 }; //{ -0.25f, 0.7f };
 	cameraangle = angles;
 
 	return true;
@@ -348,30 +456,10 @@ void UninitScene()
 {
 	SAFE_DELETE(renderpoints);
 	SAFE_DELETE(renderlines);
-
-	if( splinevao )
-		glDeleteVertexArrays(1, &splinevao);
-
-	if( controlvao )
-		glDeleteVertexArrays(1, &controlvao);
-
-	if( gridvao )
-		glDeleteVertexArrays(1, &gridvao);
-
-	if( gridvb )
-		glDeleteBuffers(1, &gridvb);
-
-	if( controlvb )
-		glDeleteBuffers(1, &controlvb);
-
-	if( controlib )
-		glDeleteBuffers(1, &controlib);
-
-	if( splinevb )
-		glDeleteBuffers(1, &splinevb);
-
-	if( splineib )
-		glDeleteBuffers(1, &splineib);
+	SAFE_DELETE(rendersurface);
+	SAFE_DELETE(supportlines);
+	SAFE_DELETE(surface);
+	SAFE_DELETE(curve);
 
 	GLKillAnyRogueObject();
 }
@@ -388,10 +476,6 @@ void UpdateControlPoints(float mx, float my)
 	float	radius = 10.0f / (screenheight / 10);
 
 	ConvertToSplineViewport(sspx, sspy);
-
-	// convert to spline coordinate system (10x10)
-	//sspx = mx / (screenheight / 10);
-	//sspy = (screenheight - my - 1) / (screenheight / 10);
 
 	if( selectedcontrolpoint == -1 )
 	{
@@ -414,18 +498,17 @@ void UpdateControlPoints(float mx, float my)
 		controlpoints[selectedcontrolpoint][0] = GLMin<float>(GLMax<float>(selectiondx + sspx, 0), 10);
 		controlpoints[selectedcontrolpoint][1] = GLMin<float>(GLMax<float>(selectiondy + sspy, 0), 10);
 
-		glBindBuffer(GL_ARRAY_BUFFER, controlvb);
+		float* data = 0;
 
-		float* data = (float*)glMapBufferRange(
-			GL_ARRAY_BUFFER, selectedcontrolpoint * 3 * sizeof(float),
-			3 * sizeof(float), GL_MAP_WRITE_BIT|GL_MAP_INVALIDATE_RANGE_BIT);
+		supportlines->LockVertexBuffer(
+			(44 + selectedcontrolpoint) * supportlines->GetNumBytesPerVertex(),
+			supportlines->GetNumBytesPerVertex(), GLLOCK_DISCARD, (void**)&data);
 
 		data[0] = controlpoints[selectedcontrolpoint][0];
 		data[1] = controlpoints[selectedcontrolpoint][1];
 		data[2] = controlpoints[selectedcontrolpoint][2];
 
-		glUnmapBuffer(GL_ARRAY_BUFFER);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		supportlines->UnlockVertexBuffer();
 	}
 }
 //*************************************************************************************************************
@@ -438,8 +521,12 @@ void Update(float delta)
 	{
 		UpdateControlPoints((float)mousex, (float)mousey);
 
-		cameraangle.curr[0] += mousedx * 0.004f;
-		cameraangle.curr[1] += mousedy * 0.004f;
+		if( (mousex >= screenwidth - 330 && mousex <= screenwidth - 10) &&
+			(mousey >= 10 && mousey <= 260) )
+		{
+			cameraangle.curr[0] += mousedx * 0.004f;
+			cameraangle.curr[1] += mousedy * 0.004f;
+		}
 	}
 	else
 		selectedcontrolpoint = -1;
@@ -459,12 +546,21 @@ void Render(float alpha, float elapsedtime)
 	OpenGLColor	splinecolor(0xff000000);
 
 	float		world[16];
+	float		view[16];
 	float		proj[16];
-	float		pointsize[2] = { 10.0f / screenwidth, 10.0f / screenheight };
-	float		grthickness[2] = { 1.5f / screenwidth, 1.5f / screenheight };
-	float		cvthickness[2] = { 2.0f / screenwidth, 2.0f / screenheight };
-	float		spthickness[2] = { 3.0f / screenwidth, 3.0f / screenheight };
-	float		spviewport[] = { 0, 0, (float)screenwidth, (float)screenheight };
+	float		viewproj[16];
+
+	float		pointsize[2]	= { 10.0f / screenwidth, 10.0f / screenheight };
+	float		grthickness[2]	= { 1.5f / screenwidth, 1.5f / screenheight };
+	float		cvthickness[2]	= { 2.0f / screenwidth, 2.0f / screenheight };
+	float		spthickness[2]	= { 3.0f / screenwidth, 3.0f / screenheight };
+	float		spviewport[]	= { 0, 0, (float)screenwidth, (float)screenheight };
+
+	float		eye[3]			= { 5, 5, 15 };
+	float		look[3]			= { 5, 5, 5 };
+	float		up[3]			= { 0, 1, 0 };
+	float		fwd[3];
+	float		orient[2];
 
 	// play with ortho matrix instead of viewport (line thickness remains constant)
 	ConvertToSplineViewport(spviewport[0], spviewport[1]);
@@ -485,24 +581,19 @@ void Render(float alpha, float elapsedtime)
 
 	renderlines->Begin();
 	{
-		glBindVertexArray(gridvao);
-		glDrawArrays(GL_LINES, 0, 44);
+		supportlines->DrawSubset(0);
 
 		renderlines->SetVector("color", &cvcolor.r);
 		renderlines->SetVector("lineThickness", cvthickness);
 		renderlines->CommitChanges();
 
-		glBindVertexArray(controlvao);
-		glDrawElements(GL_LINES, numcontrolindices, GL_UNSIGNED_SHORT, 0);
+		supportlines->DrawSubset(1);
 
 		renderlines->SetVector("lineThickness", spthickness);
 		renderlines->SetVector("color", &splinecolor.r);
 		renderlines->CommitChanges();
 
-		glBindVertexArray(splinevao);
-		glDrawElements(GL_LINES, numsplineindices, GL_UNSIGNED_SHORT, 0);
-
-		glBindVertexArray(0);
+		curve->DrawSubset(0);
 	}
 	renderlines->End();
 
@@ -513,13 +604,12 @@ void Render(float alpha, float elapsedtime)
 
 	renderpoints->Begin();
 	{
-		glBindVertexArray(controlvao);
-		glDrawArrays(GL_POINTS, 0, numcontrolvertices);
-		glBindVertexArray(0);
+		glBindVertexArray(supportlines->GetVertexLayout());
+		glDrawArrays(GL_POINTS, 44, numcontrolvertices);
 	}
 	renderpoints->End();
 
-	// render surface in a smaller window
+	// render surface in a smaller viewport
 	glEnable(GL_SCISSOR_TEST);
 	glScissor(screenwidth - 330, screenheight - 250, 320, 240);
 
@@ -530,7 +620,28 @@ void Render(float alpha, float elapsedtime)
 	glEnable(GL_DEPTH_TEST);
 	glViewport(screenwidth - 330, screenheight - 250, 320, 240);
 
-	// TODO: draw surface
+	cameraangle.smooth(orient, alpha);
+
+	GLVec3Subtract(fwd, look, eye);
+	GLMatrixRotationYawPitchRoll(view, orient[0], orient[1], 0);
+	GLVec3Transform(fwd, fwd, view);
+	GLVec3Subtract(eye, look, fwd);
+
+	GLMatrixPerspectiveRH(proj, M_PI / 3, 4.0f / 3.0f, 0.1f, 50.0f);
+	GLMatrixLookAtRH(view, eye, look, up);
+	GLMatrixMultiply(viewproj, view, proj);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	rendersurface->SetMatrix("matViewProj", viewproj);
+	rendersurface->SetMatrix("matWorld", world);
+
+	rendersurface->Begin();
+	{
+		surface->DrawSubset(0);
+	}
+	rendersurface->End();
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 #ifdef _DEBUG
 	// check errors

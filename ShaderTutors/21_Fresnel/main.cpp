@@ -38,6 +38,7 @@ LPD3DXEFFECT					fresnel			= NULL;
 
 DXObject*						object1			= NULL;
 DXObject*						object2			= NULL;
+DXObject*						object3			= NULL;
 DXObject*						currentobj		= NULL;
 LPDIRECT3DTEXTURE9				texture1		= NULL;
 LPDIRECT3DTEXTURE9				texture2		= NULL;
@@ -90,6 +91,7 @@ HRESULT InitScene()
 
 	object1 = new DXObject(device);
 	object2 = new DXObject(device);
+	object3 = new DXObject(device);
 
 	if( !object1->Load("../media/meshes/knot.X") )
 	{
@@ -99,7 +101,13 @@ HRESULT InitScene()
 
 	if( !object2->Load("../media/meshes/teapot.X") )
 	{
-		MYERROR("Could not load object1");
+		MYERROR("Could not load object2");
+		return E_FAIL;
+	}
+
+	if( !object3->Load("../media/meshes/skullocc3.X") )
+	{
+		MYERROR("Could not load object3");
 		return E_FAIL;
 	}
 	
@@ -133,6 +141,7 @@ void UninitScene()
 {
 	delete object1;
 	delete object2;
+	delete object3;
 	
 	SAFE_RELEASE(normalsurf);
 	SAFE_RELEASE(positionsurf);
@@ -154,13 +163,19 @@ void KeyPress(WPARAM wparam)
 {
 	switch( wparam )
 	{
-	case 0x30:
-		if( currentobj == object1 )
-			currentobj = object2;
-		else if( tech != 2 )
-			currentobj = object1;
+	case 0x30: {
+		DXObject* objects[] = { object1, object2, object3 };
+		int count = sizeof(objects) / sizeof(objects[0]);
+		int index = 0;
 
-		break;
+		for( ; index < count; ++index )
+		{
+			if( currentobj == objects[index] )
+				break;
+		}
+
+		currentobj = objects[(index + 1) % count];
+		} break;
 
 	case 0x31:
 		fresnel->SetTechnique("reflection");
@@ -247,8 +262,13 @@ void Render(float alpha, float elapsedtime)
 
 	if( currentobj == object1 )
 		D3DXMatrixScaling(&inv, 0.3f, 0.3f, 0.3f);
-	else
+	else if( currentobj == object2 )
 		D3DXMatrixScaling(&inv, 0.5f, 0.5f, 0.5f);
+	else if( currentobj == object3 )
+	{
+		D3DXMatrixScaling(&inv, 0.15f, 0.15f, 0.15f);
+		inv._42 = -0.5f;
+	}
 
 	D3DXMatrixRotationYawPitchRoll(&world, orient2.x, orient2.y, 0);
 	D3DXMatrixMultiply(&world, &inv, &world);

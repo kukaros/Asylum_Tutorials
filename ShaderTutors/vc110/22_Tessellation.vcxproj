@@ -26,6 +26,8 @@
     <None Include="..\media\shadersGL\color.vert" />
     <None Include="..\media\shadersGL\renderlines.geom" />
     <None Include="..\media\shadersGL\renderpoints.geom" />
+    <None Include="..\media\shadersGL\rendersurface.frag" />
+    <None Include="..\media\shadersGL\rendersurface.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>

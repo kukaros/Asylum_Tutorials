@@ -305,15 +305,17 @@ float OpenGLAABox::Farthest(float from[4]) const
 
 OpenGLMesh::OpenGLMesh()
 {
+	numsubsets		= 0;
 	numvertices		= 0;
 	numindices		= 0;
 	subsettable		= 0;
 	vertexbuffer	= 0;
 	indexbuffer		= 0;
 	vertexlayout	= 0;
+	meshoptions		= 0;
 
-	vertexdata_locked.ptr	= 0;
-	indexdata_locked.ptr	= 0;
+	vertexdata_locked.ptr = 0;
+	indexdata_locked.ptr = 0;
 }
 
 OpenGLMesh::~OpenGLMesh()
@@ -346,11 +348,26 @@ void OpenGLMesh::Destroy()
 		free(subsettable);
 		subsettable = 0;
 	}
+
+	numsubsets = 0;
 }
 
-bool OpenGLMesh::LockVertexBuffer(GLuint flags, void** data)
+bool OpenGLMesh::LockVertexBuffer(GLuint offset, GLuint size, GLuint flags, void** data)
 {
-	vertexdata_locked.ptr = malloc(numvertices * vertexdecl.stride);
+	if( offset >= numvertices * vertexdecl.Stride )
+	{
+		(*data) = 0;
+		return false;
+	}
+
+	if( size == 0 )
+		size = numvertices * vertexdecl.Stride - offset;
+
+	if( flags == 0 )
+		flags = GL_MAP_READ_BIT|GL_MAP_WRITE_BIT;
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	vertexdata_locked.ptr = glMapBufferRange(GL_ARRAY_BUFFER, offset, size, flags);
 	vertexdata_locked.flags = flags;
 
 	if( !vertexdata_locked.ptr )
@@ -360,11 +377,24 @@ bool OpenGLMesh::LockVertexBuffer(GLuint flags, void** data)
 	return true;
 }
 
-bool OpenGLMesh::LockIndexBuffer(GLuint flags, void** data)
+bool OpenGLMesh::LockIndexBuffer(GLuint offset, GLuint size, GLuint flags, void** data)
 {
-	size_t istride = ((numvertices >= 0xffff) ? 4 : 2);
+	size_t istride = ((meshoptions & GLMESH_32BIT) ? 4 : 2);
 
-	indexdata_locked.ptr = malloc(numindices * istride);
+	if( offset >= numindices * istride )
+	{
+		(*data) = 0;
+		return false;
+	}
+
+	if( size == 0 )
+		size = numindices * istride - offset;
+
+	if( flags == 0 )
+		flags = GL_MAP_READ_BIT|GL_MAP_WRITE_BIT;
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexbuffer);
+	indexdata_locked.ptr = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, offset, size, flags);
 	indexdata_locked.flags = flags;
 
 	if( !indexdata_locked.ptr )
@@ -376,20 +406,33 @@ bool OpenGLMesh::LockIndexBuffer(GLuint flags, void** data)
 
 void OpenGLMesh::DrawSubset(GLuint subset)
 {
-	glBindVertexArray(vertexlayout);
-	glDrawElements(GL_TRIANGLES, numindices, (numvertices >= 0xffff) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0);
-	glBindVertexArray(0);
+	if( vertexlayout == 0 || numvertices == 0 )
+		return;
+
+	if( subsettable && subset < numsubsets )
+	{
+		const OpenGLAttributeRange& attr = subsettable[subset];
+		GLenum itype = (meshoptions & GLMESH_32BIT) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
+
+		glBindVertexArray(vertexlayout);
+
+		if( attr.IndexCount == 0 )
+			glDrawArrays(attr.PrimitiveType, attr.VertexStart, attr.VertexCount);
+		else
+		{
+			if( attr.VertexCount == 0 )
+				glDrawElements(attr.PrimitiveType, attr.IndexCount, itype, (char*)0 + attr.IndexStart);
+			else
+				glDrawRangeElements(attr.PrimitiveType, attr.VertexStart, attr.VertexStart + attr.VertexCount - 1, attr.IndexCount, itype, (char*)0 + attr.IndexStart);
+		}
+	}
 }
 
 void OpenGLMesh::UnlockVertexBuffer()
 {
 	if( vertexdata_locked.ptr && vertexbuffer != 0 )
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		glBufferData(GL_ARRAY_BUFFER, numvertices * vertexdecl.stride, vertexdata_locked.ptr, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		free(vertexdata_locked.ptr);
+		glUnmapBuffer(GL_ARRAY_BUFFER);
 		vertexdata_locked.ptr = 0;
 	}
 }
@@ -398,13 +441,7 @@ void OpenGLMesh::UnlockIndexBuffer()
 {
 	if( indexdata_locked.ptr && indexbuffer != 0 )
 	{
-		size_t istride = ((numvertices >= 0xffff) ? 4 : 2);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexbuffer);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, numindices * istride, indexdata_locked.ptr, GL_STATIC_DRAW);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-		free(indexdata_locked.ptr);
+		glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 		indexdata_locked.ptr = 0;
 	}
 }
@@ -416,6 +453,8 @@ void OpenGLMesh::SetAttributeTable(const OpenGLAttributeRange* table, GLuint siz
 
 	subsettable = (OpenGLAttributeRange*)malloc(size * sizeof(OpenGLAttributeRange));
 	memcpy(subsettable, table, size * sizeof(OpenGLAttributeRange));
+
+	numsubsets = size;
 }
 
 // *****************************************************************************************************************************
@@ -973,7 +1012,7 @@ void OpenGLScreenQuad::Draw()
 //
 // *****************************************************************************************************************************
 
-bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh)
+bool GLCreateMesh(GLuint numvertices, GLuint numindices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh)
 {
 	OpenGLMesh* glmesh = new OpenGLMesh();
 
@@ -981,36 +1020,60 @@ bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVer
 	glGenBuffers(1, &glmesh->indexbuffer);
 	glGenVertexArrays(1, &glmesh->vertexlayout);
 
-	glmesh->numvertices = numvertices;
-	glmesh->numindices = numfaces * 3;
-	glmesh->vertexdecl.stride = 0;
+	if( numvertices >= 0xffff )
+		options |= GLMESH_32BIT;
+
+	glmesh->meshoptions					= options;
+	glmesh->numsubsets					= 1;
+	glmesh->numvertices					= numvertices;
+	glmesh->numindices					= numindices;
+	glmesh->subsettable					= (OpenGLAttributeRange*)malloc(sizeof(OpenGLAttributeRange));
+
+	glmesh->subsettable->AttribId		= 0;
+	glmesh->subsettable->IndexCount		= numindices;
+	glmesh->subsettable->IndexStart		= 0;
+	glmesh->subsettable->PrimitiveType	= GLPT_TRIANGLELIST;
+	glmesh->subsettable->VertexCount	= 0;	// draw entire buffer
+	glmesh->subsettable->VertexStart	= 0;
+
+	glmesh->vertexdecl.Stride = 0;
+
+	// calculate stride
+	for( int i = 0; i < 16; ++i )
+	{
+		OpenGLVertexElement& elem = decl[i];
+
+		if( elem.Stream == 0xff )
+			break;
+
+		switch( elem.Type )
+		{
+		case GLDECLTYPE_GLCOLOR:
+		case GLDECLTYPE_FLOAT1:		glmesh->vertexdecl.Stride += 4;		break;
+		case GLDECLTYPE_FLOAT2:		glmesh->vertexdecl.Stride += 8;		break;
+		case GLDECLTYPE_FLOAT3:		glmesh->vertexdecl.Stride += 12;	break;
+		case GLDECLTYPE_FLOAT4:		glmesh->vertexdecl.Stride += 16;	break;
+
+		default:
+			break;
+		}
+	}
+
+	// allocate storage
+	GLenum usage = ((options & GLMESH_DYNAMIC) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
+	GLuint istride = ((options & GLMESH_32BIT) ? 4 : 2);
+
+	glBindBuffer(GL_ARRAY_BUFFER, glmesh->vertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER, numvertices * glmesh->vertexdecl.Stride, 0, usage);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glmesh->indexbuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, numindices * istride, 0, usage);
 
 	// create vertex layout
 	glBindVertexArray(glmesh->vertexlayout);
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, glmesh->vertexbuffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glmesh->indexbuffer);
-
-		// calculate stride
-		for( int i = 0; i < 16; ++i )
-		{
-			OpenGLVertexElement& elem = decl[i];
-
-			if( elem.Stream == 0xff )
-				break;
-
-			switch( elem.Type )
-			{
-			case GLDECLTYPE_GLCOLOR:
-			case GLDECLTYPE_FLOAT1:		glmesh->vertexdecl.stride += 4;		break;
-			case GLDECLTYPE_FLOAT2:		glmesh->vertexdecl.stride += 8;		break;
-			case GLDECLTYPE_FLOAT3:		glmesh->vertexdecl.stride += 12;	break;
-			case GLDECLTYPE_FLOAT4:		glmesh->vertexdecl.stride += 16;	break;
-
-			default:
-				break;
-			}
-		}
 
 		// bind locations
 		for( int i = 0; i < 16; ++i )
@@ -1025,20 +1088,20 @@ bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVer
 			switch( elem.Usage )
 			{
 			case GLDECLUSAGE_POSITION:
-				glVertexAttribPointer(elem.Usage, (elem.Type == GLDECLTYPE_FLOAT4 ? 4 : 3), GL_FLOAT, GL_FALSE, glmesh->vertexdecl.stride, (const GLvoid*)elem.Offset);
+				glVertexAttribPointer(elem.Usage, (elem.Type == GLDECLTYPE_FLOAT4 ? 4 : 3), GL_FLOAT, GL_FALSE, glmesh->vertexdecl.Stride, (const GLvoid*)elem.Offset);
 				break;
 
 			case GLDECLUSAGE_COLOR:
-				glVertexAttribPointer(elem.Usage, 4, GL_UNSIGNED_BYTE, GL_TRUE, glmesh->vertexdecl.stride, (const GLvoid*)elem.Offset);
+				glVertexAttribPointer(elem.Usage, 4, GL_UNSIGNED_BYTE, GL_TRUE, glmesh->vertexdecl.Stride, (const GLvoid*)elem.Offset);
 				break;
 
 			case GLDECLUSAGE_NORMAL:
-				glVertexAttribPointer(elem.Usage, 3, GL_FLOAT, GL_FALSE, glmesh->vertexdecl.stride, (const GLvoid*)elem.Offset);
+				glVertexAttribPointer(elem.Usage, 3, GL_FLOAT, GL_FALSE, glmesh->vertexdecl.Stride, (const GLvoid*)elem.Offset);
 				break;
 
 			case GLDECLUSAGE_TEXCOORD:
 				// haaack...
-				glVertexAttribPointer(elem.Usage + elem.UsageIndex, (elem.Type + 1), GL_FLOAT, GL_FALSE, glmesh->vertexdecl.stride, (const GLvoid*)elem.Offset);
+				glVertexAttribPointer(elem.Usage + elem.UsageIndex, (elem.Type + 1), GL_FLOAT, GL_FALSE, glmesh->vertexdecl.Stride, (const GLvoid*)elem.Offset);
 				break;
 
 			// TODO:
@@ -1159,16 +1222,16 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 	decl[numelems].UsageIndex = 0;
 
 	// create mesh
-	success = GLCreateMesh(numindices / 3, numvertices, 0, decl, mesh);
+	success = GLCreateMesh(numvertices, numindices, 0, decl, mesh);
 
 	if( !success )
 		goto _fail;
 
-	(*mesh)->LockVertexBuffer(0, &data);
+	(*mesh)->LockVertexBuffer(0, 0, GLLOCK_DISCARD, &data);
 	fread(data, vstride, numvertices, infile);
 	(*mesh)->UnlockVertexBuffer();
 
-	(*mesh)->LockIndexBuffer(0, &data);
+	(*mesh)->LockIndexBuffer(0, 0, GLLOCK_DISCARD, &data);
 	fread(data, istride, numindices, infile);
 	(*mesh)->UnlockIndexBuffer();
 
@@ -1189,15 +1252,14 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 		OpenGLMaterial& mat = (*materials)[i];
 
 		mat.TextureFile = 0;
-		subset.AttribId = i;
 
-		fread(&subset.FaceStart, 4, 1, infile);
+		subset.AttribId = i;
+		subset.PrimitiveType = GLPT_TRIANGLELIST;
+
+		fread(&subset.IndexStart, 4, 1, infile);
 		fread(&subset.VertexStart, 4, 1, infile);
 		fread(&subset.VertexCount, 4, 1, infile);
-		fread(&subset.FaceCount, 4, 1, infile);
-
-		subset.FaceCount /= 3;
-		subset.FaceStart /= 3;
+		fread(&subset.IndexCount, 4, 1, infile);
 
 		fread(bbmin, sizeof(float), 3, infile);
 		fread(bbmax, sizeof(float), 3, infile);

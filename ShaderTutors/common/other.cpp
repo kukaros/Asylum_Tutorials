@@ -180,9 +180,12 @@ int main(int argc, char* argv[])
 		sizeof(WNDCLASSEX),
 		CS_CLASSDC,
 		(WNDPROC)WndProc,
-		0L,    0L,
+		0L,
+		0L,
 		GetModuleHandle(NULL),
-		NULL, NULL, NULL, NULL, "TestClass", NULL
+		NULL,
+		LoadCursor(0, IDC_ARROW),
+		NULL, NULL, "TestClass", NULL
 	};
 
 	RegisterClassEx(&wc);

@@ -52,6 +52,25 @@ enum OpenGLFormat
 	GLFMT_A32B32G32R32F
 };
 
+enum OpenGLPrimitiveType
+{
+	GLPT_POINTLIST = GL_POINTS,
+	GLPT_LINELIST = GL_LINES,
+	GLPT_TRIANGLELIST = GL_TRIANGLES
+};
+
+enum OpenGLLockFlags
+{
+	GLLOCK_READONLY = GL_MAP_READ_BIT,
+	GLLOCK_DISCARD = GL_MAP_INVALIDATE_RANGE_BIT|GL_MAP_WRITE_BIT
+};
+
+enum OpenGLMeshFlags
+{
+	GLMESH_DYNAMIC = 1,
+	GLMESH_32BIT = 2
+};
+
 class OpenGLColor
 {
 public:
@@ -89,14 +108,15 @@ struct OpenGLVertexElement
 
 struct OpenGLVertexDeclaration
 {
-	GLuint stride;
+	GLuint		Stride;
 };
 
 struct OpenGLAttributeRange
 {
+	GLenum		PrimitiveType;	// OpenGLPrimitiveType
 	GLuint		AttribId;
-	GLuint		FaceStart;
-	GLuint		FaceCount;
+	GLuint		IndexStart;
+	GLuint		IndexCount;
 	GLuint		VertexStart;
 	GLuint		VertexCount;
 };
@@ -135,7 +155,7 @@ public:
 };
 
 /**
- * \brief Similar to ID3DXMesh. Core profile only.
+ * \brief Similar to ID3DXMesh. One stream, core profile only.
  */
 class OpenGLMesh
 {
@@ -152,6 +172,8 @@ private:
 	OpenGLAttributeRange*		subsettable;
 	OpenGLVertexDeclaration		vertexdecl;
 	OpenGLAABox					boundingbox;
+	GLuint						meshoptions;
+	GLuint						numsubsets;
 	GLuint						numvertices;
 	GLuint						numindices;
 	GLuint						vertexbuffer;
@@ -168,16 +190,28 @@ private:
 public:
 	~OpenGLMesh();
 
-	bool LockVertexBuffer(GLuint flags, void** data);
-	bool LockIndexBuffer(GLuint flags, void** data);
+	bool LockVertexBuffer(GLuint offset, GLuint size, GLuint flags, void** data);
+	bool LockIndexBuffer(GLuint offset, GLuint size, GLuint flags, void** data);
 
 	void DrawSubset(GLuint subset);
 	void UnlockVertexBuffer();
 	void UnlockIndexBuffer();
 	void SetAttributeTable(const OpenGLAttributeRange* table, GLuint size);
 
+	inline OpenGLAttributeRange* GetAttributeTable() {
+		return subsettable;
+	}
+
 	inline const OpenGLAABox& GetBoundingBox() const {
 		return boundingbox;
+	}
+
+	inline size_t GetNumBytesPerVertex() const {
+		return vertexdecl.Stride;
+	}
+
+	inline GLuint GetVertexLayout() const {
+		return vertexlayout;
 	}
 
 	inline GLuint GetVertexBuffer() const {
@@ -304,7 +338,7 @@ public:
 
 // content functions
 bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out);
-bool GLCreateMesh(GLuint numfaces, GLuint numvertices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
+bool GLCreateMesh(GLuint numvertices, GLuint numindices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
 bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
 bool GLCreateEffectFromFile(const char* vsfile, const char* gsfile, const char* psfile, OpenGLEffect** effect);
 bool GLCreateComputeProgramFromFile(const char* csfile, const char* defines, OpenGLEffect** effect);
