@@ -101,7 +101,7 @@ const int numobjects = sizeof(objects) / sizeof(SceneObject);
 void UpdateParticles(float dt, bool generate);
 void RenderScene(OpenGLEffect* effect);
 
-void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userdata)
+static void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userdata)
 {
 	if( type >= GL_DEBUG_TYPE_ERROR && type <= GL_DEBUG_TYPE_PERFORMANCE )
 	{
@@ -235,18 +235,6 @@ bool InitScene()
 	// create buffers
 	workgroupsx = (screenwidth + (screenwidth % 16)) / 16;
 	workgroupsy = (screenheight + (screenheight % 16)) / 16;
-
-#ifdef _DEBUG
-	/*
-	GLint maxgroups[3];
-
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &maxgroups[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &maxgroups[1]);
-
-	if( workgroupsx > maxgroups[0] || workgroupsy > maxgroups[1] )
-		::_CrtDbgBreak();
-	*/
-#endif
 
 	size_t numtiles = workgroupsx * workgroupsy;
 	size_t headsize = 16;	// start, count, pad, pad

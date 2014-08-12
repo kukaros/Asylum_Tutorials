@@ -1,12 +1,13 @@
 //*************************************************************************************************************
 #include <Windows.h>
+#include <GdiPlus.h>
 #include <iostream>
+#include <sstream>
 
 #include "../common/glext.h"
 
 // TODO:
-// - normalok, shading
-// - alulra valami
+// - megoldani az uniform surface problemat
 // - MSAA
 
 // helper macros
@@ -26,7 +27,14 @@ extern short	mousex, mousedx;
 extern short	mousey, mousedy;
 extern short	mousedown;
 
-// sample variables
+// sample structures
+struct SurfaceVertex
+{
+	float pos[3];
+	float norm[3];
+};
+
+// curve data
 float controlpoints[][3] =
 {
 	{ 1, 1, 0 },
@@ -43,70 +51,80 @@ float weights[] =
 	1, 1, 1, 1, 1, 1, 1
 };
 
-float knot[] =
+float knots[] =
 {
 	0, 0, 0, 0, 0.4f, 0.4f, 0.4f, 1, 1, 1, 1
+	//0, 0, 0, 0, 0.25f, 0.5f, 0.75f, 1, 1, 1, 1
+	//0, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1	// BULLSHIT
 };
 
-const GLuint numcontrolvertices		= sizeof(controlpoints) / sizeof(controlpoints[0]);
-const GLuint numcontrolindices		= (numcontrolvertices - 1) * 2;
-const GLuint numknots				= sizeof(knot) / sizeof(knot[0]);
-const GLuint numsplinevertices		= NUM_SEGMENTS + 1;
-const GLuint numsplineindices		= (numsplinevertices - 1) * 2;
-const GLuint numsurfacevertices		= numsplinevertices * numsplinevertices;
-const GLuint numsurfaceindices		= NUM_SEGMENTS * NUM_SEGMENTS * 6;
+const GLuint numcontrolvertices				= sizeof(controlpoints) / sizeof(controlpoints[0]);
+const GLuint numcontrolindices				= (numcontrolvertices - 1) * 2;
+const GLuint numknots						= sizeof(knots) / sizeof(knots[0]);
 
-OpenGLEffect*	renderpoints			= 0;
-OpenGLEffect*	renderlines				= 0;
-OpenGLEffect*	rendersurface			= 0;
-OpenGLMesh*		supportlines			= 0;
-OpenGLMesh*		curve					= 0;
-OpenGLMesh*		surface					= 0;
-GLsizei			selectedcontrolpoint	= -1;
-float			selectiondx, selectiondy;
+// important variables for tessellation
+GLuint numsplinevertices					= NUM_SEGMENTS + 1;
+GLuint numsplineindices						= (numsplinevertices - 1) * 2;
+GLuint numsurfacevertices					= numsplinevertices * numsplinevertices;
+GLuint numsurfaceindices					= NUM_SEGMENTS * NUM_SEGMENTS * 6; // (numsplinevertices - 1) * (numsplinevertices - 1) * 6
+
+// sample variables
+OpenGLScreenQuad*	screenquad				= 0;
+OpenGLEffect*		renderpoints			= 0;
+OpenGLEffect*		renderlines				= 0;
+OpenGLEffect*		rendersurface			= 0;
+OpenGLEffect*		basic2D					= 0;
+OpenGLMesh*			supportlines			= 0;
+OpenGLMesh*			curve					= 0;
+OpenGLMesh*			surface					= 0;
+GLuint				text1					= 0;
+GLsizei				selectedcontrolpoint	= -1;
+float				selectiondx, selectiondy;
+bool				wireframe				= false;
+bool				fullscreen				= false;
 
 array_state<float, 2> cameraangle;
 
 // sample functions
 void UpdateControlPoints(float mx, float my);
 
-static float CalculateCoeff(GLuint i, int n, int k, float u)
+static float CalculateCoeff(GLuint i, int n, int k, GLuint span)
 {
-	float kin1	= knot[i + n + 1];
-	float ki1	= knot[i + 1];
-	float ki	= knot[i];
-	float kin	= knot[i + n];
+	float kin1	= knots[i + n + 1];
+	float ki1	= knots[i + 1];
+	float ki	= knots[i];
+	float kin	= knots[i + n];
 	float a		= 0;
 	float b		= 0;
 
 	if( n == 0 )
 	{
-		if( knot[i] <= u && u < knot[i + 1] || (u == knot[numknots - 1] && i >= numcontrolvertices - 1) )
+		if( i == span ) // || i > lastspan
 			return 1.0f;
 	}
 	else if( k == 0 )
 	{
 		if( kin1 != ki1 )
-			a = (kin1 * CalculateCoeff(i + 1, n - 1, 0, u)) / (kin1 - ki1);
+			a = (kin1 * CalculateCoeff(i + 1, n - 1, 0, span)) / (kin1 - ki1);
 
 		if( ki != kin )
-			b = (ki * CalculateCoeff(i, n - 1, 0, u) / (kin - ki));
+			b = (ki * CalculateCoeff(i, n - 1, 0, span) / (kin - ki));
 	}
 	else if( k == n )
 	{
 		if( ki != kin )
-			a = CalculateCoeff(i, n - 1, n - 1, u) / (kin - ki);
+			a = CalculateCoeff(i, n - 1, n - 1, span) / (kin - ki);
 
 		if( kin1 != ki1 )
-			b = CalculateCoeff(i + 1, n - 1, n - 1, u) / (kin1 - ki1);
+			b = CalculateCoeff(i + 1, n - 1, n - 1, span) / (kin1 - ki1);
 	}
 	else if( n > k )
 	{
 		if( ki != kin )
-			a = (CalculateCoeff(i, n - 1, k - 1, u) - ki * CalculateCoeff(i, n - 1, k, u)) / (kin - ki);
+			a = (CalculateCoeff(i, n - 1, k - 1, span) - ki * CalculateCoeff(i, n - 1, k, span)) / (kin - ki);
 
 		if( kin1 != ki1 )
-			b = (CalculateCoeff(i + 1, n - 1, k - 1, u) - kin1 * CalculateCoeff(i + 1, n - 1, k, u)) / (kin1 - ki1);
+			b = (CalculateCoeff(i + 1, n - 1, k - 1, span) - kin1 * CalculateCoeff(i + 1, n - 1, k, span)) / (kin1 - ki1);
 	}
 
 	return a - b;
@@ -116,26 +134,44 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 {
 	typedef float CoeffTable[4][4];
 
-	CoeffTable*	coeffs = new CoeffTable[numknots - 1];
+	CoeffTable*	coeffs		= new CoeffTable[numknots - 1];
+	GLuint		firstvalid	= 0xffffffff;
+	GLuint		lastvalid	= 0;
+	GLuint		lastspan;
 	GLuint		span;
 	GLuint		cp;
 	float		u;
+	float		minweight;
 	float		nom, denom;
 	float		poly[4];
+
+	// find last span
+	lastspan = numknots - 2;
+
+	while( knots[lastspan] == knots[numknots - 1] )
+		--lastspan;
+
+	// find minimum weight
+	minweight = weights[0];
+
+	for( GLuint i = 1; i < numcontrolvertices; ++i )
+		minweight = GLMin<float>(minweight, weights[i]);
+
+	minweight -= 1e-3f;
 
 	// precalculate basis function coefficients
 	for( span = 0; span < numknots - 1; ++span )
 	{
 		for( GLuint k = 0; k < 4; ++k )
 		{
-			if( span >= 3 - k && span < numcontrolvertices - k + 3 )
+			if( span >= k && span - k < numcontrolvertices )
 			{
-				cp = span - (3 - k);
+				cp = span - k;
 
-				coeffs[span][k][0] = CalculateCoeff(cp, 3, 0, knot[span]);
-				coeffs[span][k][1] = CalculateCoeff(cp, 3, 1, knot[span]);
-				coeffs[span][k][2] = CalculateCoeff(cp, 3, 2, knot[span]);
-				coeffs[span][k][3] = CalculateCoeff(cp, 3, 3, knot[span]);
+				coeffs[span][k][0] = CalculateCoeff(cp, 3, 0, span); // 1
+				coeffs[span][k][1] = CalculateCoeff(cp, 3, 1, span); // u
+				coeffs[span][k][2] = CalculateCoeff(cp, 3, 2, span); // u2
+				coeffs[span][k][3] = CalculateCoeff(cp, 3, 3, span); // u3
 			}
 			else
 			{
@@ -161,12 +197,9 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		// find span
 		for( span = 0; span < numknots - 1; ++span )
 		{
-			if( knot[span] <= u && u < knot[span + 1] )
+			if( (knots[span] <= u && u < knots[span + 1]) || (span == lastspan) )
 				break;
 		}
-
-		if( span >= numknots - 1 )
-			span = numknots - 2;
 
 		const CoeffTable& table = coeffs[span];
 
@@ -174,18 +207,24 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		denom = 0;
 
 		for( GLuint k = 0; k < 4; ++k )
-			denom += GLVec4Dot(table[k], poly);
+		{
+			cp = (span - k) % numcontrolvertices;
+			denom += GLVec4Dot(table[k], poly) * weights[cp];
+		}
 
 		// sum contributions
-		if( denom > 1e-5f )
+		if( denom > minweight )
 		{
+			firstvalid = GLMin(firstvalid, i);
+			lastvalid = GLMax(lastvalid, i);
+
 			denom = 1.0f / denom;
 
 			for( GLuint k = 0; k < 4; ++k )
 			{
 				nom = GLVec4Dot(table[k], poly);
 
-				cp = span - (3 - k) % numcontrolvertices;
+				cp = (span - k) % numcontrolvertices;
 				nom = nom * weights[cp] * denom;
 
 				outvert[i][0] += controlpoints[cp][0] * nom;
@@ -198,39 +237,68 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 	delete[] coeffs;
 
 	// fill index buffer
+	numsplinevertices = (lastvalid - firstvalid + 1);
+	numsplineindices = (numsplinevertices - 1) * 2;
+
 	for( GLuint i = 0; i < numsplineindices; i += 2 )
 	{
-		outind[i] = i / 2;
-		outind[i + 1] = i / 2 + 1;
+		outind[i] = firstvalid + i / 2;
+		outind[i + 1] = firstvalid + i / 2 + 1;
 	}
 }
 
-static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
+static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 {
 	typedef float CoeffTable[4][4];
 
-	CoeffTable*	ucoeffs = new CoeffTable[numknots - 1];
-	CoeffTable*	vcoeffs = ucoeffs; // lucky now
+	CoeffTable*	ucoeffs		= new CoeffTable[numknots - 1];
+	CoeffTable*	vcoeffs		= ucoeffs; // lucky now
+	GLuint		firstvalid	= 0xffffffff;
+	GLuint		lastvalid	= 0;
 	GLuint		uspan, vspan;
 	GLuint		cpu, cpv, index;
+	GLuint		lastuspan, lastvspan;
 	GLsizei		tile, row, col;
 	float		u, v;
+	float		minuweight, minvweight;
 	float		nom, denom;
+	float		dUnom;
+	float		dVnom;
 	float		upoly[4], vpoly[4];
+	float		dUpoly[3], dVpoly[3];
+	float		tangent[3], bitangent[3];
+	float		cp[3];
+
+	// find last span
+	lastuspan = numknots - 2;
+
+	while( knots[lastuspan] == knots[numknots - 1] )
+		--lastuspan;
+
+	lastvspan = lastuspan; // lucky
+
+	// find minimum weight
+	minuweight = weights[0];
+
+	for( GLuint i = 1; i < numcontrolvertices; ++i )
+		minuweight = GLMin<float>(minuweight, weights[i]);
+
+	minuweight -= 1e-3f;
+	minvweight = minuweight;
 
 	// precalculate basis function coefficients
 	for( uspan = 0; uspan < numknots - 1; ++uspan )
 	{
 		for( GLuint k = 0; k < 4; ++k )
 		{
-			if( uspan >= 3 - k && uspan < numcontrolvertices - k + 3 )
+			if( uspan >= k && uspan - k < numcontrolvertices )
 			{
-				cpu = uspan - (3 - k);
+				cpu = uspan - k;
 
-				ucoeffs[uspan][k][0] = CalculateCoeff(cpu, 3, 0, knot[uspan]);
-				ucoeffs[uspan][k][1] = CalculateCoeff(cpu, 3, 1, knot[uspan]);
-				ucoeffs[uspan][k][2] = CalculateCoeff(cpu, 3, 2, knot[uspan]);
-				ucoeffs[uspan][k][3] = CalculateCoeff(cpu, 3, 3, knot[uspan]);
+				ucoeffs[uspan][k][0] = CalculateCoeff(cpu, 3, 0, uspan);
+				ucoeffs[uspan][k][1] = CalculateCoeff(cpu, 3, 1, uspan);
+				ucoeffs[uspan][k][2] = CalculateCoeff(cpu, 3, 2, uspan);
+				ucoeffs[uspan][k][3] = CalculateCoeff(cpu, 3, 3, uspan);
 			}
 			else
 			{
@@ -251,22 +319,27 @@ static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
 		upoly[2] = u * u;
 		upoly[3] = u * u * u;
 
+		dUpoly[0] = 1;
+		dUpoly[1] = 2 * u;
+		dUpoly[2] = 3 * u * u;
+
 		// find u span
 		for( uspan = 0; uspan < numknots - 1; ++uspan )
 		{
-			if( knot[uspan] <= u && u < knot[uspan + 1] )
+			if( (knots[uspan] <= u && u < knots[uspan + 1]) || (uspan == lastuspan) )
 				break;
 		}
-
-		if( uspan >= numknots - 1 )
-			uspan = numknots - 2;
 
 		const CoeffTable& utable = ucoeffs[uspan];
 
 		for( GLuint j = 0; j < numsplinevertices; ++j )
 		{
 			index = i * numsplinevertices + j;
-			GLVec3Set(outvert[index], 0, 0, 0);
+
+			GLVec3Set(outvert[index].pos, 0, 0, 0);
+			GLVec3Set(outvert[index].norm, 0, 1, 0);
+			GLVec3Set(tangent, 0, 0, 0);
+			GLVec3Set(bitangent, 0, 0, 0);
 
 			v = (float)j / (numsplinevertices - 1);
 
@@ -275,15 +348,16 @@ static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
 			vpoly[2] = v * v;
 			vpoly[3] = v * v * v;
 
+			dVpoly[0] = 1;
+			dVpoly[1] = 2 * v;
+			dVpoly[2] = 3 * v * v;
+
 			// find v span
 			for( vspan = 0; vspan < numknots - 1; ++vspan )
 			{
-				if( knot[vspan] <= v && v < knot[vspan + 1] )
+				if( (knots[vspan] <= v && v < knots[vspan + 1]) || (vspan == lastvspan) )
 					break;
 			}
-
-			if( vspan >= numknots - 1 )
-				vspan = numknots - 2;
 
 			const CoeffTable& vtable = vcoeffs[vspan];
 
@@ -291,12 +365,22 @@ static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
 			denom = 0;
 
 			for( GLuint k = 0; k < 4; ++k )
+			{
 				for( GLuint l = 0; l < 4; ++l )
-					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
+				{
+					cpu = (uspan - k) % numcontrolvertices;
+					cpv = (vspan - l) % numcontrolvertices;
+
+					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly) * weights[cpu] * weights[cpv];
+				}
+			}
 
 			// sum contributions
-			if( denom > 1e-5f )
+			if( denom > minuweight * minvweight )
 			{
+				firstvalid = GLMin(firstvalid, i * numsplinevertices + j);
+				lastvalid = GLMax(lastvalid, i * numsplinevertices + j);
+
 				denom = 1.0f / denom;
 
 				for( GLuint k = 0; k < 4; ++k )
@@ -304,17 +388,36 @@ static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
 					for( GLuint l = 0; l < 4; ++l )
 					{
 						nom = GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
+						dUnom = GLVec3Dot(&utable[k][1], dUpoly) * GLVec4Dot(vtable[l], vpoly);
+						dVnom = GLVec4Dot(utable[k], upoly) * GLVec3Dot(&vtable[l][1], dVpoly);
 
-						cpu = uspan - (3 - k) % numcontrolvertices;
-						cpv = vspan - (3 - l) % numcontrolvertices;
+						cpu = (uspan - k) % numcontrolvertices;
+						cpv = (vspan - l) % numcontrolvertices;
 
 						nom = nom * weights[cpu] * weights[cpv] * denom;
+						dUnom = dUnom * weights[cpu] * weights[cpv] * denom;
+						dVnom = dVnom * weights[cpu] * weights[cpv] * denom;
 
-						outvert[index][0] += controlpoints[cpu][0] * nom;
-						outvert[index][1] += (controlpoints[cpu][1] + controlpoints[cpv][1]) * 0.5f * nom;
-						outvert[index][2] += controlpoints[cpv][0] * nom;
+						cp[0] = controlpoints[cpu][0];
+						cp[1] = (controlpoints[cpu][1] + controlpoints[cpv][1]) * 0.5f;
+						cp[2] = controlpoints[cpv][0];
+
+						outvert[index].pos[0] += cp[0] * nom;
+						outvert[index].pos[1] += cp[1] * nom;
+						outvert[index].pos[2] += cp[2] * nom;
+
+						tangent[0] += cp[0] * dUnom;
+						tangent[1] += cp[1] * dUnom;
+						tangent[2] += cp[2] * dUnom;
+
+						bitangent[0] += cp[0] * dVnom;
+						bitangent[1] += cp[1] * dVnom;
+						bitangent[2] += cp[2] * dVnom;
 					}
 				}
+
+				// calculate normal
+				GLVec3Cross(outvert[index].norm, bitangent, tangent);
 			}
 		}
 	}
@@ -324,12 +427,16 @@ static void TessellateSurface(float (*outvert)[3], unsigned int* outind)
 
 	delete[] ucoeffs;
 
+	// TODO: how to tessellate only the valid range?
+
+	// fill index buffer
 	for( GLuint i = 0; i < numsurfaceindices; i += 6 )
 	{
 		tile = i / 6;
 		row = tile / NUM_SEGMENTS;
 		col = tile % NUM_SEGMENTS;
 
+		// firstvalid + 
 		outind[i + 0] = outind[i + 3]	= row * numsplinevertices + col;
 		outind[i + 2]					= (row + 1) * numsplinevertices + col;
 		outind[i + 1] = outind[i + 5]	= (row + 1) * numsplinevertices + col + 1;
@@ -351,7 +458,26 @@ static void ConvertToSplineViewport(float& x, float& y)
 	y = y * unitscale * (1.0f / vpscale) - vpoffy * unitscale * (1.0f / vpscale);
 }
 
-void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userdata)
+static void UpdateText()
+{
+	std::stringstream ss;
+
+	ss.precision(1);
+	ss << "Knot vector is:  { " << knots[0];
+
+	for( GLuint i = 1; i < numknots; ++i )
+		ss << ", " << knots[i];
+
+	ss << " }\nWeights are:     { " << weights[0];
+
+	for( GLuint i = 1; i < numcontrolvertices; ++i )
+		ss << ", " << weights[i];
+
+	ss << " }\n\nU - uniform  W - wireframe  F - full window  +/- tessellation level";
+	GLRenderTextEx(ss.str(), text1, screenwidth, screenheight - (screenwidth - 330), L"Calibri", false, Gdiplus::FontStyleBold, 25);
+}
+
+static void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userdata)
 {
 	if( type >= GL_DEBUG_TYPE_ERROR && type <= GL_DEBUG_TYPE_PERFORMANCE )
 	{
@@ -368,13 +494,21 @@ void APIENTRY ReportGLError(GLenum source, GLenum type, GLuint id, GLenum severi
 
 bool InitScene()
 {
-	float		(*vdata)[3] = 0;
-	GLushort*	idata = 0;
-	GLuint*		idata32 = 0;
+	SurfaceVertex*	svdata = 0;
+	float			(*vdata)[3] = 0;
+	GLushort*		idata = 0;
+	GLuint*			idata32 = 0;
 
 	OpenGLVertexElement decl[] =
 	{
 		{ 0, 0, GLDECLTYPE_FLOAT3, GLDECLUSAGE_POSITION, 0 },
+		{ 0xff, 0, 0, 0, 0 }
+	};
+
+	OpenGLVertexElement decl2[] =
+	{
+		{ 0, 0, GLDECLTYPE_FLOAT3, GLDECLUSAGE_POSITION, 0 },
+		{ 0, 12, GLDECLTYPE_FLOAT3, GLDECLUSAGE_NORMAL, 0 },
 		{ 0xff, 0, 0, 0, 0 }
 	};
 
@@ -467,19 +601,22 @@ bool InitScene()
 	curve->UnlockIndexBuffer();
 	curve->UnlockVertexBuffer();
 
-	curve->GetAttributeTable()->PrimitiveType = GLPT_LINELIST;
+	OpenGLAttributeRange* subset0 = curve->GetAttributeTable();
+
+	subset0->PrimitiveType = GLPT_LINELIST;
+	subset0->IndexCount = numsplineindices;
 
 	// create surface
-	if( !GLCreateMesh(numsurfacevertices, numsurfaceindices, GLMESH_32BIT, decl, &surface) )
+	if( !GLCreateMesh(numsurfacevertices, numsurfaceindices, GLMESH_32BIT, decl2, &surface) )
 	{
 		MYERROR("Could not create surface");
 		return false;
 	}
 
-	surface->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&vdata);
+	surface->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&svdata);
 	surface->LockIndexBuffer(0, 0, GLLOCK_DISCARD, (void**)&idata32);
 
-	TessellateSurface(vdata, idata32);
+	TessellateSurface(svdata, idata32);
 
 	surface->UnlockIndexBuffer();
 	surface->UnlockVertexBuffer();
@@ -503,7 +640,19 @@ bool InitScene()
 		return false;
 	}
 
-	float angles[2] = { 0, 0 }; //{ -0.25f, 0.7f };
+	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/basic2D.frag", &basic2D) )
+	{
+		MYERROR("Could not load basic 2D shader");
+		return false;
+	}
+
+	screenquad = new OpenGLScreenQuad();
+
+	// text
+	GLCreateTexture(screenwidth, screenheight - (screenwidth - 330), 1, GLFMT_A8R8G8B8, &text1);
+	UpdateText();
+
+	float angles[2] = { M_PI / 2, 0.5f };
 	cameraangle = angles;
 
 	return true;
@@ -514,15 +663,38 @@ void UninitScene()
 	SAFE_DELETE(renderpoints);
 	SAFE_DELETE(renderlines);
 	SAFE_DELETE(rendersurface);
+	SAFE_DELETE(basic2D);
 	SAFE_DELETE(supportlines);
 	SAFE_DELETE(surface);
 	SAFE_DELETE(curve);
+	SAFE_DELETE(screenquad);
+
+	if( text1 )
+		glDeleteTextures(1, &text1);
+
+	text1 = 0;
 
 	GLKillAnyRogueObject();
 }
 //*************************************************************************************************************
 void KeyPress(WPARAM wparam)
 {
+	switch( wparam )
+	{
+	case 0x46:
+		fullscreen = !fullscreen;
+		break;
+
+	case 0x55:
+		break;
+
+	case 0x57:
+		wireframe = !wireframe;
+		break;
+
+	default:
+		break;
+	}
 }
 //*************************************************************************************************************
 void UpdateControlPoints(float mx, float my)
@@ -576,10 +748,12 @@ void Update(float delta)
 
 	if( mousedown == 1 )
 	{
-		UpdateControlPoints((float)mousex, (float)mousey);
+		if( !fullscreen )
+			UpdateControlPoints((float)mousex, (float)mousey);
 
-		if( (mousex >= screenwidth - 330 && mousex <= screenwidth - 10) &&
-			(mousey >= 10 && mousey <= 260) )
+		if( fullscreen ||
+			((mousex >= screenwidth - 330 && mousex <= screenwidth - 10) &&
+			(mousey >= 10 && mousey <= 260)) )
 		{
 			cameraangle.curr[0] += mousedx * 0.004f;
 			cameraangle.curr[1] += mousedy * 0.004f;
@@ -601,6 +775,8 @@ void Render(float alpha, float elapsedtime)
 	OpenGLColor	grcolor(0xffdddddd);
 	OpenGLColor	cvcolor(0xff7470ff);
 	OpenGLColor	splinecolor(0xff000000);
+	OpenGLColor	outsidecolor(0.75f, 0.75f, 0.8f, 1);
+	OpenGLColor	insidecolor(1, 0.66f, 0.066f, 1);
 
 	float		world[16];
 	float		view[16];
@@ -613,9 +789,10 @@ void Render(float alpha, float elapsedtime)
 	float		spthickness[2]	= { 3.0f / screenwidth, 3.0f / screenheight };
 	float		spviewport[]	= { 0, 0, (float)screenwidth, (float)screenheight };
 
-	float		eye[3]			= { 5, 5, 15 };
-	float		look[3]			= { 5, 5, 5 };
+	float		eye[3]			= { 5, 4, 15 };
+	float		look[3]			= { 5, 4, 5 };
 	float		up[3]			= { 0, 1, 0 };
+	float		lightdir[4]		= { 0, 1, 0, 0 };
 	float		fwd[3];
 	float		orient[2];
 
@@ -667,15 +844,22 @@ void Render(float alpha, float elapsedtime)
 	renderpoints->End();
 
 	// render surface in a smaller viewport
-	glEnable(GL_SCISSOR_TEST);
-	glScissor(screenwidth - 330, screenheight - 250, 320, 240);
+	if( !fullscreen )
+	{
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(screenwidth - 330, screenheight - 250, 320, 240);
+	}
 
 	glClearColor(0.0f, 0.125f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_SCISSOR_TEST);
 
 	glEnable(GL_DEPTH_TEST);
-	glViewport(screenwidth - 330, screenheight - 250, 320, 240);
+
+	if( fullscreen )
+		glViewport(0, 0, screenwidth, screenheight);
+	else
+		glViewport(screenwidth - 330, screenheight - 250, 320, 240);
 
 	cameraangle.smooth(orient, alpha);
 
@@ -687,10 +871,20 @@ void Render(float alpha, float elapsedtime)
 	GLMatrixPerspectiveRH(proj, M_PI / 3, 4.0f / 3.0f, 0.1f, 50.0f);
 	GLMatrixLookAtRH(view, eye, look, up);
 	GLMatrixMultiply(viewproj, view, proj);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	if( wireframe )
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	glDisable(GL_CULL_FACE);
 
 	rendersurface->SetMatrix("matViewProj", viewproj);
 	rendersurface->SetMatrix("matWorld", world);
+	rendersurface->SetMatrix("matWorldInv", world); // its id
+	rendersurface->SetVector("lightDir", lightdir);
+	rendersurface->SetVector("eyePos", eye);
+	rendersurface->SetVector("outsideColor", &outsidecolor.r);
+	rendersurface->SetVector("insideColor", &insidecolor.r);
+	rendersurface->SetInt("isWireMode", wireframe);
 
 	rendersurface->Begin();
 	{
@@ -698,7 +892,35 @@ void Render(float alpha, float elapsedtime)
 	}
 	rendersurface->End();
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glEnable(GL_CULL_FACE);
+
+	if( wireframe )
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	// render text
+	if( !fullscreen )
+	{
+		glViewport(3, 0, screenwidth, screenheight - (screenwidth - 330));
+
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		float xzplane[4] = { 0, 1, 0, -0.5f };
+		GLMatrixReflect(world, xzplane);
+
+		basic2D->SetMatrix("matTexture", world);
+		basic2D->SetInt("sampler0", 0);
+		basic2D->Begin();
+		{
+			glBindTexture(GL_TEXTURE_2D, text1);
+			screenquad->Draw();
+		}
+		basic2D->End();
+
+		glEnable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
+	}
 
 #ifdef _DEBUG
 	// check errors

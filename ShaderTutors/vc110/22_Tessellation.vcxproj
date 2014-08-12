@@ -22,6 +22,8 @@
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\media\shadersGL\basic2D.frag" />
+    <None Include="..\media\shadersGL\basic2D.vert" />
     <None Include="..\media\shadersGL\color.frag" />
     <None Include="..\media\shadersGL\color.vert" />
     <None Include="..\media\shadersGL\renderlines.geom" />

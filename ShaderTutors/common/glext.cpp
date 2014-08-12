@@ -1625,6 +1625,33 @@ bool GLCreateTessellationProgramFromFile(
 	return true;
 }
 
+bool GLCreateTexture(GLsizei width, GLsizei height, GLint miplevels, OpenGLFormat format, GLuint* out)
+{
+	GLuint texid = 0;
+
+	glGenTextures(1, &texid);
+	glBindTexture(GL_TEXTURE_2D, texid);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	if( miplevels != 1 )
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	else
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	glTexImage2D(
+		GL_TEXTURE_2D, 0, map_Format_Internal[format], width, height, 0,
+		map_Format_Format[format], map_Format_Type[format], 0);
+
+	if( miplevels != 1 )
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+	*out = texid;
+	return true;
+}
+
 bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out)
 {
 	std::wstring wstr;
@@ -1684,7 +1711,6 @@ bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out)
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, data.Width, data.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpbuff);
 
 			glGenerateMipmap(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, 0);
 
 			GLenum err = glGetError();
 
@@ -1757,6 +1783,11 @@ float GLVec3Distance(const float a[3], const float b[3])
 	};
 
 	return GLVec3Length(c);
+}
+
+float GLVec4Dot(const float a[4], const float b[4])
+{
+	return (a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]);
 }
 
 void GLVec3Set(float out[3], float x, float y, float z)
@@ -2218,4 +2249,66 @@ void GLGetOrthogonalVectors(float out1[3], float out2[3], const float v[3])
 	out2[bestcoord] = v[other2];
 	out2[other1] = v[other1];
 	out2[other2] = -v[bestcoord];
+}
+
+void GLRenderTextEx(const std::string& str, GLuint tex, GLsizei width, GLsizei height)
+{
+	GLRenderTextEx(str, tex, width, height, L"Arial", 1, Gdiplus::FontStyleBold, 25);
+}
+
+void GLRenderTextEx(const std::string& str, GLuint tex, GLsizei width, GLsizei height, const WCHAR* face, bool border, int style, float emsize)
+{
+	if( tex == 0 )
+		return;
+
+	if( gdiplustoken == 0 )
+	{
+		Gdiplus::GdiplusStartupInput gdiplustartup;
+		Gdiplus::GdiplusStartup(&gdiplustoken, &gdiplustartup, NULL);
+	}
+
+	Gdiplus::Color				outline(0xff000000);
+	Gdiplus::Color				fill(0xffffffff);
+
+	Gdiplus::Bitmap*			bitmap;
+	Gdiplus::Graphics*			graphics;
+	Gdiplus::GraphicsPath		path;
+	Gdiplus::FontFamily			family(face);
+	Gdiplus::StringFormat		format;
+	Gdiplus::Pen				pen(outline, 3);
+	Gdiplus::SolidBrush			brush(border ? fill : outline);
+	std::wstring				wstr(str.begin(), str.end());
+
+	bitmap = new Gdiplus::Bitmap(width, height, PixelFormat32bppARGB);
+	graphics = new Gdiplus::Graphics(bitmap);
+
+	// render text
+	graphics->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+	graphics->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+	graphics->SetPageUnit(Gdiplus::UnitPixel);
+
+	path.AddString(wstr.c_str(), wstr.length(), &family, style, emsize, Gdiplus::Point(0, 0), &format);
+	pen.SetLineJoin(Gdiplus::LineJoinRound);
+
+	if( border )
+		graphics->DrawPath(&pen, &path);
+
+	graphics->FillPath(&brush, &path);
+
+	// copy to texture
+	Gdiplus::Rect rc(0, 0, bitmap->GetWidth(), bitmap->GetHeight());
+	Gdiplus::BitmapData data;
+
+	memset(&data, 0, sizeof(Gdiplus::BitmapData));
+	bitmap->LockBits(&rc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data);
+
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexImage2D(
+		GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+		GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, data.Scan0);
+
+	bitmap->UnlockBits(&data);
+
+	delete graphics;
+	delete bitmap;
 }

@@ -337,6 +337,7 @@ public:
 };
 
 // content functions
+bool GLCreateTexture(GLsizei width, GLsizei height, GLint miplevels, OpenGLFormat format, GLuint* out);
 bool GLCreateTextureFromFile(const char* file, bool srgb, GLuint* out);
 bool GLCreateMesh(GLuint numvertices, GLuint numindices, GLuint options, OpenGLVertexElement* decl, OpenGLMesh** mesh);
 bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nummaterials, OpenGLMesh** mesh);
@@ -352,6 +353,16 @@ bool GLCreateTessellationProgramFromFile(
 
 // other
 void GLKillAnyRogueObject();
+void GLRenderText(const std::string& str, GLuint tex, GLsizei width, GLsizei height);
+void GLRenderTextEx(
+	const std::string& str,
+	GLuint tex,
+	GLsizei width,
+	GLsizei height,
+	const WCHAR* face,
+	bool border,
+	int style,
+	float emsize);
 
 // math functions
 int isqrt(int n);
@@ -359,6 +370,7 @@ int isqrt(int n);
 float GLVec3Dot(const float a[3], const float b[3]);
 float GLVec3Length(const float a[3]);
 float GLVec3Distance(const float a[3], const float b[3]);
+float GLVec4Dot(const float a[4], const float b[4]);
 
 void GLVec3Set(float out[3], float x, float y, float z);
 void GLVec3Add(float out[3], const float a[3], const float b[3]);
