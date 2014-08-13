@@ -7,7 +7,6 @@
 #include "../common/glext.h"
 
 // TODO:
-// - megoldani az uniform surface problemat
 // - MSAA
 
 // helper macros
@@ -55,7 +54,10 @@ float knots[] =
 {
 	0, 0, 0, 0, 0.4f, 0.4f, 0.4f, 1, 1, 1, 1
 	//0, 0, 0, 0, 0.25f, 0.5f, 0.75f, 1, 1, 1, 1
-	//0, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1	// BULLSHIT
+	//0, 0, 0, 0.15f, 0.3f, 0.45f, 0.6f, 0.75f, 1, 1, 1
+	//0, 0, 0.125f, 0.25f, 0.325f, 0.5f, 0.625f, 0.75f, 0.875f, 1, 1
+	//0, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1
+	//0.2f, 0.3f, 0.35f, 0.4f, 0.45f, 0.5f, 0.55f, 0.6f, 0.65f, 0.7f, 0.8f
 };
 
 const GLuint numcontrolvertices				= sizeof(controlpoints) / sizeof(controlpoints[0]);
@@ -63,10 +65,10 @@ const GLuint numcontrolindices				= (numcontrolvertices - 1) * 2;
 const GLuint numknots						= sizeof(knots) / sizeof(knots[0]);
 
 // important variables for tessellation
-GLuint numsplinevertices					= NUM_SEGMENTS + 1;
+const GLuint numsplinevertices				= NUM_SEGMENTS + 1;
+const GLuint numsurfacevertices				= numsplinevertices * numsplinevertices;
 GLuint numsplineindices						= (numsplinevertices - 1) * 2;
-GLuint numsurfacevertices					= numsplinevertices * numsplinevertices;
-GLuint numsurfaceindices					= NUM_SEGMENTS * NUM_SEGMENTS * 6; // (numsplinevertices - 1) * (numsplinevertices - 1) * 6
+GLuint numsurfaceindices					= (numsplinevertices - 1) * (numsplinevertices - 1) * 6;
 
 // sample variables
 OpenGLScreenQuad*	screenquad				= 0;
@@ -134,9 +136,8 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 {
 	typedef float CoeffTable[4][4];
 
-	CoeffTable*	coeffs		= new CoeffTable[numknots - 1];
-	GLuint		firstvalid	= 0xffffffff;
-	GLuint		lastvalid	= 0;
+	CoeffTable*	coeffs = new CoeffTable[numknots - 1];
+	GLuint		verticeswritten = 0;
 	GLuint		lastspan;
 	GLuint		span;
 	GLuint		cp;
@@ -184,10 +185,10 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 	}
 
 	// fill vertex buffer
-	for( GLuint i = 0; i < numsplinevertices; ++i )
+	for( GLuint i = 0; i <= NUM_SEGMENTS; ++i )
 	{
-		u = (float)i / (numsplinevertices - 1);
-		GLVec3Set(outvert[i], 0, 0, 0);
+		u = (float)i / NUM_SEGMENTS;
+		u = knots[0] * (1 - u) + knots[numknots - 1] * u;
 
 		poly[0] = 1;
 		poly[1] = u;
@@ -215,9 +216,7 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		// sum contributions
 		if( denom > minweight )
 		{
-			firstvalid = GLMin(firstvalid, i);
-			lastvalid = GLMax(lastvalid, i);
-
+			GLVec3Set(outvert[verticeswritten], 0, 0, 0);
 			denom = 1.0f / denom;
 
 			for( GLuint k = 0; k < 4; ++k )
@@ -227,23 +226,24 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 				cp = (span - k) % numcontrolvertices;
 				nom = nom * weights[cp] * denom;
 
-				outvert[i][0] += controlpoints[cp][0] * nom;
-				outvert[i][1] += controlpoints[cp][1] * nom;
-				outvert[i][2] += controlpoints[cp][2] * nom;
+				outvert[verticeswritten][0] += controlpoints[cp][0] * nom;
+				outvert[verticeswritten][1] += controlpoints[cp][1] * nom;
+				outvert[verticeswritten][2] += controlpoints[cp][2] * nom;
 			}
+
+			++verticeswritten;
 		}
 	}
 
 	delete[] coeffs;
 
 	// fill index buffer
-	numsplinevertices = (lastvalid - firstvalid + 1);
-	numsplineindices = (numsplinevertices - 1) * 2;
+	numsplineindices = (verticeswritten - 1) * 2;
 
 	for( GLuint i = 0; i < numsplineindices; i += 2 )
 	{
-		outind[i] = firstvalid + i / 2;
-		outind[i + 1] = firstvalid + i / 2 + 1;
+		outind[i] = i / 2;
+		outind[i + 1] = i / 2 + 1;
 	}
 }
 
@@ -251,12 +251,12 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 {
 	typedef float CoeffTable[4][4];
 
-	CoeffTable*	ucoeffs		= new CoeffTable[numknots - 1];
-	CoeffTable*	vcoeffs		= ucoeffs; // lucky now
-	GLuint		firstvalid	= 0xffffffff;
-	GLuint		lastvalid	= 0;
+	CoeffTable*	ucoeffs = new CoeffTable[numknots - 1];
+	CoeffTable*	vcoeffs = ucoeffs; // lucky
+	GLuint		verticeswritten = 0;
+	GLuint		rowswritten = 0;
 	GLuint		uspan, vspan;
-	GLuint		cpu, cpv, index;
+	GLuint		cpu, cpv;
 	GLuint		lastuspan, lastvspan;
 	GLsizei		tile, row, col;
 	float		u, v;
@@ -264,6 +264,8 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 	float		nom, denom;
 	float		dUnom;
 	float		dVnom;
+	float		ones[4] = { 1, 1, 1, 1 };
+	float		uparts[4];
 	float		upoly[4], vpoly[4];
 	float		dUpoly[3], dVpoly[3];
 	float		tangent[3], bitangent[3];
@@ -284,7 +286,7 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 		minuweight = GLMin<float>(minuweight, weights[i]);
 
 	minuweight -= 1e-3f;
-	minvweight = minuweight;
+	minvweight = minuweight; // lucky
 
 	// precalculate basis function coefficients
 	for( uspan = 0; uspan < numknots - 1; ++uspan )
@@ -310,9 +312,10 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 		}
 	}
 
-	for( GLuint i = 0; i < numsplinevertices; ++i )
+	for( GLuint i = 0; i <= NUM_SEGMENTS; ++i )
 	{
-		u = (float)i / (numsplinevertices - 1);
+		u = (float)i / NUM_SEGMENTS;
+		u = knots[0] * (1 - u) + knots[numknots - 1] * u;
 
 		upoly[0] = 1;
 		upoly[1] = u;
@@ -332,93 +335,103 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 
 		const CoeffTable& utable = ucoeffs[uspan];
 
-		for( GLuint j = 0; j < numsplinevertices; ++j )
+		// fast cull: test u part of denom
+		for( GLuint k = 0; k < 4; ++k )
 		{
-			index = i * numsplinevertices + j;
+			cpu = (uspan - k) % numcontrolvertices;
+			uparts[k] = GLVec4Dot(utable[k], upoly) * weights[cpu];
+		}
 
-			GLVec3Set(outvert[index].pos, 0, 0, 0);
-			GLVec3Set(outvert[index].norm, 0, 1, 0);
-			GLVec3Set(tangent, 0, 0, 0);
-			GLVec3Set(bitangent, 0, 0, 0);
+		denom = uparts[0] + uparts[1] + uparts[2] + uparts[3]; // dot(uparts, vec4(1.0))
 
-			v = (float)j / (numsplinevertices - 1);
-
-			vpoly[0] = 1;
-			vpoly[1] = v;
-			vpoly[2] = v * v;
-			vpoly[3] = v * v * v;
-
-			dVpoly[0] = 1;
-			dVpoly[1] = 2 * v;
-			dVpoly[2] = 3 * v * v;
-
-			// find v span
-			for( vspan = 0; vspan < numknots - 1; ++vspan )
+		if( denom > minuweight )
+		{
+			for( GLuint j = 0; j <= NUM_SEGMENTS; ++j )
 			{
-				if( (knots[vspan] <= v && v < knots[vspan + 1]) || (vspan == lastvspan) )
-					break;
-			}
+				v = (float)j / NUM_SEGMENTS;
+				v = knots[0] * (1 - v) + knots[numknots - 1] * v;
 
-			const CoeffTable& vtable = vcoeffs[vspan];
+				vpoly[0] = 1;
+				vpoly[1] = v;
+				vpoly[2] = v * v;
+				vpoly[3] = v * v * v;
 
-			// calculate normalization factor
-			denom = 0;
+				dVpoly[0] = 1;
+				dVpoly[1] = 2 * v;
+				dVpoly[2] = 3 * v * v;
 
-			for( GLuint k = 0; k < 4; ++k )
-			{
+				// find v span
+				for( vspan = 0; vspan < numknots - 1; ++vspan )
+				{
+					if( (knots[vspan] <= v && v < knots[vspan + 1]) || (vspan == lastvspan) )
+						break;
+				}
+
+				const CoeffTable& vtable = vcoeffs[vspan];
+
+				denom = 0;
+
 				for( GLuint l = 0; l < 4; ++l )
 				{
-					cpu = (uspan - k) % numcontrolvertices;
 					cpv = (vspan - l) % numcontrolvertices;
-
-					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly) * weights[cpu] * weights[cpv];
+					denom += GLVec4Dot(vtable[l], vpoly) * weights[cpv];
 				}
-			}
 
-			// sum contributions
-			if( denom > minuweight * minvweight )
-			{
-				firstvalid = GLMin(firstvalid, i * numsplinevertices + j);
-				lastvalid = GLMax(lastvalid, i * numsplinevertices + j);
-
-				denom = 1.0f / denom;
-
-				for( GLuint k = 0; k < 4; ++k )
+				// sum contributions
+				if( denom > minvweight )
 				{
-					for( GLuint l = 0; l < 4; ++l )
+					// calculate normalization factor
+					denom = uparts[0] * denom + uparts[1] * denom + uparts[2] * denom + uparts[3] * denom; // dot(uparts, vec4(denom));
+					denom = 1.0f / denom;
+
+					GLVec3Set(outvert[verticeswritten].pos, 0, 0, 0);
+					GLVec3Set(outvert[verticeswritten].norm, 0, 1, 0);
+					GLVec3Set(tangent, 0, 0, 0);
+					GLVec3Set(bitangent, 0, 0, 0);
+
+					// sum contributions
+					for( GLuint k = 0; k < 4; ++k )
 					{
-						nom = GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
-						dUnom = GLVec3Dot(&utable[k][1], dUpoly) * GLVec4Dot(vtable[l], vpoly);
-						dVnom = GLVec4Dot(utable[k], upoly) * GLVec3Dot(&vtable[l][1], dVpoly);
+						for( GLuint l = 0; l < 4; ++l )
+						{
+							nom = GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
+							dUnom = GLVec3Dot(&utable[k][1], dUpoly) * GLVec4Dot(vtable[l], vpoly);
+							dVnom = GLVec4Dot(utable[k], upoly) * GLVec3Dot(&vtable[l][1], dVpoly);
 
-						cpu = (uspan - k) % numcontrolvertices;
-						cpv = (vspan - l) % numcontrolvertices;
+							cpu = (uspan - k) % numcontrolvertices;
+							cpv = (vspan - l) % numcontrolvertices;
 
-						nom = nom * weights[cpu] * weights[cpv] * denom;
-						dUnom = dUnom * weights[cpu] * weights[cpv] * denom;
-						dVnom = dVnom * weights[cpu] * weights[cpv] * denom;
+							nom = nom * weights[cpu] * weights[cpv] * denom;
+							dUnom = dUnom * weights[cpu] * weights[cpv] * denom;
+							dVnom = dVnom * weights[cpu] * weights[cpv] * denom;
 
-						cp[0] = controlpoints[cpu][0];
-						cp[1] = (controlpoints[cpu][1] + controlpoints[cpv][1]) * 0.5f;
-						cp[2] = controlpoints[cpv][0];
+							// it's just an idea, but works
+							cp[0] = controlpoints[cpu][0];
+							cp[1] = (controlpoints[cpu][1] + controlpoints[cpv][1]) * 0.5f;
+							cp[2] = controlpoints[cpv][0];
 
-						outvert[index].pos[0] += cp[0] * nom;
-						outvert[index].pos[1] += cp[1] * nom;
-						outvert[index].pos[2] += cp[2] * nom;
+							outvert[verticeswritten].pos[0] += cp[0] * nom;
+							outvert[verticeswritten].pos[1] += cp[1] * nom;
+							outvert[verticeswritten].pos[2] += cp[2] * nom;
 
-						tangent[0] += cp[0] * dUnom;
-						tangent[1] += cp[1] * dUnom;
-						tangent[2] += cp[2] * dUnom;
+							tangent[0] += cp[0] * dUnom;
+							tangent[1] += cp[1] * dUnom;
+							tangent[2] += cp[2] * dUnom;
 
-						bitangent[0] += cp[0] * dVnom;
-						bitangent[1] += cp[1] * dVnom;
-						bitangent[2] += cp[2] * dVnom;
+							bitangent[0] += cp[0] * dVnom;
+							bitangent[1] += cp[1] * dVnom;
+							bitangent[2] += cp[2] * dVnom;
+						}
 					}
-				}
 
-				// calculate normal
-				GLVec3Cross(outvert[index].norm, bitangent, tangent);
+					// calculate normal
+					GLVec3Cross(outvert[verticeswritten].norm, bitangent, tangent);
+
+					++verticeswritten;
+				}
 			}
+
+			++rowswritten;
 		}
 	}
 
@@ -427,20 +440,21 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 
 	delete[] ucoeffs;
 
-	// TODO: how to tessellate only the valid range?
-
 	// fill index buffer
+	GLuint colswritten = verticeswritten / rowswritten;
+
+	numsurfaceindices = (rowswritten - 1) * (colswritten - 1) * 6;
+
 	for( GLuint i = 0; i < numsurfaceindices; i += 6 )
 	{
 		tile = i / 6;
-		row = tile / NUM_SEGMENTS;
-		col = tile % NUM_SEGMENTS;
+		col = tile / (colswritten - 1);
+		row = tile % (rowswritten - 1);
 
-		// firstvalid + 
-		outind[i + 0] = outind[i + 3]	= row * numsplinevertices + col;
-		outind[i + 2]					= (row + 1) * numsplinevertices + col;
-		outind[i + 1] = outind[i + 5]	= (row + 1) * numsplinevertices + col + 1;
-		outind[i + 4]					= row * numsplinevertices + col + 1;
+		outind[i + 0] = outind[i + 3]	= row * colswritten + col;
+		outind[i + 2]					= (row + 1) * colswritten + col;
+		outind[i + 1] = outind[i + 5]	= (row + 1) * colswritten + col + 1;
+		outind[i + 4]					= row * colswritten + col + 1;
 	}
 }
 
@@ -473,7 +487,7 @@ static void UpdateText()
 	for( GLuint i = 1; i < numcontrolvertices; ++i )
 		ss << ", " << weights[i];
 
-	ss << " }\n\nU - uniform  W - wireframe  F - full window  +/- tessellation level";
+	ss << " }\n\nC - cycle knots  W - wireframe  F - full window  +/- tessellation level";
 	GLRenderTextEx(ss.str(), text1, screenwidth, screenheight - (screenwidth - 330), L"Calibri", false, Gdiplus::FontStyleBold, 25);
 }
 
@@ -620,6 +634,11 @@ bool InitScene()
 
 	surface->UnlockIndexBuffer();
 	surface->UnlockVertexBuffer();
+
+	subset0 = surface->GetAttributeTable();
+
+	subset0->PrimitiveType = GLPT_TRIANGLELIST;
+	subset0->IndexCount = numsurfaceindices;
 
 	// load effects
 	if( !GLCreateEffectFromFile("../media/shadersGL/color.vert", "../media/shadersGL/renderpoints.geom", "../media/shadersGL/color.frag", &renderpoints) )
