@@ -14,8 +14,19 @@
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_DELETE(x)		if( (x) ) { delete (x); (x) = 0; }
 
+//#define CIRCLE
 #define M_PI				3.141592f
 #define NUM_SEGMENTS		50
+#define DEGREE				3
+#define ORDER				DEGREE + 1
+
+#ifdef CIRCLE
+#	undef DEGREE
+#	undef ORDER
+
+#	define DEGREE			2
+#	define ORDER			DEGREE + 1
+#endif
 
 // external variables
 extern HWND		hwnd;
@@ -36,6 +47,15 @@ struct SurfaceVertex
 // curve data
 float controlpoints[][3] =
 {
+#ifdef CIRCLE
+	{ 5, 1, 0 },
+	{ 1, 1, 0 },
+	{ 3, 4.46f, 0 },
+	{ 5, 7.92f, 0 },
+	{ 7, 4.46f, 0 },
+	{ 9, 1, 0 },
+	{ 5, 1, 0 }
+#else
 	{ 1, 1, 0 },
 	{ 1, 5, 0 },
 	{ 3, 6, 0 },
@@ -43,26 +63,45 @@ float controlpoints[][3] =
 	{ 9, 4, 0 },
 	{ 9, 9, 0 },
 	{ 5, 6, 0 }
+#endif
 };
 
 float weights[] =
 {
+#ifdef CIRCLE
+	1, 0.5f, 1, 0.5f, 1, 0.5f, 1
+#else
 	1, 1, 1, 1, 1, 1, 1
+#endif
 };
 
 float knots[] =
 {
+#ifdef CIRCLE
+	0, 0, 0, 0.33f, 0.33f, 0.67f, 0.67f, 1, 1, 1
+#else
+#	if DEGREE == 1
+	0, 0, 0.15f, 0.3f, 0.45f, 0.6f, 0.75f, 1, 1
+#	endif
+
+#	if DEGREE == 2
+	0, 0, 0, 0.2f, 0.4f, 0.6f, 0.8f, 1, 1, 1
+#	endif
+
+#	if DEGREE == 3
 	0, 0, 0, 0, 0.4f, 0.4f, 0.4f, 1, 1, 1, 1
 	//0, 0, 0, 0, 0.25f, 0.5f, 0.75f, 1, 1, 1, 1
 	//0, 0, 0, 0.15f, 0.3f, 0.45f, 0.6f, 0.75f, 1, 1, 1
 	//0, 0, 0.125f, 0.25f, 0.325f, 0.5f, 0.625f, 0.75f, 0.875f, 1, 1
 	//0, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1
 	//0.2f, 0.3f, 0.35f, 0.4f, 0.45f, 0.5f, 0.55f, 0.6f, 0.65f, 0.7f, 0.8f
+#	endif
+#endif
 };
 
 const GLuint numcontrolvertices				= sizeof(controlpoints) / sizeof(controlpoints[0]);
 const GLuint numcontrolindices				= (numcontrolvertices - 1) * 2;
-const GLuint numknots						= sizeof(knots) / sizeof(knots[0]);
+const GLuint numknots						= numcontrolvertices + ORDER; //sizeof(knots) / sizeof(knots[0]);
 
 // important variables for tessellation
 const GLuint numsplinevertices				= NUM_SEGMENTS + 1;
@@ -89,6 +128,14 @@ array_state<float, 2> cameraangle;
 
 // sample functions
 void UpdateControlPoints(float mx, float my);
+
+static void SurfaceControlPoint(float out[3], const float x[3], const float z[3])
+{
+	out[0] = x[0];
+	out[2] = z[0];
+	//out[1] = GLMin(x[1], z[1]);
+	out[1] = (x[1] + z[1]) * 0.5f;
+}
 
 static float CalculateCoeff(GLuint i, int n, int k, GLuint span)
 {
@@ -149,7 +196,7 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 	lastspan = numcontrolvertices - 1;
 
 	// find first/last valid u
-	firstu = knots[3];
+	firstu = knots[DEGREE];
 	lastu = knots[numcontrolvertices];
 
 	// precalculate basis function coefficients
@@ -157,14 +204,14 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 	{
 		for( GLuint k = 0; k < 4; ++k )
 		{
-			if( span >= k && span - k < numcontrolvertices )
+			if( k < ORDER && span >= k && span - k < numcontrolvertices )
 			{
 				cp = span - k;
 
-				coeffs[span][k][0] = CalculateCoeff(cp, 3, 0, span); // 1
-				coeffs[span][k][1] = CalculateCoeff(cp, 3, 1, span); // u
-				coeffs[span][k][2] = CalculateCoeff(cp, 3, 2, span); // u2
-				coeffs[span][k][3] = CalculateCoeff(cp, 3, 3, span); // u3
+				coeffs[span][k][0] = CalculateCoeff(cp, DEGREE, 0, span); // 1
+				coeffs[span][k][1] = CalculateCoeff(cp, DEGREE, 1, span); // u
+				coeffs[span][k][2] = CalculateCoeff(cp, DEGREE, 2, span); // u2
+				coeffs[span][k][3] = CalculateCoeff(cp, DEGREE, 3, span); // u3
 			}
 			else
 			{
@@ -199,7 +246,7 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		// calculate normalization factor
 		denom = 0;
 
-		for( GLuint k = 0; k < 4; ++k )
+		for( GLuint k = 0; k < ORDER; ++k )
 		{
 			cp = (span - k) % numcontrolvertices;
 			denom += GLVec4Dot(table[k], poly) * weights[cp];
@@ -209,7 +256,7 @@ static void TessellateCurve(float (*outvert)[3], unsigned short* outind)
 		GLVec3Set(outvert[i], 0, 0, 0);
 		denom = 1.0f / denom;
 
-		for( GLuint k = 0; k < 4; ++k )
+		for( GLuint k = 0; k < ORDER; ++k )
 		{
 			nom = GLVec4Dot(table[k], poly);
 
@@ -239,7 +286,7 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 	CoeffTable*	ucoeffs = new CoeffTable[numknots - 1];
 	CoeffTable*	vcoeffs = ucoeffs; // lucky
 	GLuint		uspan, vspan;
-	GLuint		cpu, cpv;
+	GLuint		ucp, vcp;
 	GLuint		lastuspan, lastvspan;
 	GLuint		index;
 	GLuint		tile, row, col;
@@ -259,7 +306,7 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 	lastvspan = lastuspan; // lucky
 
 	// find first/last valid u and v
-	firstu = knots[3];
+	firstu = knots[DEGREE];
 	lastu = knots[numcontrolvertices];
 
 	firstv = firstu; // lucky
@@ -270,14 +317,14 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 	{
 		for( GLuint k = 0; k < 4; ++k )
 		{
-			if( uspan >= k && uspan - k < numcontrolvertices )
+			if( k < ORDER && uspan >= k && uspan - k < numcontrolvertices )
 			{
-				cpu = uspan - k;
+				ucp = uspan - k;
 
-				ucoeffs[uspan][k][0] = CalculateCoeff(cpu, 3, 0, uspan);
-				ucoeffs[uspan][k][1] = CalculateCoeff(cpu, 3, 1, uspan);
-				ucoeffs[uspan][k][2] = CalculateCoeff(cpu, 3, 2, uspan);
-				ucoeffs[uspan][k][3] = CalculateCoeff(cpu, 3, 3, uspan);
+				ucoeffs[uspan][k][0] = CalculateCoeff(ucp, DEGREE, 0, uspan);
+				ucoeffs[uspan][k][1] = CalculateCoeff(ucp, DEGREE, 1, uspan);
+				ucoeffs[uspan][k][2] = CalculateCoeff(ucp, DEGREE, 2, uspan);
+				ucoeffs[uspan][k][3] = CalculateCoeff(ucp, DEGREE, 3, uspan);
 			}
 			else
 			{
@@ -340,14 +387,14 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 			// calculate normalization factor
 			denom = 0;
 
-			for( GLuint k = 0; k < 4; ++k )
+			for( GLuint k = 0; k < ORDER; ++k )
 			{
-				for( GLuint l = 0; l < 4; ++l )
+				for( GLuint l = 0; l < ORDER; ++l )
 				{
-					cpu = (uspan - k) % numcontrolvertices;
-					cpv = (vspan - l) % numcontrolvertices;
+					ucp = (uspan - k) % numcontrolvertices;
+					vcp = (vspan - l) % numcontrolvertices;
 
-					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly) * weights[cpu] * weights[cpv];
+					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly) * weights[ucp] * weights[vcp];
 				}
 			}
 
@@ -358,25 +405,22 @@ static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
 
 			denom = 1.0f / denom;
 
-			for( GLuint k = 0; k < 4; ++k )
+			for( GLuint k = 0; k < ORDER; ++k )
 			{
-				for( GLuint l = 0; l < 4; ++l )
+				for( GLuint l = 0; l < ORDER; ++l )
 				{
 					nom = GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
 					dUnom = GLVec3Dot(&utable[k][1], dUpoly) * GLVec4Dot(vtable[l], vpoly);
 					dVnom = GLVec4Dot(utable[k], upoly) * GLVec3Dot(&vtable[l][1], dVpoly);
 
-					cpu = (uspan - k) % numcontrolvertices;
-					cpv = (vspan - l) % numcontrolvertices;
+					ucp = (uspan - k) % numcontrolvertices;
+					vcp = (vspan - l) % numcontrolvertices;
 
-					nom = nom * weights[cpu] * weights[cpv] * denom;
-					dUnom = dUnom * weights[cpu] * weights[cpv] * denom;
-					dVnom = dVnom * weights[cpu] * weights[cpv] * denom;
+					nom = nom * weights[ucp] * weights[vcp] * denom;
+					dUnom = dUnom * weights[ucp] * weights[vcp] * denom;
+					dVnom = dVnom * weights[ucp] * weights[vcp] * denom;
 
-					// it's just an idea, but works
-					cp[0] = controlpoints[cpu][0];
-					cp[1] = (controlpoints[cpu][1] + controlpoints[cpv][1]) * 0.5f;
-					cp[2] = controlpoints[cpv][0];
+					SurfaceControlPoint(cp, controlpoints[ucp], controlpoints[vcp]);
 
 					outvert[index].pos[0] += cp[0] * nom;
 					outvert[index].pos[1] += cp[1] * nom;
@@ -445,7 +489,7 @@ static void UpdateText()
 	for( GLuint i = 1; i < numcontrolvertices; ++i )
 		ss << ", " << weights[i];
 
-	ss << " }\n\nC - cycle knots  W - wireframe  F - full window  +/- tessellation level";
+	ss << " }\n\nC - cycle presets  W - wireframe  F - full window  +/- tessellation level";
 	GLRenderTextEx(ss.str(), text1, screenwidth, screenheight - (screenwidth - 330), L"Calibri", false, Gdiplus::FontStyleBold, 25);
 }
 
@@ -508,7 +552,14 @@ bool InitScene()
 	glEnable(GL_DEPTH_TEST);
 
 	// create grid & control poly
-	if( !GLCreateMesh(44 + numcontrolvertices, numcontrolindices, GLMESH_DYNAMIC, decl, &supportlines) )
+	GLuint numsurfacecpvertices = numcontrolvertices * numcontrolvertices;
+	GLuint numsurfacecpindices = (numcontrolvertices - 1) * numcontrolvertices * 4;
+	GLuint index;
+
+	if( !GLCreateMesh(
+		44 + numcontrolvertices + numsurfacecpvertices,
+		numcontrolindices + numsurfacecpindices,
+		GLMESH_DYNAMIC, decl, &supportlines) )
 	{
 		MYERROR("Could not create mesh");
 		return false;
@@ -517,7 +568,8 @@ bool InitScene()
 	supportlines->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&vdata);
 	supportlines->LockIndexBuffer(0, 0, GLLOCK_DISCARD, (void**)&idata);
 
-	for( int i = 0; i < 22; i += 2 )
+	// grid points
+	for( GLuint i = 0; i < 22; i += 2 )
 	{
 		vdata[i][0] = vdata[i + 1][0] = (float)(i / 2);
 		vdata[i][2] = vdata[i + 1][2] = 0;
@@ -534,17 +586,61 @@ bool InitScene()
 
 	vdata += 44;
 
-	for( GLsizei i = 0; i < numcontrolvertices; ++i )
+	// curve controlpoints
+	for( GLuint i = 0; i < numcontrolvertices; ++i )
 	{
 		vdata[i][0] = controlpoints[i][0];
 		vdata[i][1] = controlpoints[i][1];
 		vdata[i][2] = controlpoints[i][2];
 	}
 
-	for( GLsizei i = 0; i < numcontrolindices; i += 2 )
+	vdata += numcontrolvertices;
+
+	// curve indices
+	for( GLuint i = 0; i < numcontrolindices; i += 2 )
 	{
 		idata[i] = 44 + i / 2;
 		idata[i + 1] = 44 + i / 2 + 1;
+	}
+
+	idata += numcontrolindices;
+
+	// surface controlpoints
+	for( GLuint i = 0; i < numcontrolvertices; ++i )
+	{
+		for( GLuint j = 0; j < numcontrolvertices; ++j )
+		{
+			index = i * numcontrolvertices + j;
+			SurfaceControlPoint(vdata[index], controlpoints[i], controlpoints[j]);
+		}
+	}
+
+	// surface indices
+	GLuint start = 44 + numcontrolvertices;
+
+	for( GLuint i = 0; i < numcontrolvertices; ++i )
+	{
+		for( GLuint j = 0; j < numcontrolvertices; ++j )
+		{
+			if( i < numcontrolvertices - 1 )
+				index = i * ((numcontrolvertices - 1) * 4 + 2) + j * 4;
+			else
+				index = i * ((numcontrolvertices - 1) * 4 + 2) + j * 2;
+
+			if( i < numcontrolvertices - 1 )
+			{
+				idata[index]		= start + i * numcontrolvertices + j;
+				idata[index + 1]	= start + (i + 1) * numcontrolvertices + j;
+
+				index += 2;
+			}
+
+			if( j < numcontrolvertices - 1 )
+			{
+				idata[index]		= start + i * numcontrolvertices + j;
+				idata[index + 1]	= start + i * numcontrolvertices + j + 1;
+			}
+		}
 	}
 
 	supportlines->UnlockIndexBuffer();
@@ -553,10 +649,11 @@ bool InitScene()
 	OpenGLAttributeRange table[] =
 	{
 		{ GLPT_LINELIST, 0, 0, 0, 0, 44 },
-		{ GLPT_LINELIST, 1, 0, numcontrolindices, 44, numcontrolvertices }
+		{ GLPT_LINELIST, 1, 0, numcontrolindices, 44, numcontrolvertices },
+		{ GLPT_LINELIST, 2, numcontrolindices, numsurfacecpindices, 44 + numcontrolvertices, numsurfacecpvertices }
 	};
 
-	supportlines->SetAttributeTable(table, 2);
+	supportlines->SetAttributeTable(table, 3);
 
 	// create spline mesh
 	if( !GLCreateMesh(numsplinevertices, numsplineindices, 0, decl, &curve) )
@@ -859,6 +956,11 @@ void Render(float alpha, float elapsedtime)
 	rendersurface->Begin();
 	{
 		surface->DrawSubset(0);
+
+		//rendersurface->SetInt("isWireMode", 1);
+		//rendersurface->CommitChanges();
+
+		//supportlines->DrawSubset(2);
 	}
 	rendersurface->End();
 
