@@ -413,6 +413,7 @@ void OpenGLMesh::DrawSubset(GLuint subset)
 	{
 		const OpenGLAttributeRange& attr = subsettable[subset];
 		GLenum itype = (meshoptions & GLMESH_32BIT) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
+		GLuint start = attr.IndexStart * ((meshoptions & GLMESH_32BIT) ? 4 : 2);
 
 		glBindVertexArray(vertexlayout);
 
@@ -421,9 +422,9 @@ void OpenGLMesh::DrawSubset(GLuint subset)
 		else
 		{
 			if( attr.VertexCount == 0 )
-				glDrawElements(attr.PrimitiveType, attr.IndexCount, itype, (char*)0 + attr.IndexStart);
+				glDrawElements(attr.PrimitiveType, attr.IndexCount, itype, (char*)0 + start);
 			else
-				glDrawRangeElements(attr.PrimitiveType, attr.VertexStart, attr.VertexStart + attr.VertexCount - 1, attr.IndexCount, itype, (char*)0 + attr.IndexStart);
+				glDrawRangeElements(attr.PrimitiveType, attr.VertexStart, attr.VertexStart + attr.VertexCount - 1, attr.IndexCount, itype, (char*)0 + start);
 		}
 	}
 }
