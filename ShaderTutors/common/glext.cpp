@@ -737,6 +737,26 @@ void OpenGLEffect::SetVector(const char* name, const float* value)
 	}
 }
 
+void OpenGLEffect::SetVectorArray(const char* name, const float* values, GLsizei count)
+{
+	Uniform test;
+	strcpy(test.Name, name);
+
+	size_t id = uniforms.find(test);
+
+	if( id < uniforms.size() )
+	{
+		const Uniform& uni = uniforms[id];
+		float* reg = (floatvalues + uni.StartRegister * 4);
+
+		if( count > uni.RegisterCount )
+			count = uni.RegisterCount;
+
+		memcpy(reg, values, count * 4 * sizeof(float));
+		uni.Changed = true;
+	}
+}
+
 void OpenGLEffect::SetFloat(const char* name, float value)
 {
 	Uniform test;
@@ -750,6 +770,26 @@ void OpenGLEffect::SetFloat(const char* name, float value)
 		float* reg = (floatvalues + uni.StartRegister * 4);
 
 		reg[0] = value;
+		uni.Changed = true;
+	}
+}
+
+void OpenGLEffect::SetFloatArray(const char* name, const float* values, GLsizei count)
+{
+	Uniform test;
+	strcpy(test.Name, name);
+
+	size_t id = uniforms.find(test);
+
+	if( id < uniforms.size() )
+	{
+		const Uniform& uni = uniforms[id];
+		float* reg = (floatvalues + uni.StartRegister * 4);
+
+		if( count > uni.RegisterCount )
+			count = uni.RegisterCount;
+
+		memcpy(reg, values, count * sizeof(float));
 		uni.Changed = true;
 	}
 }

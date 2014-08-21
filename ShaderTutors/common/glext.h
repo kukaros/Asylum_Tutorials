@@ -275,7 +275,9 @@ public:
 	void End();
 	void SetMatrix(const char* name, const float* value);
 	void SetVector(const char* name, const float* value);
+	void SetVectorArray(const char* name, const float* values, GLsizei count);
 	void SetFloat(const char* name, float value);
+	void SetFloatArray(const char* name, const float* values, GLsizei count);
 	void SetInt(const char* name, int value);
 };
 

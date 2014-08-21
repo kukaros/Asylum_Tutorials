@@ -32,4 +32,33 @@
       <Filter>extern</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\basic2D.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\basic2D.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\renderlines.geom">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\renderpoints.geom">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\rendersurface.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\rendersurface.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\color.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\color.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\tessellatecurve.comp">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
 </Project>

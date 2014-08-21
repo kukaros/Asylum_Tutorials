@@ -100,6 +100,8 @@ PFNGLDISPATCHCOMPUTEPROC					glDispatchCompute = 0;
 PFNGLDISPATCHCOMPUTEINDIRECTPROC			glDispatchComputeIndirect = 0;
 PFNGLBINDIMAGETEXTUREPROC					glBindImageTexture = 0;
 PFNGLBINDBUFFERBASEPROC						glBindBufferBase = 0;
+PFNGLMEMORYBARRIERPROC						glMemoryBarrier = 0;
+PFNGLGETPROGRAMBINARYPROC					glGetProgramBinary = 0;
 
 PFNGLDEBUGMESSAGECONTROLPROC				glDebugMessageControl = 0;
 PFNGLDEBUGMESSAGECALLBACKPROC				glDebugMessageCallback = 0;
@@ -389,6 +391,7 @@ namespace Quadron
 		{
 			GET_ADDRESS(glMapBufferRange, PFNGLMAPBUFFERRANGEPROC, "");
 			GET_ADDRESS(glGetIntegeri_v, PFNGLGETINTEGERI_VPROC, "");
+			GET_ADDRESS(glGetProgramBinary, PFNGLGETPROGRAMBINARYPROC, "");
 		}
 
 		if( ARB_tessellation_shader )
@@ -401,6 +404,7 @@ namespace Quadron
 		{
 			GET_ADDRESS(glDispatchCompute, PFNGLDISPATCHCOMPUTEPROC, "");
 			GET_ADDRESS(glDispatchComputeIndirect, PFNGLDISPATCHCOMPUTEINDIRECTPROC, "");
+			GET_ADDRESS(glMemoryBarrier, PFNGLMEMORYBARRIERPROC, "");
 		}
 
 		if( ARB_shader_image_load_store )

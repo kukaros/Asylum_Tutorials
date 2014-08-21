@@ -21,6 +21,17 @@
     <ClInclude Include="..\extern\glcorearb.h" />
     <ClInclude Include="..\extern\qglextensions.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\basic2D.frag" />
+    <None Include="..\media\shadersGL\basic2D.vert" />
+    <None Include="..\media\shadersGL\color.frag" />
+    <None Include="..\media\shadersGL\color.vert" />
+    <None Include="..\media\shadersGL\renderlines.geom" />
+    <None Include="..\media\shadersGL\renderpoints.geom" />
+    <None Include="..\media\shadersGL\rendersurface.frag" />
+    <None Include="..\media\shadersGL\rendersurface.vert" />
+    <None Include="..\media\shadersGL\tessellatecurve.comp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
