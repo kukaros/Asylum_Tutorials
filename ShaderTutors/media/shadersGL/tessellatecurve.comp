@@ -15,9 +15,9 @@ layout (std140, binding = 0) buffer VertexBuffer
 	vec4 data[];
 } curvevertices;
 
-layout (std140, binding = 1) buffer IndexBuffer
+layout (std430, binding = 1) buffer IndexBuffer
 {
-	uvec4 data[];
+	uvec2 data[];
 } curveindices;
 
 uniform vec4 controlPoints[MAX_CVS];
@@ -28,7 +28,8 @@ uniform int numCurveVertices;
 uniform int numControlPoints;
 uniform int degree;
 
-shared float Coeffs[208];	// MAX_ORDER * MAX_ORDER * MAX_SPANS
+// vec4 <=> max degree 3 curves
+shared vec4 Coeffs[52];		// MAX_ORDER * MAX_SPANS
 shared float Blossom[64];	// MAX_ORDER * MAX_ORDER * MAX_ORDER
 
 float CalculateCoeff(int i, int e, int span)
@@ -103,6 +104,8 @@ float CalculateCoeff(int i, int e, int span)
 layout (local_size_x = BLOCK_SIZE) in;
 void main()
 {
+	vec4 cf;
+
 	int numknots	= numControlPoints + degree + 1;
 	int numsegments	= numCurveVertices - 1;
 	int lastspan	= numControlPoints - 1;
@@ -115,26 +118,23 @@ void main()
 	{
 		for( span = 0; span < numknots - 1; ++span )
 		{
-			for( int k = 0; k < 4; ++k )
+			for( int k = 0; k <= min(degree, span); ++k )
 			{
-				index = (span * MAX_ORDER + k) * MAX_ORDER;
+				index = span * MAX_ORDER + k;
 
-				if( (k < order) && (span >= k) && (span - k < numControlPoints) )
+				if( span - k < numControlPoints )
 				{
 					cp = span - k;
 
-					Coeffs[index] = CalculateCoeff(cp, 0, span); // 1
-					Coeffs[index + 1] = CalculateCoeff(cp, 1, span); // u
-					Coeffs[index + 2] = CalculateCoeff(cp, 2, span); // u2
-					Coeffs[index + 3] = CalculateCoeff(cp, 3, span); // u3
+					cf.x = CalculateCoeff(cp, 0, span); // 1
+					cf.y = CalculateCoeff(cp, 1, span); // u
+					cf.z = CalculateCoeff(cp, 2, span); // u2
+					cf.w = CalculateCoeff(cp, 3, span); // u3
+
+					Coeffs[index] = cf;
 				}
 				else
-				{
-					Coeffs[index] = 0.0;
-					Coeffs[index + 1] = 0.0;
-					Coeffs[index + 2] = 0.0;
-					Coeffs[index + 3] = 0.0;
-				}
+					Coeffs[index] = vec4(0.0);
 			}
 		}
 	}
@@ -144,7 +144,6 @@ void main()
 	// STEP 2: fill vertex buffer
 	vec4 pos;
 	vec4 poly;
-	vec4 cf;
 
 	int loc				= int(gl_LocalInvocationID.x);
 	int elemsperitem	= max(1, (numCurveVertices + (BLOCK_SIZE - 1)) / BLOCK_SIZE);
@@ -177,13 +176,10 @@ void main()
 
 		for( int k = 0; k < order; ++k )
 		{
-			index = (span * MAX_ORDER + k) * MAX_ORDER;
-			cp = (span - k) % numControlPoints;
+			index = span * MAX_ORDER + k;
 
-			cf.x = Coeffs[index];
-			cf.y = Coeffs[index + 1];
-			cf.z = Coeffs[index + 2];
-			cf.w = Coeffs[index + 3];
+			cp = (span - k) % numControlPoints;
+			cf = Coeffs[index];
 
 			denom += dot(cf, poly) * weights[cp];
 		}
@@ -195,13 +191,10 @@ void main()
 
 		for( int k = 0; k < order; ++k )
 		{
-			index = (span * MAX_ORDER + k) * MAX_ORDER;
+			index = span * MAX_ORDER + k;
 			cp = (span - k) % numControlPoints;
 
-			cf.x = Coeffs[index];
-			cf.y = Coeffs[index + 1];
-			cf.z = Coeffs[index + 2];
-			cf.w = Coeffs[index + 3];
+			cf = Coeffs[index];
 
 			nom = dot(cf, poly);
 			nom = nom * weights[cp] * denom;
@@ -214,23 +207,11 @@ void main()
 	}
 
 	// STEP 3: fill index buffer
-	uvec4	ind4;
-	int		numindex4s = numCurveVertices / 2;
-	int		indexstart;
-
-	elemsperitem	= max(1, (numindex4s + (BLOCK_SIZE - 1)) / BLOCK_SIZE);
-	start			= loc * elemsperitem;
-	end				= min(start + elemsperitem, numindex4s);
+	end = min(end, numsegments);
 
 	for( int i = start; i < end; ++i )
 	{
-		indexstart = i * 4;
-
-		ind4.x = indexstart / 2;
-		ind4.y = ind4.x + 1;
-		ind4.z = ind4.x + 1;
-		ind4.w = ind4.x + 2;
-
-		curveindices.data[i] = ind4;
+		curveindices.data[i].x = i;
+		curveindices.data[i].y = i + 1;
 	}
 }

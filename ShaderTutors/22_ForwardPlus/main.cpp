@@ -18,6 +18,7 @@
 #define NUM_LIGHTS			400			// must be square number
 #define LIGHT_RADIUS		1.5f		// must be at least 1
 #define SHADOWMAP_SIZE		1024
+#define DELAY				5
 #define M_PI				3.141592f
 #define M_2PI				6.283185f
 
@@ -74,6 +75,7 @@ GLuint				lightbuffer		= 0;	// light particles
 GLuint				counterbuffer	= 0;	// atomic counter
 GLuint				workgroupsx		= 0;
 GLuint				workgroupsy		= 0;
+int					timeout			= 0;
 bool				hascompute		= false;
 
 array_state<float, 2> cameraangle;
@@ -560,7 +562,10 @@ void Update(float delta)
 	if( cameraangle.curr[1] <= -1.5f )
 		cameraangle.curr[1] = -1.5f;
 
-	UpdateParticles(delta, false);
+	if( timeout > DELAY )
+		UpdateParticles(delta, false);
+	else
+		++timeout;
 }
 //*************************************************************************************************************
 void RenderScene(OpenGLEffect* effect)
@@ -751,7 +756,7 @@ void Render(float alpha, float elapsedtime)
 	framebuffer->Unset();
 
 	// STEP 2: cull lights
-	if( lightcull )
+	if( lightcull && timeout > DELAY )
 	{
 		lightcull->SetInt("depthSampler", 0);
 		lightcull->SetInt("numLights", NUM_LIGHTS);
@@ -811,7 +816,7 @@ void Render(float alpha, float elapsedtime)
 	shadowedlight->End();
 
 	// STEP 4: accumulate lighting
-	if( lightaccum )
+	if( lightaccum && timeout > DELAY )
 	{
 		lightaccum->SetMatrix("matViewProj", viewproj);
 		lightaccum->SetVector("eyePos", eye);

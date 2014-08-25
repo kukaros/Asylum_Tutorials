@@ -60,5 +60,8 @@
     <None Include="..\media\shadersGL\tessellatecurve.comp">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\media\shadersGL\tessellatesurface.comp">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

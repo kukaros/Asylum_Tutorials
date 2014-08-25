@@ -6,9 +6,9 @@
 
 #include "../common/glext.h"
 
-#define COMPUTE //
 // TODO:
 // - MSAA
+// - eger eventre kotni mert igy szar
 
 // helper macros
 #define TITLE				"Shader sample 22.3: Tessellating NURBS surfaces"
@@ -41,8 +41,8 @@ extern short	mousedown;
 // sample structures
 struct SurfaceVertex
 {
-	float pos[3];
-	float norm[3];
+	float pos[4];
+	float norm[4];
 };
 
 // curve data
@@ -133,368 +133,6 @@ array_state<float, 2> cameraangle;
 bool UpdateControlPoints(float mx, float my);
 void Tessellate();
 
-static void SurfaceControlPoint(float out[4], const float x[4], const float z[4])
-{
-	out[0] = x[0];
-	out[2] = z[0];
-	//out[1] = GLMin(x[1], z[1]);
-	out[1] = (x[1] + z[1]) * 0.5f;
-	out[3] = 1;
-}
-
-static float CalculateCoeff(GLuint i, int deg, int act, GLuint span)
-{
-	float cknl[4 * 4 * 4];
-	float kin1, ki1, kin, ki;
-	float a, b;
-	int order = deg + 1;
-	int index1, index2, index3;
-
-#define INDEX(k, n, l) (((k) * 4 + (n)) * 4 + (l))
-
-	if( act > deg )
-		return 0;
-
-	for( int k = 0; k <= act; ++k )
-	{
-		for( int n = k; n < order; ++n )
-		{
-			for( int l = 0; l < order - n; ++l )
-			{
-				kin1	= knots[i + l + n + 1];
-				ki1		= knots[i + l + 1];
-				kin		= knots[i + l + n];
-				ki		= knots[i + l];
-
-				a = b = 0;
-				index1 = INDEX(k, n, l);
-				index2 = INDEX(k, n - 1, l);
-				index3 = INDEX(k - 1, n - 1, l);
-
-				if( n == 0 ) // C_i,0,0
-				{
-					cknl[index1] = ((i + l == span) ? 1.0f : 0.0f);
-				}
-				else if( k == 0 ) // C_i,n,0
-				{
-					if( kin1 != ki1 )
-						a = kin1 / (kin1 - ki1);
-
-					if( kin != ki )
-						b = ki / (kin - ki);
-
-					cknl[index1] = cknl[index2 + 1] * a - cknl[index2] * b;
-				}
-				else if( k == n ) // C_i,n,n
-				{
-					if( kin != ki )
-						a = 1.0f / (kin - ki);
-
-					if( kin1 != ki1 )
-						b = 1.0f / (kin1 - ki1);
-
-					cknl[index1] = cknl[index3] * a - cknl[index3 + 1] * b;
-				}
-				else // C_i,n,k
-				{
-					if( kin != ki )
-						a = (cknl[index3] - ki * cknl[index2]) / (kin - ki);
-
-					if( kin1 != ki1 )
-						b = (cknl[index3 + 1] - kin1 * cknl[index2 + 1]) / (kin1 - ki1);
-
-					cknl[index1] = a - b;
-				}
-			}
-		}
-	}
-
-	return cknl[INDEX(act, deg, 0)];
-}
-
-static void TessellateCurve(float (*outvert)[4], GLuint* outind)
-{
-	typedef float CoeffTable[4][4];
-
-	CoeffTable*	coeffs = new CoeffTable[numknots - 1];
-	GLuint		lastspan;
-	GLuint		span;
-	GLuint		cp;
-	float		firstu, lastu;
-	float		u;
-	float		nom, denom;
-	float		poly[4];
-
-	// find last span
-	lastspan = numcontrolvertices - 1;
-
-	// find first/last valid u
-	firstu = knots[DEGREE];
-	lastu = knots[numcontrolvertices];
-
-	// precalculate basis function coefficients
-	for( span = 0; span < numknots - 1; ++span )
-	{
-		for( GLuint k = 0; k < 4; ++k )
-		{
-			if( k < ORDER && span >= k && span - k < numcontrolvertices )
-			{
-				cp = span - k;
-
-				coeffs[span][k][0] = CalculateCoeff(cp, DEGREE, 0, span); // 1
-				coeffs[span][k][1] = CalculateCoeff(cp, DEGREE, 1, span); // u
-				coeffs[span][k][2] = CalculateCoeff(cp, DEGREE, 2, span); // u2
-				coeffs[span][k][3] = CalculateCoeff(cp, DEGREE, 3, span); // u3
-			}
-			else
-			{
-				coeffs[span][k][0] = 0;
-				coeffs[span][k][1] = 0;
-				coeffs[span][k][2] = 0;
-				coeffs[span][k][3] = 0;
-			}
-		}
-	}
-
-	// fill vertex buffer
-	for( GLuint i = 0; i <= NUM_SEGMENTS; ++i )
-	{
-		u = (float)i / NUM_SEGMENTS;
-		u = firstu * (1 - u) + lastu * u;
-
-		poly[0] = 1;
-		poly[1] = u;
-		poly[2] = u * u;
-		poly[3] = u * u * u;
-
-		// find span
-		for( span = 0; span < lastspan; ++span )
-		{
-			if( (knots[span] <= u && u < knots[span + 1]) )
-				break;
-		}
-
-		const CoeffTable& table = coeffs[span];
-
-		// calculate normalization factor
-		denom = 0;
-
-		for( GLuint k = 0; k < ORDER; ++k )
-		{
-			cp = (span - k) % numcontrolvertices;
-			denom += GLVec4Dot(table[k], poly) * weights[cp];
-		}
-
-		// sum contributions
-		GLVec3Set(outvert[i], 0, 0, 0);
-		denom = 1.0f / denom;
-
-		for( GLuint k = 0; k < ORDER; ++k )
-		{
-			nom = GLVec4Dot(table[k], poly);
-
-			cp = (span - k) % numcontrolvertices;
-			nom = nom * weights[cp] * denom;
-
-			outvert[i][0] += controlpoints[cp][0] * nom;
-			outvert[i][1] += controlpoints[cp][1] * nom;
-			outvert[i][2] += controlpoints[cp][2] * nom;
-		}
-
-		outvert[i][3] = 1;
-	}
-
-	delete[] coeffs;
-
-	// fill index buffer
-	for( GLuint i = 0; i < numsplineindices; i += 2 )
-	{
-		outind[i] = i / 2;
-		outind[i + 1] = i / 2 + 1;
-	}
-}
-
-static void TessellateSurface(SurfaceVertex* outvert, unsigned int* outind)
-{
-	typedef float CoeffTable[4][4];
-
-	CoeffTable*	ucoeffs = new CoeffTable[numknots - 1];
-	CoeffTable*	vcoeffs = ucoeffs; // lucky
-	GLuint		uspan, vspan;
-	GLuint		ucp, vcp;
-	GLuint		lastuspan, lastvspan;
-	GLuint		index;
-	GLuint		tile, row, col;
-	float		firstu, lastu;
-	float		firstv, lastv;
-	float		u, v;
-	float		nom, denom;
-	float		dUnom;
-	float		dVnom;
-	float		upoly[4], vpoly[4];
-	float		dUpoly[3], dVpoly[3];
-	float		tangent[3], bitangent[3];
-	float		cp[4];
-
-	// find last span
-	lastuspan = numcontrolvertices - 1;
-	lastvspan = lastuspan; // lucky
-
-	// find first/last valid u and v
-	firstu = knots[DEGREE];
-	lastu = knots[numcontrolvertices];
-
-	firstv = firstu; // lucky
-	lastv = lastu;
-
-	// precalculate basis function coefficients
-	for( uspan = 0; uspan < numknots - 1; ++uspan )
-	{
-		for( GLuint k = 0; k < 4; ++k )
-		{
-			if( k < ORDER && uspan >= k && uspan - k < numcontrolvertices )
-			{
-				ucp = uspan - k;
-
-				ucoeffs[uspan][k][0] = CalculateCoeff(ucp, DEGREE, 0, uspan);
-				ucoeffs[uspan][k][1] = CalculateCoeff(ucp, DEGREE, 1, uspan);
-				ucoeffs[uspan][k][2] = CalculateCoeff(ucp, DEGREE, 2, uspan);
-				ucoeffs[uspan][k][3] = CalculateCoeff(ucp, DEGREE, 3, uspan);
-			}
-			else
-			{
-				ucoeffs[uspan][k][0] = 0;
-				ucoeffs[uspan][k][1] = 0;
-				ucoeffs[uspan][k][2] = 0;
-				ucoeffs[uspan][k][3] = 0;
-			}
-		}
-	}
-
-	for( GLuint i = 0; i <= NUM_SEGMENTS; ++i )
-	{
-		u = (float)i / NUM_SEGMENTS;
-		u = firstu * (1 - u) + lastu * u;
-
-		upoly[0] = 1;
-		upoly[1] = u;
-		upoly[2] = u * u;
-		upoly[3] = u * u * u;
-
-		dUpoly[0] = 1;
-		dUpoly[1] = 2 * u;
-		dUpoly[2] = 3 * u * u;
-
-		// find u span
-		for( uspan = 0; uspan < lastuspan; ++uspan )
-		{
-			if( (knots[uspan] <= u && u < knots[uspan + 1]) )
-				break;
-		}
-
-		const CoeffTable& utable = ucoeffs[uspan];
-
-		for( GLuint j = 0; j <= NUM_SEGMENTS; ++j )
-		{
-			index = i * (NUM_SEGMENTS + 1) + j;
-
-			v = (float)j / NUM_SEGMENTS;
-			v = firstv * (1 - v) + lastv * v;
-
-			vpoly[0] = 1;
-			vpoly[1] = v;
-			vpoly[2] = v * v;
-			vpoly[3] = v * v * v;
-
-			dVpoly[0] = 1;
-			dVpoly[1] = 2 * v;
-			dVpoly[2] = 3 * v * v;
-
-			// find v span
-			for( vspan = 0; vspan < lastvspan; ++vspan )
-			{
-				if( (knots[vspan] <= v && v < knots[vspan + 1]) )
-					break;
-			}
-
-			const CoeffTable& vtable = vcoeffs[vspan];
-
-			// calculate normalization factor
-			denom = 0;
-
-			for( GLuint k = 0; k < ORDER; ++k )
-			{
-				for( GLuint l = 0; l < ORDER; ++l )
-				{
-					ucp = (uspan - k) % numcontrolvertices;
-					vcp = (vspan - l) % numcontrolvertices;
-
-					denom += GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly) * weights[ucp] * weights[vcp];
-				}
-			}
-
-			// sum contributions
-			GLVec3Set(outvert[index].pos, 0, 0, 0);
-			GLVec3Set(tangent, 0, 0, 0);
-			GLVec3Set(bitangent, 0, 0, 0);
-
-			denom = 1.0f / denom;
-
-			for( GLuint k = 0; k < ORDER; ++k )
-			{
-				for( GLuint l = 0; l < ORDER; ++l )
-				{
-					nom = GLVec4Dot(utable[k], upoly) * GLVec4Dot(vtable[l], vpoly);
-					dUnom = GLVec3Dot(&utable[k][1], dUpoly) * GLVec4Dot(vtable[l], vpoly);
-					dVnom = GLVec4Dot(utable[k], upoly) * GLVec3Dot(&vtable[l][1], dVpoly);
-
-					ucp = (uspan - k) % numcontrolvertices;
-					vcp = (vspan - l) % numcontrolvertices;
-
-					nom = nom * weights[ucp] * weights[vcp] * denom;
-					dUnom = dUnom * weights[ucp] * weights[vcp] * denom;
-					dVnom = dVnom * weights[ucp] * weights[vcp] * denom;
-
-					SurfaceControlPoint(cp, controlpoints[ucp], controlpoints[vcp]);
-
-					outvert[index].pos[0] += cp[0] * nom;
-					outvert[index].pos[1] += cp[1] * nom;
-					outvert[index].pos[2] += cp[2] * nom;
-
-					tangent[0] += cp[0] * dUnom;
-					tangent[1] += cp[1] * dUnom;
-					tangent[2] += cp[2] * dUnom;
-
-					bitangent[0] += cp[0] * dVnom;
-					bitangent[1] += cp[1] * dVnom;
-					bitangent[2] += cp[2] * dVnom;
-				}
-			}
-
-			// calculate normal
-			GLVec3Cross(outvert[index].norm, bitangent, tangent);
-		}
-	}
-
-	if( vcoeffs != ucoeffs )
-		delete[] vcoeffs;
-
-	delete[] ucoeffs;
-
-	// fill index buffer
-	for( GLuint i = 0; i < numsurfaceindices; i += 6 )
-	{
-		tile = i / 6;
-		row = tile % NUM_SEGMENTS;
-		col = tile / NUM_SEGMENTS;
-
-		outind[i + 0] = outind[i + 3]	= row * (NUM_SEGMENTS + 1) + col;
-		outind[i + 2]					= (row + 1) * (NUM_SEGMENTS + 1) + col;
-		outind[i + 1] = outind[i + 5]	= (row + 1) * (NUM_SEGMENTS + 1) + col + 1;
-		outind[i + 4]					= row * (NUM_SEGMENTS + 1) + col + 1;
-	}
-}
-
 static void ConvertToSplineViewport(float& x, float& y)
 {
 	// first transform [0, w] x [0, h] to [0, 10] x [0, 10]
@@ -558,8 +196,8 @@ bool InitScene()
 
 	OpenGLVertexElement decl2[] =
 	{
-		{ 0, 0, GLDECLTYPE_FLOAT3, GLDECLUSAGE_POSITION, 0 },
-		{ 0, 12, GLDECLTYPE_FLOAT3, GLDECLUSAGE_NORMAL, 0 },
+		{ 0, 0, GLDECLTYPE_FLOAT4, GLDECLUSAGE_POSITION, 0 },
+		{ 0, 16, GLDECLTYPE_FLOAT4, GLDECLUSAGE_NORMAL, 0 },
 		{ 0xff, 0, 0, 0, 0 }
 	};
 
@@ -591,10 +229,7 @@ bool InitScene()
 	GLuint numsurfacecpindices = (numcontrolvertices - 1) * numcontrolvertices * 4;
 	GLuint index;
 
-	if( !GLCreateMesh(
-		44 + numcontrolvertices + numsurfacecpvertices,
-		numcontrolindices + numsurfacecpindices,
-		GLMESH_DYNAMIC, decl, &supportlines) )
+	if( !GLCreateMesh(44 + numcontrolvertices, numcontrolindices, GLMESH_DYNAMIC, decl, &supportlines) )
 	{
 		MYERROR("Could not create mesh");
 		return false;
@@ -632,53 +267,11 @@ bool InitScene()
 		vdata[i][3] = 1;
 	}
 
-	vdata += numcontrolvertices;
-
 	// curve indices
 	for( GLuint i = 0; i < numcontrolindices; i += 2 )
 	{
 		idata[i] = 44 + i / 2;
 		idata[i + 1] = 44 + i / 2 + 1;
-	}
-
-	idata += numcontrolindices;
-
-	// surface controlpoints
-	for( GLuint i = 0; i < numcontrolvertices; ++i )
-	{
-		for( GLuint j = 0; j < numcontrolvertices; ++j )
-		{
-			index = i * numcontrolvertices + j;
-			SurfaceControlPoint(vdata[index], controlpoints[i], controlpoints[j]);
-		}
-	}
-
-	// surface indices
-	GLuint start = 44 + numcontrolvertices;
-
-	for( GLuint i = 0; i < numcontrolvertices; ++i )
-	{
-		for( GLuint j = 0; j < numcontrolvertices; ++j )
-		{
-			if( i < numcontrolvertices - 1 )
-				index = i * ((numcontrolvertices - 1) * 4 + 2) + j * 4;
-			else
-				index = i * ((numcontrolvertices - 1) * 4 + 2) + j * 2;
-
-			if( i < numcontrolvertices - 1 )
-			{
-				idata[index]		= start + i * numcontrolvertices + j;
-				idata[index + 1]	= start + (i + 1) * numcontrolvertices + j;
-
-				index += 2;
-			}
-
-			if( j < numcontrolvertices - 1 )
-			{
-				idata[index]		= start + i * numcontrolvertices + j;
-				idata[index + 1]	= start + i * numcontrolvertices + j + 1;
-			}
-		}
 	}
 
 	supportlines->UnlockIndexBuffer();
@@ -687,14 +280,13 @@ bool InitScene()
 	OpenGLAttributeRange table[] =
 	{
 		{ GLPT_LINELIST, 0, 0, 0, 0, 44 },
-		{ GLPT_LINELIST, 1, 0, numcontrolindices, 44, numcontrolvertices },
-		{ GLPT_LINELIST, 2, numcontrolindices, numsurfacecpindices, 44 + numcontrolvertices, numsurfacecpvertices }
+		{ GLPT_LINELIST, 1, 0, numcontrolindices, 44, numcontrolvertices }
 	};
 
-	supportlines->SetAttributeTable(table, 3);
+	supportlines->SetAttributeTable(table, 2);
 
 	// create spline mesh
-	if( !GLCreateMesh(numsplinevertices, numsplineindices + 4, GLMESH_32BIT, decl, &curve) )
+	if( !GLCreateMesh(numsplinevertices, numsplineindices, GLMESH_32BIT, decl, &curve) )
 	{
 		MYERROR("Could not create curve");
 		return false;
@@ -711,14 +303,6 @@ bool InitScene()
 		MYERROR("Could not create surface");
 		return false;
 	}
-
-	surface->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&svdata);
-	surface->LockIndexBuffer(0, 0, GLLOCK_DISCARD, (void**)&idata32);
-
-	TessellateSurface(svdata, idata32);
-
-	surface->UnlockIndexBuffer();
-	surface->UnlockVertexBuffer();
 
 	// load effects
 	if( !GLCreateEffectFromFile("../media/shadersGL/color.vert", "../media/shadersGL/renderpoints.geom", "../media/shadersGL/color.frag", &renderpoints) )
@@ -746,6 +330,12 @@ bool InitScene()
 	}
 
 	if( !GLCreateComputeProgramFromFile("../media/shadersGL/tessellatecurve.comp", 0, &tessellatecurve) )
+	{
+		MYERROR("Could not load compute shader");
+		return false;
+	}
+
+	if( !GLCreateComputeProgramFromFile("../media/shadersGL/tessellatesurface.comp", 0, &tessellatesurface) )
 	{
 		MYERROR("Could not load compute shader");
 		return false;
@@ -812,7 +402,7 @@ bool UpdateControlPoints(float mx, float my)
 	float	sspx = mx;
 	float	sspy = screenheight - my - 1;
 	float	dist;
-	float	radius = 10.0f / (screenheight / 10);
+	float	radius = 15.0f / (screenheight / 10);
 	bool	isselected = false;
 
 	ConvertToSplineViewport(sspx, sspy);
@@ -873,6 +463,27 @@ void Tessellate()
 		glDispatchCompute(1, 1, 1);
 	}
 	tessellatecurve->End();
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, surface->GetVertexBuffer());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, surface->GetIndexBuffer());
+
+	tessellatesurface->SetInt("numVerticesU", numsplinevertices);
+	tessellatesurface->SetInt("numVerticesV", numsplinevertices);
+	tessellatesurface->SetInt("numControlPointsU", numcontrolvertices);
+	tessellatesurface->SetInt("numControlPointsV", numcontrolvertices);
+	tessellatesurface->SetInt("degreeU", 3);
+	tessellatesurface->SetInt("degreeV", 3);
+	tessellatesurface->SetFloatArray("knotsU", knots, numknots);
+	tessellatesurface->SetFloatArray("knotsV", knots, numknots);
+	tessellatesurface->SetFloatArray("weightsU", weights, numcontrolvertices);
+	tessellatesurface->SetFloatArray("weightsV", weights, numcontrolvertices);
+	tessellatesurface->SetVectorArray("controlPoints", &controlpoints[0][0], numcontrolvertices); //
+
+	tessellatesurface->Begin();
+	{
+		glDispatchCompute(1, 1, 1);
+	}
+	tessellatesurface->End();
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
@@ -1031,11 +642,6 @@ void Render(float alpha, float elapsedtime)
 	rendersurface->Begin();
 	{
 		surface->DrawSubset(0);
-
-		//rendersurface->SetInt("isWireMode", 1);
-		//rendersurface->CommitChanges();
-
-		//supportlines->DrawSubset(2);
 	}
 	rendersurface->End();
 

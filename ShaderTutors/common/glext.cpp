@@ -1137,7 +1137,7 @@ bool GLCreateMesh(GLuint numvertices, GLuint numindices, GLuint options, OpenGLV
 				break;
 
 			case GLDECLUSAGE_NORMAL:
-				glVertexAttribPointer(elem.Usage, 3, GL_FLOAT, GL_FALSE, glmesh->vertexdecl.Stride, (const GLvoid*)elem.Offset);
+				glVertexAttribPointer(elem.Usage, (elem.Type == GLDECLTYPE_FLOAT4 ? 4 : 3), GL_FLOAT, GL_FALSE, glmesh->vertexdecl.Stride, (const GLvoid*)elem.Offset);
 				break;
 
 			case GLDECLUSAGE_TEXCOORD:
