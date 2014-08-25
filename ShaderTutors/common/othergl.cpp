@@ -37,6 +37,7 @@ void UninitScene();
 void Update(float delta);
 void Render(float alpha, float elapsedtime);
 void KeyPress(WPARAM wparam);
+void MouseMove();
 
 namespace Quadron
 {
@@ -361,19 +362,24 @@ LRESULT WINAPI WndProc(HWND hWnd, unsigned int msg, WPARAM wParam, LPARAM lParam
 
 		mousex = x;
 		mousey = y;
+
+		MouseMove();
 		} break;
 
 	case WM_LBUTTONDOWN:
 		mousedown = 1;
+		MouseMove();
 		break;
 
 	case WM_RBUTTONDOWN:
 		mousedown = 2;
+		MouseMove();
 		break;
 
 	case WM_LBUTTONUP:
 	case WM_RBUTTONUP:
 		mousedown = 0;
+		MouseMove();
 		break;
 
 	default:

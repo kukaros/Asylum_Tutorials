@@ -8,26 +8,14 @@
 
 // TODO:
 // - MSAA
-// - eger eventre kotni mert igy szar
 
 // helper macros
 #define TITLE				"Shader sample 22.3: Tessellating NURBS surfaces"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
 #define SAFE_DELETE(x)		if( (x) ) { delete (x); (x) = 0; }
 
-//#define CIRCLE
+#define MAX_NUM_SEGMENTS	100
 #define M_PI				3.141592f
-#define NUM_SEGMENTS		50
-#define DEGREE				3
-#define ORDER				DEGREE + 1
-
-#ifdef CIRCLE
-#	undef DEGREE
-#	undef ORDER
-
-#	define DEGREE			2
-#	define ORDER			DEGREE + 1
-#endif
 
 // external variables
 extern HWND		hwnd;
@@ -45,70 +33,64 @@ struct SurfaceVertex
 	float norm[4];
 };
 
-// curve data
-float controlpoints[][4] =
+struct CurveData
 {
-#ifdef CIRCLE
-	{ 5, 1, 0, 1 },
-	{ 1, 1, 0, 1 },
-	{ 3, 4.46f, 0, 1 },
-	{ 5, 7.92f, 0, 1 },
-	{ 7, 4.46f, 0, 1 },
-	{ 9, 1, 0, 1 },
-	{ 5, 1, 0, 1 }
-#else
-	{ 1, 1, 0, 1 },
-	{ 1, 5, 0, 1 },
-	{ 3, 6, 0, 1 },
-	{ 6, 3, 0, 1 },
-	{ 9, 4, 0, 1 },
-	{ 9, 9, 0, 1 },
-	{ 5, 6, 0, 1 }
-#endif
+	int degree;
+	float controlpoints[7][4];
+	float weights[7];
+	float knots[11];
 };
 
-float weights[] =
+CurveData curves[] =
 {
-#ifdef CIRCLE
-	1, 0.5f, 1, 0.5f, 1, 0.5f, 1
-#else
-	1, 1, 1, 1, 1, 1, 1
-#endif
+	// degree 3, "good"
+	{
+		3,
+		{ { 1, 1, 0, 1 }, { 1, 5, 0, 1 }, { 3, 6, 0, 1 }, { 6, 3, 0, 1 }, { 9, 4, 0, 1 }, { 9, 9, 0, 1 }, { 5, 6, 0, 1 } },
+		{ 1, 1, 1, 1, 1, 1, 1 },
+		{ 0, 0, 0, 0, 0.4f, 0.4f, 0.4f, 1, 1, 1, 1 }
+	},
+
+	// degree 3, "bad"
+	{
+		3,
+		{ { 1, 1, 0, 1 }, { 1, 5, 0, 1 }, { 3, 6, 0, 1 }, { 6, 3, 0, 1 }, { 9, 4, 0, 1 }, { 9, 9, 0, 1 }, { 5, 6, 0, 1 } },
+		{ 1, 1, 1, 1, 1, 1, 1 },
+		{ 0, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1 }
+	},
+
+	// degree 2, "good"
+	{
+		2,
+		{ { 1, 1, 0, 1 }, { 1, 5, 0, 1 }, { 3, 6, 0, 1 }, { 6, 3, 0, 1 }, { 9, 4, 0, 1 }, { 9, 9, 0, 1 }, { 5, 6, 0, 1 } },
+		{ 1, 1, 1, 1, 1, 1, 1 },
+		{ 0, 0, 0, 0.2f, 0.4f, 0.6f, 0.8f, 1, 1, 1 }
+	},
+
+	// degree 1
+	{
+		1,
+		{ { 1, 1, 0, 1 }, { 1, 5, 0, 1 }, { 3, 6, 0, 1 }, { 6, 3, 0, 1 }, { 9, 4, 0, 1 }, { 9, 9, 0, 1 }, { 5, 6, 0, 1 } },
+		{ 1, 1, 1, 1, 1, 1, 1 },
+		{ 0, 0, 0.15f, 0.3f, 0.45f, 0.6f, 0.75f, 1, 1 }
+	},
+
+	// circle
+	{
+		2,
+		{ { 5, 1, 0, 1 }, { 1, 1, 0, 1 }, { 3, 4.46f, 0, 1 }, { 5, 7.92f, 0, 1 }, { 7, 4.46f, 0, 1 }, { 9, 1, 0, 1 }, { 5, 1, 0, 1 }, },
+		{ 1, 0.5f, 1, 0.5f, 1, 0.5f, 1 },
+		{ 0, 0, 0, 0.33f, 0.33f, 0.67f, 0.67f, 1, 1, 1 }
+	},
 };
-
-float knots[] =
-{
-#ifdef CIRCLE
-	0, 0, 0, 0.33f, 0.33f, 0.67f, 0.67f, 1, 1, 1
-#else
-#	if DEGREE == 1
-	0, 0, 0.15f, 0.3f, 0.45f, 0.6f, 0.75f, 1, 1
-#	endif
-
-#	if DEGREE == 2
-	0, 0, 0, 0.2f, 0.4f, 0.6f, 0.8f, 1, 1, 1
-#	endif
-
-#	if DEGREE == 3
-	0, 0, 0, 0, 0.4f, 0.4f, 0.4f, 1, 1, 1, 1
-	//0, 0, 0, 0, 0.25f, 0.5f, 0.75f, 1, 1, 1, 1
-	//0, 0, 0, 0.15f, 0.3f, 0.45f, 0.6f, 0.75f, 1, 1, 1
-	//0, 0, 0.125f, 0.25f, 0.325f, 0.5f, 0.625f, 0.75f, 0.875f, 1, 1
-	//0, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1
-	//0.2f, 0.3f, 0.35f, 0.4f, 0.45f, 0.5f, 0.55f, 0.6f, 0.65f, 0.7f, 0.8f
-#	endif
-#endif
-};
-
-const GLuint numcontrolvertices				= sizeof(controlpoints) / sizeof(controlpoints[0]);
-const GLuint numcontrolindices				= (numcontrolvertices - 1) * 2;
-const GLuint numknots						= numcontrolvertices + ORDER;
 
 // important variables for tessellation
-const GLuint numsplinevertices				= NUM_SEGMENTS + 1;
-const GLuint numsplineindices				= (numsplinevertices - 1) * 2;
-const GLuint numsurfacevertices				= numsplinevertices * numsplinevertices;
-const GLuint numsurfaceindices				= (numsplinevertices - 1) * (numsplinevertices - 1) * 6;
+const GLuint numcontrolvertices				= 7;
+const GLuint numcontrolindices				= (numcontrolvertices - 1) * 2;
+const GLuint maxsplinevertices				= MAX_NUM_SEGMENTS + 1;
+const GLuint maxsplineindices				= (maxsplinevertices - 1) * 2;
+const GLuint maxsurfacevertices				= maxsplinevertices * maxsplinevertices;
+const GLuint maxsurfaceindices				= (maxsplinevertices - 1) * (maxsplinevertices - 1) * 6;
 
 // sample variables
 OpenGLScreenQuad*	screenquad				= 0;
@@ -121,6 +103,9 @@ OpenGLEffect*		basic2D					= 0;
 OpenGLMesh*			supportlines			= 0;
 OpenGLMesh*			curve					= 0;
 OpenGLMesh*			surface					= 0;
+
+GLuint				currentcurve			= 0;
+GLuint				numsegments				= 50;	// tessellation level
 GLuint				text1					= 0;
 GLsizei				selectedcontrolpoint	= -1;
 float				selectiondx, selectiondy;
@@ -131,6 +116,7 @@ array_state<float, 2> cameraangle;
 
 // sample functions
 bool UpdateControlPoints(float mx, float my);
+void ChangeCurve(GLuint newcurve);
 void Tessellate();
 
 static void ConvertToSplineViewport(float& x, float& y)
@@ -150,19 +136,23 @@ static void ConvertToSplineViewport(float& x, float& y)
 static void UpdateText()
 {
 	std::stringstream ss;
+	const CurveData& current = curves[currentcurve];
+	int numcurves = sizeof(curves) / sizeof(curves[0]);
 
 	ss.precision(1);
-	ss << "Knot vector is:  { " << knots[0];
+	ss << "Knot vector is:  { " << current.knots[0];
 
-	for( GLuint i = 1; i < numknots; ++i )
-		ss << ", " << knots[i];
+	for( GLuint i = 1; i < numcontrolvertices + current.degree + 1; ++i )
+		ss << ", " << current.knots[i];
 
-	ss << " }\nWeights are:     { " << weights[0];
+	ss << " }\nWeights are:     { " << current.weights[0];
 
 	for( GLuint i = 1; i < numcontrolvertices; ++i )
-		ss << ", " << weights[i];
+		ss << ", " << current.weights[i];
 
-	ss << " }\n\nC - cycle presets  W - wireframe  F - full window  +/- tessellation level";
+	ss << " }\n\n1 - " << numcurves;
+	ss << " - presets  W - wireframe  F - full window  +/- tessellation level";
+	
 	GLRenderTextEx(ss.str(), text1, screenwidth, screenheight - (screenwidth - 330), L"Calibri", false, Gdiplus::FontStyleBold, 25);
 }
 
@@ -225,10 +215,6 @@ bool InitScene()
 	glEnable(GL_DEPTH_TEST);
 
 	// create grid & control poly
-	GLuint numsurfacecpvertices = numcontrolvertices * numcontrolvertices;
-	GLuint numsurfacecpindices = (numcontrolvertices - 1) * numcontrolvertices * 4;
-	GLuint index;
-
 	if( !GLCreateMesh(44 + numcontrolvertices, numcontrolindices, GLMESH_DYNAMIC, decl, &supportlines) )
 	{
 		MYERROR("Could not create mesh");
@@ -256,17 +242,6 @@ bool InitScene()
 		vdata[i + 23][0] = 10;
 	}
 
-	vdata += 44;
-
-	// curve controlpoints
-	for( GLuint i = 0; i < numcontrolvertices; ++i )
-	{
-		vdata[i][0] = controlpoints[i][0];
-		vdata[i][1] = controlpoints[i][1];
-		vdata[i][2] = controlpoints[i][2];
-		vdata[i][3] = 1;
-	}
-
 	// curve indices
 	for( GLuint i = 0; i < numcontrolindices; i += 2 )
 	{
@@ -286,7 +261,7 @@ bool InitScene()
 	supportlines->SetAttributeTable(table, 2);
 
 	// create spline mesh
-	if( !GLCreateMesh(numsplinevertices, numsplineindices, GLMESH_32BIT, decl, &curve) )
+	if( !GLCreateMesh(maxsplinevertices, maxsplineindices, GLMESH_32BIT, decl, &curve) )
 	{
 		MYERROR("Could not create curve");
 		return false;
@@ -295,10 +270,10 @@ bool InitScene()
 	OpenGLAttributeRange* subset0 = curve->GetAttributeTable();
 
 	subset0->PrimitiveType = GLPT_LINELIST;
-	subset0->IndexCount = numsplineindices;
+	subset0->IndexCount = 0;
 
 	// create surface
-	if( !GLCreateMesh(numsurfacevertices, numsurfaceindices, GLMESH_32BIT, decl2, &surface) )
+	if( !GLCreateMesh(maxsurfacevertices, maxsurfaceindices, GLMESH_32BIT, decl2, &surface) )
 	{
 		MYERROR("Could not create surface");
 		return false;
@@ -344,6 +319,7 @@ bool InitScene()
 	screenquad = new OpenGLScreenQuad();
 
 	// tessellate for the first time
+	ChangeCurve(0);
 	Tessellate();
 
 	// text
@@ -377,28 +353,10 @@ void UninitScene()
 	GLKillAnyRogueObject();
 }
 //*************************************************************************************************************
-void KeyPress(WPARAM wparam)
-{
-	switch( wparam )
-	{
-	case 0x46:
-		fullscreen = !fullscreen;
-		break;
-
-	case 0x55:
-		break;
-
-	case 0x57:
-		wireframe = !wireframe;
-		break;
-
-	default:
-		break;
-	}
-}
-//*************************************************************************************************************
 bool UpdateControlPoints(float mx, float my)
 {
+	CurveData& current = curves[currentcurve];
+
 	float	sspx = mx;
 	float	sspy = screenheight - my - 1;
 	float	dist;
@@ -411,8 +369,8 @@ bool UpdateControlPoints(float mx, float my)
 	{
 		for( GLsizei i = 0; i < numcontrolvertices; ++i )
 		{
-			selectiondx = controlpoints[i][0] - sspx;
-			selectiondy = controlpoints[i][1] - sspy;
+			selectiondx = current.controlpoints[i][0] - sspx;
+			selectiondy = current.controlpoints[i][1] - sspy;
 			dist = selectiondx * selectiondx + selectiondy * selectiondy;
 
 			if( dist < radius * radius )
@@ -427,8 +385,8 @@ bool UpdateControlPoints(float mx, float my)
 
 	if( isselected )
 	{
-		controlpoints[selectedcontrolpoint][0] = GLMin<float>(GLMax<float>(selectiondx + sspx, 0), 10);
-		controlpoints[selectedcontrolpoint][1] = GLMin<float>(GLMax<float>(selectiondy + sspy, 0), 10);
+		current.controlpoints[selectedcontrolpoint][0] = GLMin<float>(GLMax<float>(selectiondx + sspx, 0), 10);
+		current.controlpoints[selectedcontrolpoint][1] = GLMin<float>(GLMax<float>(selectiondy + sspy, 0), 10);
 
 		float* data = 0;
 
@@ -436,9 +394,9 @@ bool UpdateControlPoints(float mx, float my)
 			(44 + selectedcontrolpoint) * supportlines->GetNumBytesPerVertex(),
 			supportlines->GetNumBytesPerVertex(), GLLOCK_DISCARD, (void**)&data);
 
-		data[0] = controlpoints[selectedcontrolpoint][0];
-		data[1] = controlpoints[selectedcontrolpoint][1];
-		data[2] = controlpoints[selectedcontrolpoint][2];
+		data[0] = current.controlpoints[selectedcontrolpoint][0];
+		data[1] = current.controlpoints[selectedcontrolpoint][1];
+		data[2] = current.controlpoints[selectedcontrolpoint][2];
 
 		supportlines->UnlockVertexBuffer();
 	}
@@ -446,17 +404,44 @@ bool UpdateControlPoints(float mx, float my)
 	return isselected;
 }
 //*************************************************************************************************************
+void ChangeCurve(GLuint newcurve)
+{
+	CurveData&	next = curves[newcurve];
+	float		(*vdata)[4] = 0;
+
+	supportlines->LockVertexBuffer(44 * 16, 0, GLLOCK_DISCARD, (void**)&vdata);
+
+	for( GLuint i = 0; i < numcontrolvertices; ++i )
+	{
+		vdata[i][0] = next.controlpoints[i][0];
+		vdata[i][1] = next.controlpoints[i][1];
+		vdata[i][2] = next.controlpoints[i][2];
+		vdata[i][3] = 1;
+	}
+
+	supportlines->UnlockVertexBuffer();
+	currentcurve = newcurve;
+
+	UpdateText();
+}
+//*************************************************************************************************************
 void Tessellate()
 {
+	CurveData& current = curves[currentcurve];
+
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, curve->GetVertexBuffer());
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, curve->GetIndexBuffer());
 
-	tessellatecurve->SetInt("numCurveVertices", numsplinevertices);
+	if( current.degree > 1 )
+		tessellatecurve->SetInt("numCurveVertices", numsegments + 1);
+	else
+		tessellatecurve->SetInt("numCurveVertices", numcontrolvertices);
+
 	tessellatecurve->SetInt("numControlPoints", numcontrolvertices);
-	tessellatecurve->SetInt("degree", 3);
-	tessellatecurve->SetFloatArray("knots", knots, numknots);
-	tessellatecurve->SetFloatArray("weights", weights, numcontrolvertices);
-	tessellatecurve->SetVectorArray("controlPoints", &controlpoints[0][0], numcontrolvertices);
+	tessellatecurve->SetInt("degree", current.degree);
+	tessellatecurve->SetFloatArray("knots", current.knots, numcontrolvertices + current.degree + 1);
+	tessellatecurve->SetFloatArray("weights", current.weights, numcontrolvertices);
+	tessellatecurve->SetVectorArray("controlPoints", &current.controlpoints[0][0], numcontrolvertices);
 
 	tessellatecurve->Begin();
 	{
@@ -464,20 +449,47 @@ void Tessellate()
 	}
 	tessellatecurve->End();
 
+	// update surface cvs
+	typedef float vec4[4];
+
+	vec4* surfacecvs = new vec4[numcontrolvertices * numcontrolvertices];
+	GLuint index;
+
+	for( GLuint i = 0; i < numcontrolvertices; ++i )
+	{
+		for( GLuint j = 0; j < numcontrolvertices; ++j )
+		{
+			index = i * numcontrolvertices + j;
+
+			surfacecvs[index][0] = current.controlpoints[i][0];
+			surfacecvs[index][2] = current.controlpoints[j][0];
+			surfacecvs[index][1] = (current.controlpoints[i][1] + current.controlpoints[j][1]) * 0.5f;
+		}
+	}
+
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, surface->GetVertexBuffer());
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, surface->GetIndexBuffer());
 
-	tessellatesurface->SetInt("numVerticesU", numsplinevertices);
-	tessellatesurface->SetInt("numVerticesV", numsplinevertices);
+	if( current.degree > 1 )
+	{
+		tessellatesurface->SetInt("numVerticesU", numsegments + 1);
+		tessellatesurface->SetInt("numVerticesV", numsegments + 1);
+	}
+	else
+	{
+		tessellatesurface->SetInt("numVerticesU", numcontrolvertices);
+		tessellatesurface->SetInt("numVerticesV", numcontrolvertices);
+	}
+
 	tessellatesurface->SetInt("numControlPointsU", numcontrolvertices);
 	tessellatesurface->SetInt("numControlPointsV", numcontrolvertices);
-	tessellatesurface->SetInt("degreeU", 3);
-	tessellatesurface->SetInt("degreeV", 3);
-	tessellatesurface->SetFloatArray("knotsU", knots, numknots);
-	tessellatesurface->SetFloatArray("knotsV", knots, numknots);
-	tessellatesurface->SetFloatArray("weightsU", weights, numcontrolvertices);
-	tessellatesurface->SetFloatArray("weightsV", weights, numcontrolvertices);
-	tessellatesurface->SetVectorArray("controlPoints", &controlpoints[0][0], numcontrolvertices); //
+	tessellatesurface->SetInt("degreeU", current.degree);
+	tessellatesurface->SetInt("degreeV", current.degree);
+	tessellatesurface->SetFloatArray("knotsU", current.knots, numcontrolvertices + current.degree + 1);
+	tessellatesurface->SetFloatArray("knotsV", current.knots, numcontrolvertices + current.degree + 1);
+	tessellatesurface->SetFloatArray("weightsU", current.weights, numcontrolvertices);
+	tessellatesurface->SetFloatArray("weightsV", current.weights, numcontrolvertices);
+	tessellatesurface->SetVectorArray("controlPoints", &surfacecvs[0][0], numcontrolvertices * numcontrolvertices);
 
 	tessellatesurface->Begin();
 	{
@@ -489,6 +501,74 @@ void Tessellate()
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
 
 	glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT|GL_ELEMENT_ARRAY_BARRIER_BIT);
+
+	if( current.degree > 1 )
+	{
+		curve->GetAttributeTable()->IndexCount = numsegments * 2;
+		surface->GetAttributeTable()->IndexCount = numsegments * numsegments * 6;
+	}
+	else
+	{
+		curve->GetAttributeTable()->IndexCount = (numcontrolvertices - 1) * 2;
+		surface->GetAttributeTable()->IndexCount = (numcontrolvertices - 1) * (numcontrolvertices - 1) * 6;
+	}
+
+	delete[] surfacecvs;
+}
+//*************************************************************************************************************
+void KeyPress(WPARAM wparam)
+{
+	int numcurves = sizeof(curves) / sizeof(curves[0]);
+
+	for( int i = 0; i < numcurves; ++i )
+	{
+		if( wparam == 0x31 + i )
+		{
+			ChangeCurve(i);
+			Tessellate();
+		}
+	}
+
+	switch( wparam )
+	{
+	case 0x46:
+		fullscreen = !fullscreen;
+		break;
+
+	case 0x55:
+		break;
+
+	case 0x57:
+		wireframe = !wireframe;
+		break;
+
+	case VK_ADD:
+		numsegments = GLMin<GLuint>(numsegments + 10, MAX_NUM_SEGMENTS);
+		Tessellate();
+		break;
+
+	case VK_SUBTRACT:
+		numsegments = GLMax<GLuint>(numsegments - 10, 10);
+		Tessellate();
+		break;
+
+	default:
+		break;
+	}
+}
+//*************************************************************************************************************
+void MouseMove()
+{
+	if( mousedown == 1 )
+	{
+		if( !fullscreen )
+		{
+			if( UpdateControlPoints((float)mousex, (float)mousey) )
+				Tessellate();
+		}
+	}
+	else
+		selectedcontrolpoint = -1;
 }
 //*************************************************************************************************************
 void Update(float delta)
@@ -498,12 +578,6 @@ void Update(float delta)
 
 	if( mousedown == 1 )
 	{
-		if( !fullscreen )
-		{
-			if( UpdateControlPoints((float)mousex, (float)mousey) )
-				Tessellate();
-		}
-
 		if( fullscreen ||
 			((mousex >= screenwidth - 330 && mousex <= screenwidth - 10) &&
 			(mousey >= 10 && mousey <= 260)) )
@@ -512,8 +586,6 @@ void Update(float delta)
 			cameraangle.curr[1] += mousedy * 0.004f;
 		}
 	}
-	else
-		selectedcontrolpoint = -1;
 
 	// clamp to [-pi, pi]
 	if( cameraangle.curr[1] >= 1.5f )
