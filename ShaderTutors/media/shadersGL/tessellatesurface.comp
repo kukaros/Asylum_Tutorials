@@ -189,7 +189,7 @@ void main()
 	// STEP 2: fill vertex buffer
 	vec4 pos;
 	vec4 polyU, polyV;
-	vec3 dUpoly, dVpoly;
+	vec4 dUpoly, dVpoly;
 	vec3 tangent, bitangent;
 
 	ivec2 loc			= ivec2(gl_LocalInvocationID.xy);
@@ -204,8 +204,9 @@ void main()
 	float firstV		= knotsV[degreeV];
 	float lastU			= knotsU[numControlPointsU];
 	float lastV			= knotsV[numControlPointsV];
-	float u, v, nom, denom;
+	float u, v, nom, denom, weight;
 	float dUnom, dVnom;
+	float dUdenom, dVdenom;
 
 	for( int i = startU; i < endU; ++i )
 	{
@@ -213,7 +214,7 @@ void main()
 		u = mix(firstU, lastU, u);
 
 		polyU = vec4(1.0, u, u * u, u * u * u);
-		dUpoly = vec3(1.0, 2.0 * u, 3.0 * u * u);
+		dUpoly = vec4(0.0, 1.0, 2.0 * u, 3.0 * u * u);
 
 		for( spanU = 0; spanU < lastspanU; ++spanU )
 		{
@@ -227,7 +228,7 @@ void main()
 			v = mix(firstV, lastV, v);
 
 			polyV = vec4(1.0, v, v * v, v * v * v);
-			dVpoly = vec3(1.0, 2.0 * v, 3.0 * v * v);
+			dVpoly = vec4(0.0, 1.0, 2.0 * v, 3.0 * v * v);
 
 			for( spanV = 0; spanV < lastspanV; ++spanV )
 			{
@@ -236,7 +237,9 @@ void main()
 			}
 
 			// calculate normalization factor
-			denom = 0;
+			denom = 0.0;
+			dUdenom = 0.0;
+			dVdenom = 0.0;
 
 			for( int k = 0; k < orderU; ++k )
 			{
@@ -248,11 +251,13 @@ void main()
 					cpU = (spanU - k) % numControlPointsU;
 					cpV = (spanV - l) % numControlPointsV;
 
-					denom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weightsU[cpU] * weightsV[cpV];
+					weight = weightsU[cpU] * weightsV[cpV];
+
+					denom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
+					dUdenom += dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					dVdenom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
 				}
 			}
-
-			denom = 1.0f / denom;
 
 			// sum contributions
 			pos = vec4(0.0);
@@ -269,14 +274,14 @@ void main()
 					cpU = (spanU - k) % numControlPointsU;
 					cpV = (spanV - l) % numControlPointsV;
 
-					nom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV);
-					nom = nom * weightsU[cpU] * weightsV[cpV] * denom;
+					weight = weightsU[cpU] * weightsV[cpV];
 
-					dUnom = dot(CoeffsU[index1].yzw, dUpoly) * dot(CoeffsV[index2], polyV);
-					dVnom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2].yzw, dVpoly);
+					nom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
+					dUnom = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					dVnom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
 
-					dUnom = dUnom * weightsU[cpU] * weightsV[cpV] * denom;
-					dVnom = dVnom * weightsU[cpU] * weightsV[cpV] * denom;
+					dUnom = dUnom * denom - nom * dUdenom;
+					dVnom = dVnom * denom - nom * dVdenom;
 
 					cf = controlPoints[cpU * numControlPointsV + cpV];
 
@@ -286,11 +291,15 @@ void main()
 				}
 			}
 
+			pos /= denom;
+			tangent /= (denom * denom);
+			bitangent /= (denom * denom);
+
 			pos.w = 1.0;
 			index1 = i * numVerticesV + j;
 
 			surfacevertices.data[index1].Position = pos;
-			surfacevertices.data[index1].Normal = vec4(cross(bitangent, tangent), 0.0);
+			surfacevertices.data[index1].Normal = vec4(normalize(cross(bitangent, tangent)), 0.0);
 		}
 	}
 
