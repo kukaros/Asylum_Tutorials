@@ -171,23 +171,9 @@ void main()
 				break;
 		}
 
-		// calculate normalization factor
-		denom = 0;
-
-		for( int k = 0; k < order; ++k )
-		{
-			index = span * MAX_ORDER + k;
-
-			cp = (span - k) % numControlPoints;
-			cf = Coeffs[index];
-
-			denom += dot(cf, poly) * weights[cp];
-		}
-
-		denom = 1.0f / denom;
-
 		// sum contributions
 		pos = vec4(0.0);
+		denom = 0.0;
 
 		for( int k = 0; k < order; ++k )
 		{
@@ -195,14 +181,15 @@ void main()
 			cp = (span - k) % numControlPoints;
 
 			cf = Coeffs[index];
+			nom = dot(cf, poly) * weights[cp];
 
-			nom = dot(cf, poly);
-			nom = nom * weights[cp] * denom;
-
+			denom += nom;
 			pos += controlPoints[cp] * nom;
 		}
 
+		pos /= denom;
 		pos.w = 1.0;
+
 		curvevertices.data[i] = pos;
 	}
 
