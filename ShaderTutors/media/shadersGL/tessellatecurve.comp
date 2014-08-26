@@ -98,7 +98,7 @@ float CalculateCoeff(int i, int e, int span)
 		}
 	}
 
-	return Blossom[(e * MAX_ORDER + degree) * MAX_ORDER].x;
+	return Blossom[(e * MAX_ORDER + degree) * MAX_ORDER];
 }
 
 layout (local_size_x = BLOCK_SIZE) in;

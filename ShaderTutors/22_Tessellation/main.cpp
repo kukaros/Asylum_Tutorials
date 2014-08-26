@@ -194,7 +194,7 @@ bool InitScene()
 	SetWindowText(hwnd, TITLE);
 	Quadron::qGLExtensions::QueryFeatures(hdc);
 
-	if( !Quadron::qGLExtensions::ARB_geometry_shader4 )
+	if( !Quadron::qGLExtensions::ARB_geometry_shader4 || !Quadron::qGLExtensions::ARB_compute_shader )
 		return false;
 
 #ifdef _DEBUG

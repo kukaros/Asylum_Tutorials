@@ -115,7 +115,7 @@ float CalculateCoeff(int i, int degree, int e, int span, float knots[MAX_KNOTS])
 		}
 	}
 
-	return Blossom[(e * MAX_ORDER + degree) * MAX_ORDER].x;
+	return Blossom[(e * MAX_ORDER + degree) * MAX_ORDER];
 }
 
 layout (local_size_x = BLOCK_SIZE, local_size_y = BLOCK_SIZE) in;
