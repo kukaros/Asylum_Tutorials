@@ -129,6 +129,12 @@ struct OpenGLMaterial
 	OpenGLColor	Emissive;
 	float		Power;
 	char*		TextureFile;
+
+	~OpenGLMaterial()
+	{
+		if( TextureFile )
+			delete[] TextureFile;
+	}
 };
 
 /**

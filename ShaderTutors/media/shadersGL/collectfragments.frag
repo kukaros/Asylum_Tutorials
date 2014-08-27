@@ -24,73 +24,74 @@ layout(std140, binding = 1) buffer NodeBuffer {
 
 layout(binding = 0) uniform atomic_uint nextInsertionPoint;
 
-uniform sampler2D sampler0;
 uniform vec4 matAmbient;
 uniform int screenWidth;
 
-in vec2 tex;
+in vec4 vpos;
 
 void main()
 {
-	vec4	base = texture(sampler0, tex);
-	vec4	color = base * matAmbient;
+	vec4	color	= matAmbient;
+	uvec4	nodes[MAX_LAYERS + 1];
+	uvec4	tmp;
+	ivec2	fragID	= ivec2(gl_FragCoord.xy);
+	int		index	= fragID.y * screenWidth + fragID.x;
 
-	ivec2	fragID = ivec2(gl_FragCoord.xy);
-	int		index = fragID.y * screenWidth + fragID.x;
-	uint	depth = floatBitsToUint(gl_FragCoord.z);
-	uint	test;
+	uint	depth	= floatBitsToUint(vpos.z);
+	uint	head	= headbuffer.data[index].StartAndCount.x;
+	uint	count	= headbuffer.data[index].StartAndCount.y;
+	uint	next	= head;
+	uint	node;
 
-	uint count = headbuffer.data[index].StartAndCount.y;
-	uint node;
-	uint prev = 0xFFFFFFFF;
-	uint next = headbuffer.data[index].StartAndCount.x;
+	nodes[0].x = packUnorm4x8(color);
+	nodes[0].y = depth;
+	nodes[0].z = 0xFFFFFFFF;
+	nodes[0].w = 0;
 
-	// find insertion point
-	for( uint i = 0; i < count; ++i )
+	// save out
+	for( uint i = 1; i <= count; ++i )
 	{
-		test = nodebuffer.data[next].ColorDepthNext.y;
+		nodes[i] = nodebuffer.data[next].ColorDepthNext;
+		next = nodes[i].z;
 
-		if( test < depth )
-			break;
+		//float test = uintBitsToFloat(nodes[i].y);
 
-		if( prev != 0xFFFFFFFF && count >= MAX_LAYERS )
-			nodebuffer.data[prev].ColorDepthNext.xy = nodebuffer.data[next].ColorDepthNext.xy;
+		//if( abs(test - vpos.z) < 2.0 ) // 2 mm
+		if( nodes[i].y == depth )
+			return;
+	}
 
-		prev = next;
+	// sort
+	for( uint i = count; i > 0; --i )
+	{
+		for( uint j = 0; j < i; ++j )
+		{
+			if( nodes[j].y < nodes[j + 1].y )
+			{
+				tmp = nodes[j + 1];
+				nodes[j + 1] = nodes[j];
+				nodes[j] = tmp;
+			}
+		}
+	}
+
+	// write back
+	next = head;
+
+	for( uint i = 1; i <= count; ++i )
+	{
+		nodebuffer.data[next].ColorDepthNext.xy = nodes[i].xy;
 		next = nodebuffer.data[next].ColorDepthNext.z;
 	}
 
-	if( prev != 0xFFFFFFFF && count >= MAX_LAYERS )
-	{
-		nodebuffer.data[prev].ColorDepthNext.x = packUnorm4x8(color);
-		nodebuffer.data[prev].ColorDepthNext.y = depth;
-	}
-	else
+	// insert new as head
+	if( count < MAX_LAYERS )
 	{
 		node = atomicCounterIncrement(nextInsertionPoint);
+		nodes[0].z = head;
 
-		if( prev == 0xFFFFFFFF )
-		{
-			// insert as head
-			nodebuffer.data[node].ColorDepthNext.x = packUnorm4x8(color);
-			nodebuffer.data[node].ColorDepthNext.y = depth;
-			nodebuffer.data[node].ColorDepthNext.z = next;
-			nodebuffer.data[node].ColorDepthNext.w = 0;
-
-			headbuffer.data[index].StartAndCount.x = node;
-			headbuffer.data[index].StartAndCount.y = min(count + 1, MAX_LAYERS);
-		}
-		else
-		{
-			// insert normally
-			nodebuffer.data[prev].ColorDepthNext.z = node;
-
-			nodebuffer.data[node].ColorDepthNext.x = packUnorm4x8(color);
-			nodebuffer.data[node].ColorDepthNext.y = depth;
-			nodebuffer.data[node].ColorDepthNext.z = next;
-			nodebuffer.data[node].ColorDepthNext.w = 0;
-
-			headbuffer.data[index].StartAndCount.y = count + 1;
-		}
+		nodebuffer.data[node].ColorDepthNext = nodes[0];
+		headbuffer.data[index].StartAndCount.x = node;
+		headbuffer.data[index].StartAndCount.y = count + 1;
 	}
 }
