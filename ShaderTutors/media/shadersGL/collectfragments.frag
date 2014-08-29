@@ -54,24 +54,25 @@ void main()
 		nodes[i] = nodebuffer.data[next].ColorDepthNext;
 		next = nodes[i].z;
 
-		//float test = uintBitsToFloat(nodes[i].y);
+		float test = uintBitsToFloat(nodes[i].y);
 
-		//if( abs(test - vpos.z) < 2.0 ) // 2 mm
-		if( nodes[i].y == depth )
+		if( abs(test - vpos.z) < 0.02 ) // 2 mm
+		//if( nodes[i].y == depth )
 			return;
 	}
 
 	// sort
-	for( uint i = count; i > 0; --i )
+	for( uint i = 1; i < count + 1; ++i )
 	{
-		for( uint j = 0; j < i; ++j )
+		uint j = i;
+
+		while( j > 0 && nodes[j - 1].y < nodes[j].y )
 		{
-			if( nodes[j].y < nodes[j + 1].y )
-			{
-				tmp = nodes[j + 1];
-				nodes[j + 1] = nodes[j];
-				nodes[j] = tmp;
-			}
+			tmp = nodes[j - 1];
+			nodes[j - 1] = nodes[j];
+			nodes[j] = tmp;
+
+			--j;
 		}
 	}
 

@@ -287,12 +287,11 @@ void Render(float alpha, float elapsedtime)
 	float view[16];
 	float proj[16];
 	float viewproj[16];
-	float eye[3] = { 0, 0, 8 };
-	float look[3] = { 0, 0, 0 };
-	float up[3] = { 0, 1, 0 };
+	float eye[3]		= { 0, 0.3f, 8 };
+	float look[3]		= { 0, 0.3f, 0 };
+	float up[3]			= { 0, 1, 0 };
 	float clipplanes[2];
 	float orient[2];
-	float texuv[2] = { 1, 1 };
 
 	cameraangle.smooth(orient, alpha);
 
@@ -306,11 +305,12 @@ void Render(float alpha, float elapsedtime)
 	GLMatrixMultiply(viewproj, view, proj);
 
 	// STEP 1: initialize header pointer buffer
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDisable(GL_DEPTH_TEST);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, headbuffer);
 
 	init->SetInt("screenWidth", screenwidth);
-
 	init->Begin();
 	{
 		screenquad->Draw();
@@ -332,7 +332,6 @@ void Render(float alpha, float elapsedtime)
 
 	collect->SetMatrix("matView", view);
 	collect->SetMatrix("matProj", proj);
-	collect->SetVector("uv", texuv);
 	collect->SetInt("screenWidth", screenwidth);
 
 	collect->Begin();
@@ -369,10 +368,10 @@ void Render(float alpha, float elapsedtime)
 
 	// STEP 3: render
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
 	render->SetInt("screenWidth", screenwidth);
 
@@ -386,6 +385,7 @@ void Render(float alpha, float elapsedtime)
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
 
 	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
 
 #ifdef _DEBUG
 	// check errors
