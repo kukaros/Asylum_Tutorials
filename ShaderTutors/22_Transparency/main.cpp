@@ -12,6 +12,7 @@
 // helper macros
 #define TITLE				"Shader sample 22.2: Order independent transparency"
 #define MYERROR(x)			{ std::cout << "* Error: " << x << "!\n"; }
+#define SAFE_DELETE(x)		if( (x) ) { delete (x); (x) = 0; }
 #define M_PI				3.141592f
 
 // external variables
@@ -35,6 +36,7 @@ struct SceneObject
 
 // sample variables
 OpenGLMesh*			box				= 0;
+OpenGLMesh*			angel			= 0;
 OpenGLMesh*			dragon			= 0;
 OpenGLEffect*		init			= 0;
 OpenGLEffect*		collect			= 0;
@@ -54,8 +56,10 @@ SceneObject objects[] =
 	{ 0, { 0, -0.35f, 0 }, { 15, 0.5f, 15 }, 0, OpenGLColor(1, 1, 0, 0.75f) },
 
 	{ 1, { -1, -0.1f, 2.5f }, { 0.3f, 0.3f, 0.3f }, -M_PI / 8, OpenGLColor(1, 0, 1, 0.5f) },
-	{ 1, { 2, -0.1f, 0 }, { 0.3f, 0.3f, 0.3f }, M_PI / -2 + M_PI / -6, OpenGLColor(0, 1, 1, 0.5f) },
-	{ 1, { -2, -0.1f, -2 }, { 0.3f, 0.3f, 0.3f }, M_PI / -4, OpenGLColor(1, 0, 0, 0.5f) }
+	{ 1, { 2.5f, -0.1f, 0 }, { 0.3f, 0.3f, 0.3f }, M_PI / -2 + M_PI / -6, OpenGLColor(0, 1, 1, 0.5f) },
+	{ 1, { -2, -0.1f, -2 }, { 0.3f, 0.3f, 0.3f }, M_PI / -4, OpenGLColor(1, 0, 0, 0.5f) },
+
+	{ 2, { 0, 0, 0 }, { 0.015f, 0.015f, 0.015f }, M_PI, OpenGLColor(0, 1, 0, 0.5f) },
 };
 
 const int numobjects = sizeof(objects) / sizeof(SceneObject);
@@ -117,7 +121,15 @@ bool InitScene()
 
 	if( !GLCreateMeshFromQM("../media/meshes/dragon.qm", &materials, &nummaterials, &dragon) )
 	{
-		MYERROR("Could not load teapot");
+		MYERROR("Could not load dragon");
+		return false;
+	}
+
+	delete[] materials;
+
+	if( !GLCreateMeshFromQM("../media/meshes/angel.qm", &materials, &nummaterials, &angel) )
+	{
+		MYERROR("Could not load angel");
 		return false;
 	}
 
@@ -180,6 +192,8 @@ bool InitScene()
 			tmpbox = box->GetBoundingBox();
 		else if( obj.type == 1 )
 			tmpbox = dragon->GetBoundingBox();
+		else if( obj.type == 2 )
+			tmpbox = angel->GetBoundingBox();
 
 		tmpbox.TransformAxisAligned(world);
 
@@ -194,17 +208,17 @@ bool InitScene()
 		return false;
 	}
 
-	// fragment collector shader
-	if( !GLCreateEffectFromFile("../media/shadersGL/ambient.vert", 0, "../media/shadersGL/collectfragments.frag", &collect) )
-	{
-		MYERROR("Could not load collector shader");
-		return false;
-	}
-
 	// renderer shader
 	if( !GLCreateEffectFromFile("../media/shadersGL/basic2D.vert", 0, "../media/shadersGL/renderfragments.frag", &render) )
 	{
 		MYERROR("Could not load rendering shader");
+		return false;
+	}
+
+	// fragment collector shader
+	if( !GLCreateEffectFromFile("../media/shadersGL/collectfragments.vert", 0, "../media/shadersGL/collectfragments.frag", &collect) )
+	{
+		MYERROR("Could not load collector shader");
 		return false;
 	}
 
@@ -216,23 +230,13 @@ bool InitScene()
 //*************************************************************************************************************
 void UninitScene()
 {
-	if( screenquad )
-		delete screenquad;
-
-	if( box )
-		delete box;
-
-	if( dragon )
-		delete dragon;
-
-	if( init )
-		delete init;
-
-	if( collect )
-		delete collect;
-
-	if( render )
-		delete render;
+	SAFE_DELETE(screenquad);
+	SAFE_DELETE(box);
+	SAFE_DELETE(dragon);
+	SAFE_DELETE(angel);
+	SAFE_DELETE(init);
+	SAFE_DELETE(collect);
+	SAFE_DELETE(render);
 
 	if( white )
 		glDeleteTextures(1, &white);
@@ -283,12 +287,11 @@ void Render(float alpha, float elapsedtime)
 	float view[16];
 	float proj[16];
 	float viewproj[16];
-	float eye[3] = { 0, 0, 8 };
-	float look[3] = { 0, 0, 0 };
-	float up[3] = { 0, 1, 0 };
+	float eye[3]		= { 0, 0.3f, 8 };
+	float look[3]		= { 0, 0.3f, 0 };
+	float up[3]			= { 0, 1, 0 };
 	float clipplanes[2];
 	float orient[2];
-	float texuv[2] = { 1, 1 };
 
 	cameraangle.smooth(orient, alpha);
 
@@ -302,11 +305,12 @@ void Render(float alpha, float elapsedtime)
 	GLMatrixMultiply(viewproj, view, proj);
 
 	// STEP 1: initialize header pointer buffer
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDisable(GL_DEPTH_TEST);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, headbuffer);
 
 	init->SetInt("screenWidth", screenwidth);
-
 	init->Begin();
 	{
 		screenquad->Draw();
@@ -326,8 +330,8 @@ void Render(float alpha, float elapsedtime)
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, nodebuffer);
 	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, counterbuffer);
 
-	collect->SetMatrix("matViewProj", viewproj);
-	collect->SetVector("uv", texuv);
+	collect->SetMatrix("matView", view);
+	collect->SetMatrix("matProj", proj);
 	collect->SetInt("screenWidth", screenwidth);
 
 	collect->Begin();
@@ -354,6 +358,8 @@ void Render(float alpha, float elapsedtime)
 				box->DrawSubset(0);
 			else if( obj.type == 1 )
 				dragon->DrawSubset(0);
+			else if( obj.type == 2 )
+				angel->DrawSubset(0);
 		}
 	}
 	collect->End();
@@ -362,10 +368,10 @@ void Render(float alpha, float elapsedtime)
 
 	// STEP 3: render
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
 	render->SetInt("screenWidth", screenwidth);
 
@@ -379,6 +385,7 @@ void Render(float alpha, float elapsedtime)
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
 
 	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
 
 #ifdef _DEBUG
 	// check errors
