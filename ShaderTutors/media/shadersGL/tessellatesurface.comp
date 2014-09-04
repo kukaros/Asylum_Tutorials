@@ -205,8 +205,8 @@ void main()
 	float lastU			= knotsU[numControlPointsU];
 	float lastV			= knotsV[numControlPointsV];
 	float u, v, nom, denom, weight;
-	float dUnom, dVnom;
-	float dUdenom, dVdenom;
+	float dUf, dVf;
+	float dUg, dVg;
 
 	for( int i = startU; i < endU; ++i )
 	{
@@ -238,8 +238,8 @@ void main()
 
 			// calculate normalization factor
 			denom = 0.0;
-			dUdenom = 0.0;
-			dVdenom = 0.0;
+			dUg = 0.0;
+			dVg = 0.0;
 
 			for( int k = 0; k < orderU; ++k )
 			{
@@ -254,8 +254,8 @@ void main()
 					weight = weightsU[cpU] * weightsV[cpV];
 
 					denom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					dUdenom += dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					dVdenom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
+					dUg += dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					dVg += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
 				}
 			}
 
@@ -277,17 +277,17 @@ void main()
 					weight = weightsU[cpU] * weightsV[cpV];
 
 					nom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					dUnom = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					dVnom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
+					dUf = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					dVf = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
 
-					dUnom = dUnom * denom - nom * dUdenom;
-					dVnom = dVnom * denom - nom * dVdenom;
+					dUf = dUf * denom - dUg * nom; // f'g - g'f
+					dVf = dVf * denom - dVg * nom; // f'g - g'f
 
 					cf = controlPoints[cpU * numControlPointsV + cpV];
 
 					pos += cf * nom;
-					tangent += cf.xyz * dUnom;
-					bitangent += cf.xyz * dVnom;
+					tangent += cf.xyz * dUf;
+					bitangent += cf.xyz * dVf;
 				}
 			}
 
