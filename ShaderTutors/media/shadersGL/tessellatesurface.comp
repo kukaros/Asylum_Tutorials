@@ -205,7 +205,7 @@ void main()
 	float lastU			= knotsU[numControlPointsU];
 	float lastV			= knotsV[numControlPointsV];
 	float u, v, nom, denom, weight;
-	float dUf, dVf;
+	vec3 dUf, dVf;
 	float dUg, dVg;
 
 	for( int i = startU; i < endU; ++i )
@@ -236,7 +236,11 @@ void main()
 					break;
 			}
 
-			// calculate normalization factor
+			// sum contributions
+			pos = vec4(0.0);
+			dUf = vec3(0.0);
+			dVf = vec3(0.0);
+
 			denom = 0.0;
 			dUg = 0.0;
 			dVg = 0.0;
@@ -251,49 +255,27 @@ void main()
 					cpU = (spanU - k) % numControlPointsU;
 					cpV = (spanV - l) % numControlPointsV;
 
-					weight = weightsU[cpU] * weightsV[cpV];
-
-					denom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					dUg += dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					dVg += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
-				}
-			}
-
-			// sum contributions
-			pos = vec4(0.0);
-			tangent = vec3(0.0);
-			bitangent = vec3(0.0);
-
-			for( int k = 0; k < orderU; ++k )
-			{
-				for( int l = 0; l < orderV; ++l )
-				{
-					index1 = spanU * MAX_ORDER + k;
-					index2 = spanV * MAX_ORDER + l;
-
-					cpU = (spanU - k) % numControlPointsU;
-					cpV = (spanV - l) % numControlPointsV;
-
-					weight = weightsU[cpU] * weightsV[cpV];
-
-					nom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					dUf = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					dVf = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
-
-					dUf = dUf * denom - dUg * nom; // f'g - g'f
-					dVf = dVf * denom - dVg * nom; // f'g - g'f
-
 					cf = controlPoints[cpU * numControlPointsV + cpV];
+					weight = weightsU[cpU] * weightsV[cpV];
 
-					pos += cf * nom;
-					tangent += cf.xyz * dUf;
-					bitangent += cf.xyz * dVf;
+					float c = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
+					float cu = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					float cv = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
+
+					pos += cf * c;	// f
+					denom += c;		// g
+
+					dUg += cu;
+					dVg += cv;
+
+					dUf += cf.xyz * cu;
+					dVf += cf.xyz * cv;
 				}
 			}
 
+			tangent = (dUf * denom - dUg * pos.xyz) / (denom * denom);
+			bitangent = (dVf * denom - dVg * pos.xyz) / (denom * denom);
 			pos /= denom;
-			tangent /= (denom * denom);
-			bitangent /= (denom * denom);
 
 			pos.w = 1.0;
 			index1 = i * numVerticesV + j;
