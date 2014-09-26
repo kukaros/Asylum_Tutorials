@@ -205,6 +205,7 @@ void main()
 	float lastU			= knotsU[numControlPointsU];
 	float lastV			= knotsV[numControlPointsV];
 	float u, v, nom, denom, weight;
+	float c, cdU, cdV;
 	vec3 dUf, dVf;
 	float dUg, dVg;
 
@@ -258,18 +259,18 @@ void main()
 					cf = controlPoints[cpU * numControlPointsV + cpV];
 					weight = weightsU[cpU] * weightsV[cpV];
 
-					float c = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					float cu = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					float cv = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
+					c = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
+					cdU = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					cdV = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
 
 					pos += cf * c;	// f
 					denom += c;		// g
 
-					dUg += cu;
-					dVg += cv;
+					dUg += cdU;
+					dVg += cdV;
 
-					dUf += cf.xyz * cu;
-					dVf += cf.xyz * cv;
+					dUf += cf.xyz * cdU;
+					dVf += cf.xyz * cdV;
 				}
 			}
 
