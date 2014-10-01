@@ -134,7 +134,7 @@ void ps_convolution(
 	out	float4 color	: COLOR0)
 {
 	float2	ptex	= ltov.xy / ltov.w;
-	float	d		= ltov.z;
+	float	d		= ltov.z - 0.055f;
 	float	s		= 0.5f;
 	float2	irrad	= BRDF_BlinnPhong(wnorm, ldir, vdir, matSpecular.w);
 	float4	base	= tex2D(basetex, tex);
@@ -142,21 +142,20 @@ void ps_convolution(
 	float4 sincoeffs = tex2D(sinbasis, ptex) * 2 - 1;
 	float4 coscoeffs = tex2D(cosbasis, ptex) * 2 - 1;
 
-	const float alpha = -0.5f;
-
 	// (2 / ck) * cos(ck * d) * B(z)
-	s += 0.6366197f * cos(3.1415926f * d) * sincoeffs.x * exp(alpha * 0.0625f);
-	s += 0.2122065f * cos(9.4247779f * d) * sincoeffs.y * exp(alpha * 0.25f);
-	s += 0.1273239f * cos(15.707963f * d) * sincoeffs.z * exp(alpha * 0.5625f);
-	s += 0.0909456f * cos(21.991148f * d) * sincoeffs.w * exp(alpha);
+	s += 0.6366197f * cos(3.1415926f * d) * sincoeffs.x;
+	s += 0.2122065f * cos(9.4247779f * d) * sincoeffs.y;
+	s += 0.1273239f * cos(15.707963f * d) * sincoeffs.z;
+	s += 0.0909456f * cos(21.991148f * d) * sincoeffs.w;
 
 	// (-2 / ck) * sin(ck * d) * B(z)
-	s -= 0.6366197f * sin(3.1415926f * d) * coscoeffs.x * exp(alpha * 0.0625f);
-	s -= 0.2122065f * sin(9.4247779f * d) * coscoeffs.y * exp(alpha * 0.25f);
-	s -= 0.1273239f * sin(15.707963f * d) * coscoeffs.z * exp(alpha * 0.5625f);
-	s -= 0.0909456f * sin(21.991148f * d) * coscoeffs.w * exp(alpha);
+	s -= 0.6366197f * sin(3.1415926f * d) * coscoeffs.x;
+	s -= 0.2122065f * sin(9.4247779f * d) * coscoeffs.y;
+	s -= 0.1273239f * sin(15.707963f * d) * coscoeffs.z;
+	s -= 0.0909456f * sin(21.991148f * d) * coscoeffs.w;
 
-	s = saturate(s * 2); // correct d = z case
+	s = saturate((s - 0.06f) * 1.2f);
+	s = pow(s, 12.0f);
 
 	base.rgb = pow(base.rgb, 2.2f);
 

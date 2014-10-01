@@ -54,6 +54,7 @@ LPDIRECT3DTEXTURE9				blur		= NULL;
 LPDIRECT3DTEXTURE9				text		= NULL;
 
 state<D3DXVECTOR2>				cameraangle;
+state<D3DXVECTOR2>				lightangle;
 
 float vertices[36] =
 {
@@ -124,7 +125,9 @@ HRESULT InitScene()
 	D3DXVECTOR4 texelsize(1.0f / SHADOWMAP_SIZE, 1.0f / SHADOWMAP_SIZE, 0, 1);
 
 	DXRenderText("Use mouse to rotate camera", text, 512, 128);
+	
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
+	lightangle = D3DXVECTOR2(3.2f, 0.75f);
 
 	D3DXMATRIX tmp1, tmp2, tmp3;
 
@@ -171,22 +174,26 @@ void Update(float delta)
 	D3DXVECTOR2 cameravelocity(mousedx, mousedy);
 
 	cameraangle.prev = cameraangle.curr;
+	lightangle.prev = lightangle.curr;
 
 	if( mousedown == 1 )
 		cameraangle.curr += cameravelocity * 0.004f;
 
+	if( mousedown == 2 )
+		lightangle.curr += cameravelocity * 0.004f;
+
 	// clamp to [-pi, pi]
 	if( cameraangle.curr.y >= 1.5f )
-	{
 		cameraangle.curr.y = 1.5f;
-		cameravelocity.y = 0;
-	}
 
 	if( cameraangle.curr.y <= -1.5f )
-	{
 		cameraangle.curr.y = -1.5f;
-		cameravelocity.y = 0;
-	}
+
+	if( lightangle.curr.y >= 1.5f )
+		lightangle.curr.y = 1.5f;
+
+	if( lightangle.curr.y <= -1.5f )
+		lightangle.curr.y = -1.5f;
 }
 //*************************************************************************************************************
 void RenderScene(LPD3DXEFFECT effect, int what)
@@ -209,7 +216,7 @@ void RenderScene(LPD3DXEFFECT effect, int what)
 			if( obj.type == FLOOR )
 			{
 				uv.x = uv.y = 3;
-				spec = D3DXVECTOR4(0.15f, 0.15f, 0.15f, 20.0f);
+				spec = D3DXVECTOR4(0.2f, 0.2f, 0.2f, 20.0f);
 
 				effect->SetVector("uv", &uv);
 				effect->SetVector("matSpecular", &spec);
@@ -293,7 +300,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXMATRIX lightview, lightproj, lightvp;
 
 	D3DXVECTOR2 orient = cameraangle.smooth(alpha);
-	D3DXVECTOR4 lightpos(-1, 6, 5, 1);
+	D3DXVECTOR4 lightpos(0, 0, -5, 0);
 	D3DXVECTOR3 look(0, 0.5f, 0), up(0, 1, 0);
 	D3DXVECTOR3 eye(0, 0, -5.2f);
 	D3DXVECTOR4 clipplanes(0.1f, 20, 0, 0);
@@ -308,8 +315,14 @@ void Render(float alpha, float elapsedtime)
 	D3DXMatrixMultiply(&vp, &view, &proj);
 
 	// setup light
+	orient = lightangle.smooth(alpha);
+	look = D3DXVECTOR3(0, 0, 0);
+
+	D3DXMatrixRotationYawPitchRoll(&tmp, orient.x, orient.y, 0);
+	D3DXVec4Transform(&lightpos, &lightpos, &tmp);
+
 	D3DXMatrixLookAtLH(&lightview, (D3DXVECTOR3*)&lightpos, &look, &up);
-	D3DXMatrixPerspectiveFovLH(&lightproj, D3DX_PI / 4, 1, 1, 15.0f); // TODO: fit
+	D3DXMatrixOrthoLH(&lightproj, 7.5f, 7.5f, -8, 8);
 	D3DXMatrixMultiply(&lightvp, &lightview, &lightproj);
 
 	if( SUCCEEDED(device->BeginScene()) )
