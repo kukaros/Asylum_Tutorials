@@ -1,6 +1,8 @@
 
 #include "commonbrdf.fxh"
 
+#define SCALE_FACTOR	120.0f
+
 sampler basetex : register(s0) = sampler_state
 {
 	MinFilter = linear;
@@ -9,26 +11,6 @@ sampler basetex : register(s0) = sampler_state
 };
 
 sampler shadowtex : register(s1) = sampler_state
-{
-	MinFilter = point;
-	MagFilter = point;
-	MipFilter = none;
-
-	AddressU = clamp;
-	AddressV = clamp;
-};
-
-sampler sinbasis : register(s2) = sampler_state
-{
-	MinFilter = linear;
-	MagFilter = linear;
-	MipFilter = none;
-
-	AddressU = clamp;
-	AddressV = clamp;
-};
-
-sampler cosbasis : register(s3) = sampler_state
 {
 	MinFilter = linear;
 	MagFilter = linear;
@@ -73,34 +55,11 @@ void ps_shadowmap(
 	in	float linearz	: TEXCOORD0,
 	out	float4 color	: COLOR0)
 {
-	color = float4(linearz, 0, 0, 1);
+	float expz = exp(SCALE_FACTOR * linearz);
+	color = float4(expz, 0, 0, 1);
 }
 
-void ps_evalbasis(
-	in	float2 tex		: TEXCOORD0,
-	out	float4 color0	: COLOR0,
-	out	float4 color1	: COLOR1)
-{
-	float z = tex2D(shadowtex, tex).r;
-
-	// sin(PI * (2k - 1) * z)
-	color0.r = sin(3.1415926f * z);
-	color0.g = sin(9.4247779f * z);
-	color0.b = sin(15.707963f * z);
-	color0.a = sin(21.991148f * z);
-
-	color0 = color0 * 0.5f + 0.5f;
-
-	// cos(PI * (2k - 1) * z)
-	color1.r = cos(3.1415926f * z);
-	color1.g = cos(9.4247779f * z);
-	color1.b = cos(15.707963f * z);
-	color1.a = cos(21.991148f * z);
-
-	color1 = color1 * 0.5f + 0.5f;
-}
-
-void vs_convolution(
+void vs_exponential(
 	in out	float4 pos		: POSITION,
 	in		float3 norm		: NORMAL,
 	in out	float2 tex		: TEXCOORD0,
@@ -123,7 +82,7 @@ void vs_convolution(
 	tex *= uv;
 }
 
-void ps_convolution(
+void ps_exponential(
 	in	float2 tex		: TEXCOORD0,
 	in	float4 ltov		: TEXCOORD1,
 	in	float3 wnorm	: TEXCOORD2,
@@ -132,44 +91,19 @@ void ps_convolution(
 	out	float4 color	: COLOR0)
 {
 	float2	ptex	= ltov.xy / ltov.w;
-	float	d		= ltov.z - 0.055f;
-	float	s		= 0.5f;
+	float	d		= ltov.z;
+	float	s;
 	float	z		= tex2D(shadowtex, ptex).r;
 	float2	irrad	= BRDF_BlinnPhong(wnorm, ldir, vdir, matSpecular.w);
 	float4	base	= tex2D(basetex, tex);
 
-	float4 sincoeffs = tex2D(sinbasis, ptex) * 2 - 1;
-	float4 coscoeffs = tex2D(cosbasis, ptex) * 2 - 1;
-
-	// (2 / ck) * cos(ck * z) * B(z)
-	s += 0.6366197f * cos(3.1415926f * d) * sincoeffs.x;
-	s += 0.2122065f * cos(9.4247779f * d) * sincoeffs.y;
-	s += 0.1273239f * cos(15.707963f * d) * sincoeffs.z;
-	s += 0.0909456f * cos(21.991148f * d) * sincoeffs.w;
-
-	// (-2 / ck) * sin(ck * z) * B(z)
-	s -= 0.6366197f * sin(3.1415926f * d) * coscoeffs.x;
-	s -= 0.2122065f * sin(9.4247779f * d) * coscoeffs.y;
-	s -= 0.1273239f * sin(15.707963f * d) * coscoeffs.z;
-	s -= 0.0909456f * sin(21.991148f * d) * coscoeffs.w;
-
-	/*
-	const float A = 60.0f;
-	const float B = 50.0f;
-
-	float p = 8 + A * exp(B * (z - ltov.z));
-	*/
-
-	s = saturate((s - 0.06f) * 1.2f);
-	s = saturate(pow(s, 8.0f)); // p
-
 	base.rgb = pow(base.rgb, 2.2f);
+	s = saturate(z / exp(SCALE_FACTOR * d));
 
 	color = (base * irrad.x + irrad.y * matSpecular) * s;
 	color.a = 1;
 
-	//float test = ((z < ltov.z) ? 0.0f : 1.0f); //p / 70.0f;
-	//color = float4(test, test, test, 1);
+	//color = float4(s, s, s, 1);
 }
 
 technique shadowmap
@@ -181,20 +115,11 @@ technique shadowmap
 	}
 }
 
-technique evalbasis
+technique exponential
 {
 	pass p0
 	{
-		vertexshader = null;
-		pixelshader = compile ps_3_0 ps_evalbasis();
-	}
-}
-
-technique convolution
-{
-	pass p0
-	{
-		vertexshader = compile vs_3_0 vs_convolution();
-		pixelshader = compile ps_3_0 ps_convolution();
+		vertexshader = compile vs_3_0 vs_exponential();
+		pixelshader = compile ps_3_0 ps_exponential();
 	}
 }

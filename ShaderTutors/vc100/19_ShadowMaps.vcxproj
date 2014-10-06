@@ -105,6 +105,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </None>
+    <None Include="..\media\shaders\exponentialshadow.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -114,6 +118,8 @@
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\19_ShadowMaps\convolution.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\exponential.cpp" />
     <ClCompile Include="..\19_ShadowMaps\main.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
     <ClCompile Include="..\common\other.cpp" />

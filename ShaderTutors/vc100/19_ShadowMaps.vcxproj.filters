@@ -10,6 +10,9 @@
     <Filter Include="common">
       <UniqueIdentifier>{9748e16b-f31e-4f24-a9fc-d3633e2153e7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="techniques">
+      <UniqueIdentifier>{f82338eb-98ac-456e-bc39-63b12eab8225}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico">
@@ -22,6 +25,9 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="..\media\shaders\commonbrdf.fxh">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shaders\exponentialshadow.fx">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>
@@ -44,5 +50,11 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\common\other.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\convolution.cpp">
+      <Filter>techniques</Filter>
+    </ClCompile>
+    <ClCompile Include="..\19_ShadowMaps\exponential.cpp">
+      <Filter>techniques</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
