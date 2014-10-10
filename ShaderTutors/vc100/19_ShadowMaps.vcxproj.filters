@@ -30,6 +30,9 @@
     <None Include="..\media\shaders\exponentialshadow.fx">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\media\shaders\pcfshadow5x5.fx">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc">
@@ -54,6 +57,9 @@
       <Filter>techniques</Filter>
     </ClCompile>
     <ClCompile Include="..\19_ShadowMaps\exponential.cpp">
+      <Filter>techniques</Filter>
+    </ClCompile>
+    <ClCompile Include="..\19_ShadowMaps\pcf.cpp">
       <Filter>techniques</Filter>
     </ClCompile>
   </ItemGroup>

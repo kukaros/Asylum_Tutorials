@@ -45,12 +45,12 @@ void RenderWithExponential(
 	exponential->EndPass();
 	exponential->End();
 
-	// STEP 3: apply filter
+	// STEP 2: apply filter
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
 	BlurTexture(shadowmap);
 	device->SetRenderState(D3DRS_ZENABLE, TRUE);
 
-	// STEP 4: render scene
+	// STEP 3: render scene
 	device->SetRenderTarget(0, oldsurface);
 	device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xff6694ed, 1.0f, 0);
 	device->SetRenderState(D3DRS_SRGBWRITEENABLE, TRUE);
@@ -66,6 +66,7 @@ void RenderWithExponential(
 	exponential->SetVector("clipPlanes", &clipplanes);
 	exponential->SetVector("lightPos", &lightpos);
 	exponential->SetVector("eyePos", (D3DXVECTOR4*)&eye);
+	exponential->SetVector("texelSize", &texelsize);
 
 	exponential->Begin(NULL, 0);
 	exponential->BeginPass(0);

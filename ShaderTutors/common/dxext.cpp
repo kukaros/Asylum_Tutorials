@@ -91,6 +91,144 @@ static void DXReadString(FILE* f, char* buff)
 
 // *****************************************************************************************************************************
 //
+// OpenGLAABox impl
+//
+// *****************************************************************************************************************************
+
+#define ASGN_IF(a, op, b) \
+	if( (a) op (b) ) (a) = (b);
+
+DXAABox::DXAABox()
+{
+	Min[0] = Min[1] = Min[2] = FLT_MAX;
+	Max[0] = Max[1] = Max[2] = -FLT_MAX;
+}
+
+void DXAABox::Add(float x, float y, float z)
+{
+	ASGN_IF(Max[0], <, x);
+	ASGN_IF(Max[1], <, y);
+	ASGN_IF(Max[2], <, z);
+
+	ASGN_IF(Min[0], >, x);
+	ASGN_IF(Min[1], >, y);
+	ASGN_IF(Min[2], >, z);
+}
+
+void DXAABox::Add(const D3DXVECTOR3& v)
+{
+	ASGN_IF(Max[0], <, v[0]);
+	ASGN_IF(Max[1], <, v[1]);
+	ASGN_IF(Max[2], <, v[2]);
+
+	ASGN_IF(Min[0], >, v[0]);
+	ASGN_IF(Min[1], >, v[1]);
+	ASGN_IF(Min[2], >, v[2]);
+}
+
+void DXAABox::GetCenter(D3DXVECTOR3& out) const
+{
+	out[0] = (Min[0] + Max[0]) * 0.5f;
+	out[1] = (Min[1] + Max[1]) * 0.5f;
+	out[2] = (Min[2] + Max[2]) * 0.5f;
+}
+
+void DXAABox::GetHalfSize(D3DXVECTOR3& out) const
+{
+	out[0] = (Max[0] - Min[0]) * 0.5f;
+	out[1] = (Max[1] - Min[1]) * 0.5f;
+	out[2] = (Max[2] - Min[2]) * 0.5f;
+}
+
+void DXAABox::TransformAxisAligned(const D3DXMATRIX& traf)
+{
+	D3DXVECTOR3 vertices[8] =
+	{
+		D3DXVECTOR3(Min[0], Min[1], Min[2]),
+		D3DXVECTOR3(Min[0], Min[1], Max[2]),
+		D3DXVECTOR3(Min[0], Max[1], Min[2]),
+		D3DXVECTOR3(Min[0], Max[1], Max[2]),
+		D3DXVECTOR3(Max[0], Min[1], Min[2]),
+		D3DXVECTOR3(Max[0], Min[1], Max[2]),
+		D3DXVECTOR3(Max[0], Max[1], Min[2]),
+		D3DXVECTOR3(Max[0], Max[1], Max[2])
+	};
+	
+	for( int i = 0; i < 8; ++i )
+		D3DXVec3TransformCoord(&vertices[i], &vertices[i], &traf);
+
+	Min[0] = Min[1] = Min[2] = FLT_MAX;
+	Max[0] = Max[1] = Max[2] = -FLT_MAX;
+
+	for( int i = 0; i < 8; ++i )
+		Add(vertices[i]);
+}
+
+void DXAABox::GetPlanes(D3DXPLANE outplanes[6]) const
+{
+#define CALC_PLANE(i, nx, ny, nz, px, py, pz) \
+	outplanes[i].a = nx;	p[0] = px; \
+	outplanes[i].b = ny;	p[1] = py; \
+	outplanes[i].c = nz;	p[2] = pz; \
+	outplanes[i].d = -D3DXVec3Dot(&p, (D3DXVECTOR3*)&outplanes[i]); \
+	D3DXPlaneNormalize(&outplanes[i], &outplanes[i]);
+// END
+
+	D3DXVECTOR3 p;
+
+	CALC_PLANE(0, 1, 0, 0, Min[0], Min[1], Min[2]);		// left
+	CALC_PLANE(1, -1, 0, 0, Max[0], Min[1], Min[2]);	// right
+	CALC_PLANE(2, 0, 1, 0, Min[0], Min[1], Min[2]);		// bottom
+	CALC_PLANE(3, 0, -1, 0, Min[0], Max[1], Min[2]);	// top
+	CALC_PLANE(4, 0, 0, -1, Min[0], Min[1], Max[2]);	// front
+	CALC_PLANE(5, 0, 0, 1, Min[0], Min[1], Min[2]);		// back
+}
+
+float DXAABox::Radius() const
+{
+	D3DXVECTOR3 tmp = Min - Max;
+	return D3DXVec3Length(&tmp) * 0.5f;
+}
+
+float DXAABox::Nearest(const D3DXPLANE& from) const
+{
+#define FAST_DISTANCE(x, y, z, p, op) \
+	d = p[0] * x + p[1] * y + p[2] * z + p[3]; \
+	ASGN_IF(dist, op, d);
+// END
+
+	float d, dist = FLT_MAX;
+
+	FAST_DISTANCE(Min[0], Min[1], Min[2], from, >);
+	FAST_DISTANCE(Min[0], Min[1], Max[2], from, >);
+	FAST_DISTANCE(Min[0], Max[1], Min[2], from, >);
+	FAST_DISTANCE(Min[0], Max[1], Max[2], from, >);
+	FAST_DISTANCE(Max[0], Min[1], Min[2], from, >);
+	FAST_DISTANCE(Max[0], Min[1], Max[2], from, >);
+	FAST_DISTANCE(Max[0], Max[1], Min[2], from, >);
+	FAST_DISTANCE(Max[0], Max[1], Max[2], from, >);
+
+	return dist;
+}
+
+float DXAABox::Farthest(const D3DXPLANE& from) const
+{
+	float d, dist = -FLT_MAX;
+
+	FAST_DISTANCE(Min[0], Min[1], Min[2], from, <);
+	FAST_DISTANCE(Min[0], Min[1], Max[2], from, <);
+	FAST_DISTANCE(Min[0], Max[1], Min[2], from, <);
+	FAST_DISTANCE(Min[0], Max[1], Max[2], from, <);
+	FAST_DISTANCE(Max[0], Min[1], Min[2], from, <);
+	FAST_DISTANCE(Max[0], Min[1], Max[2], from, <);
+	FAST_DISTANCE(Max[0], Max[1], Min[2], from, <);
+	FAST_DISTANCE(Max[0], Max[1], Max[2], from, <);
+
+	return dist;
+}
+
+// *****************************************************************************************************************************
+//
 // DXObject impl
 //
 // *****************************************************************************************************************************
@@ -1322,6 +1460,29 @@ void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye)
 {
 	D3DXVECTOR3 look = eye + DXCubeForward[i];
 	D3DXMatrixLookAtLH(&out, &eye, &look, &DXCubeUp[i]);
+}
+
+void DXFitToBox(D3DXMATRIX& out, const D3DXMATRIX& view, const DXAABox& box)
+{
+	D3DXMATRIX		transp;
+	D3DXVECTOR4		pleft(1, 0, 0, 0);
+	D3DXVECTOR4		pbottom(0, 1, 0, 0);
+	D3DXVECTOR4		pnear(0, 0, 1, 0);
+
+	D3DXMatrixTranspose(&transp, &view);
+
+	D3DXVec4Transform(&pleft, &pleft, &transp);
+	D3DXVec4Transform(&pbottom, &pbottom, &transp);
+	D3DXVec4Transform(&pnear, &pnear, &transp);
+
+	float left = box.Nearest((const D3DXPLANE&)pleft);
+	float right = box.Farthest((const D3DXPLANE&)pleft);
+	float bottom = box.Nearest((const D3DXPLANE&)pbottom);
+	float top = box.Farthest((const D3DXPLANE&)pbottom);
+	float zn = box.Nearest((const D3DXPLANE&)pnear);
+	float zf = box.Farthest((const D3DXPLANE&)pnear);
+
+	D3DXMatrixOrthoOffCenterLH(&out, left, right, bottom, top, zn, zf);
 }
 
 HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXMESH* out)
