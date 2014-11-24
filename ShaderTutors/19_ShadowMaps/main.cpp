@@ -28,9 +28,10 @@ extern LPDIRECT3DDEVICE9 device;
 extern HWND hwnd;
 
 // external functions
-extern void RenderWithConvolution(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&, const D3DXVECTOR4&);
-extern void RenderWithExponential(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&, const D3DXVECTOR4&);
+extern void RenderWithConvolution(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
+extern void RenderWithExponential(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 extern void RenderWithPCF(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&, const D3DXVECTOR4&);
+extern void RenderWithVariance(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 
 // sample structures
 struct SceneObject
@@ -48,6 +49,7 @@ LPD3DXMESH						skull		= NULL;
 LPD3DXMESH						box			= NULL;
 LPD3DXEFFECT					convolution	= NULL;
 LPD3DXEFFECT					exponential	= NULL;
+LPD3DXEFFECT					variance	= NULL;
 LPD3DXEFFECT					boxblur5x5	= NULL;
 LPD3DXEFFECT					pcf5x5		= NULL;
 LPDIRECT3DVERTEXDECLARATION9	vertexdecl	= NULL;
@@ -120,8 +122,8 @@ HRESULT InitScene()
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/wood2.jpg", &texture2));
 	MYVALID(D3DXCreateTextureFromFileA(device, "../media/textures/crate.jpg", &texture3));
 
-	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &shadowmap, NULL));
-	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &blurRG32F, NULL));
+	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G32R32F, D3DPOOL_DEFAULT, &shadowmap, NULL));
+	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G32R32F, D3DPOOL_DEFAULT, &blurRG32F, NULL));
 	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &sincoeffs, NULL));
 	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &coscoeffs, NULL));
 	MYVALID(device->CreateTexture(SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &blurARGB8, NULL));
@@ -131,6 +133,7 @@ HRESULT InitScene()
 
 	MYVALID(DXCreateEffect("../media/shaders/exponentialshadow.fx", device, &exponential));
 	MYVALID(DXCreateEffect("../media/shaders/convolutionshadow.fx", device, &convolution));
+	MYVALID(DXCreateEffect("../media/shaders/varianceshadow.fx", device, &variance));
 	MYVALID(DXCreateEffect("../media/shaders/boxblur5x5.fx", device, &boxblur5x5));
 	MYVALID(DXCreateEffect("../media/shaders/pcfshadow5x5.fx", device, &pcf5x5));
 
@@ -138,7 +141,7 @@ HRESULT InitScene()
 	D3DXVECTOR4 texelsize(1.0f / SHADOWMAP_SIZE, 1.0f / SHADOWMAP_SIZE, 0, 1);
 
 	DXRenderText(
-		"Use mouse to rotate camera and light\n\n0 - Unfiltered\n1 - PCF (5x5)\n2 - Irregular PCF\n3 - Variance\n"
+		"Use the mouse to rotate\nthe camera and the light\n\n0 - Unfiltered\n1 - PCF (5x5)\n2 - Irregular PCF\n3 - Variance\n"
 		"4 - Convolution\n5 - Exponential\n6 - Exponential variance", text, 512, 512);
 	
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
@@ -187,6 +190,7 @@ void UninitScene()
 {
 	SAFE_RELEASE(exponential);
 	SAFE_RELEASE(convolution);
+	SAFE_RELEASE(variance);
 	SAFE_RELEASE(boxblur5x5);
 	SAFE_RELEASE(pcf5x5);
 	SAFE_RELEASE(vertexdecl);
@@ -209,7 +213,7 @@ void KeyPress(WPARAM wparam)
 {
 	if( wparam >= 0x30 && wparam <= 0x39 )
 	{
-		if( (wparam - 0x30) > 0 && (wparam - 0x30) < 7 )
+		if( (wparam - 0x30) >= 0 && (wparam - 0x30) < 7 )
 			shadowtech = (wparam - 0x30);
 	}
 }
@@ -379,20 +383,28 @@ void Render(float alpha, float elapsedtime)
 	{
 		switch( shadowtech )
 		{
+		case 0:
+			RenderWithPCF(vp, eye, lightview, lightproj, lightpos, clipplanes, D3DXVECTOR4(0, 0, 0, 0));
+			break;
+
 		case 1:
 			RenderWithPCF(vp, eye, lightview, lightproj, lightpos, clipplanes, texelsize);
 			break;
 
+		case 3:
+			RenderWithVariance(vp, eye, lightview, lightproj, lightpos, clipplanes);
+			break;
+
 		case 4:
-			RenderWithConvolution(vp, eye, lightview, lightproj, lightpos, clipplanes, texelsize);
+			RenderWithConvolution(vp, eye, lightview, lightproj, lightpos, clipplanes);
 			break;
 
 		case 5:
-			RenderWithExponential(vp, eye, lightview, lightproj, lightpos, clipplanes, texelsize);
+			RenderWithExponential(vp, eye, lightview, lightproj, lightpos, clipplanes);
 			break;
 
 		default:
-			RenderWithPCF(vp, eye, lightview, lightproj, lightpos, clipplanes, texelsize);
+			//RenderWithPCF(vp, eye, lightview, lightproj, lightpos, clipplanes, texelsize);
 			break;
 		}
 

@@ -30,7 +30,6 @@ float4 matSpecular = { 1, 1, 1, 1 };
 float4 lightPos;
 float3 eyePos;
 float2 clipPlanes;
-float2 texelSize;
 float2 uv = { 1, 1 };
 
 float4x4 matScale =

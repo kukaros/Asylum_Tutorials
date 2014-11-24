@@ -4,13 +4,13 @@
 extern LPDIRECT3DDEVICE9				device;
 extern LPDIRECT3DTEXTURE9				shadowmap;
 extern LPDIRECT3DVERTEXDECLARATION9		vertexdecl;
-extern LPD3DXEFFECT						exponential;
+extern LPD3DXEFFECT						variance;
 extern float							vertices[36];
 
 extern void RenderScene(LPD3DXEFFECT, int);
 extern void BlurTexture(LPDIRECT3DTEXTURE9);
 
-void RenderWithExponential(
+void RenderWithVariance(
 	const D3DXMATRIX& viewproj,
 	const D3DXVECTOR3& eye,
 	const D3DXMATRIX& lightview,
@@ -30,19 +30,19 @@ void RenderWithExponential(
 
 	shadowsurface->Release();
 
-	exponential->SetTechnique("shadowmap");
-	exponential->SetMatrix("lightView", &lightview);
-	exponential->SetMatrix("lightProj", &lightproj);
-	exponential->SetVector("clipPlanes", &clipplanes);
+	variance->SetTechnique("shadowmap");
+	variance->SetMatrix("lightView", &lightview);
+	variance->SetMatrix("lightProj", &lightproj);
+	variance->SetVector("clipPlanes", &clipplanes);
 
-	exponential->Begin(NULL, 0);
-	exponential->BeginPass(0);
+	variance->Begin(NULL, 0);
+	variance->BeginPass(0);
 	{
-		RenderScene(exponential, 1);
-		RenderScene(exponential, 3);
+		RenderScene(variance, 1);
+		RenderScene(variance, 3);
 	}
-	exponential->EndPass();
-	exponential->End();
+	variance->EndPass();
+	variance->End();
 
 	// STEP 2: apply filter
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -58,22 +58,22 @@ void RenderWithExponential(
 
 	device->SetTexture(1, shadowmap);
 
-	exponential->SetTechnique("exponential");
-	exponential->SetMatrix("matViewProj", &viewproj);
-	exponential->SetMatrix("lightView", &lightview);
-	exponential->SetMatrix("lightProj", &lightproj);
-	exponential->SetVector("clipPlanes", &clipplanes);
-	exponential->SetVector("lightPos", &lightpos);
-	exponential->SetVector("eyePos", (D3DXVECTOR4*)&eye);
+	variance->SetTechnique("variance");
+	variance->SetMatrix("matViewProj", &viewproj);
+	variance->SetMatrix("lightView", &lightview);
+	variance->SetMatrix("lightProj", &lightproj);
+	variance->SetVector("clipPlanes", &clipplanes);
+	variance->SetVector("lightPos", &lightpos);
+	variance->SetVector("eyePos", (D3DXVECTOR4*)&eye);
 
-	exponential->Begin(NULL, 0);
-	exponential->BeginPass(0);
+	variance->Begin(NULL, 0);
+	variance->BeginPass(0);
 	{
-		RenderScene(exponential, 2);
-		RenderScene(exponential, 3);
+		RenderScene(variance, 2);
+		RenderScene(variance, 3);
 	}
-	exponential->EndPass();
-	exponential->End();
+	variance->EndPass();
+	variance->End();
 
 	device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
 }

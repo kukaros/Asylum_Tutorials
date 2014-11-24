@@ -18,8 +18,7 @@ void RenderWithConvolution(
 	const D3DXMATRIX& lightview,
 	const D3DXMATRIX& lightproj,
 	const D3DXVECTOR4& lightpos,
-	const D3DXVECTOR4& clipplanes,
-	const D3DXVECTOR4& texelsize)
+	const D3DXVECTOR4& clipplanes)
 {
 	LPDIRECT3DSURFACE9 oldsurface		= NULL;
 	LPDIRECT3DSURFACE9 shadowsurface	= NULL;
@@ -64,7 +63,6 @@ void RenderWithConvolution(
 	cossurface->Release();
 
 	convolution->SetTechnique("evalbasis");
-	convolution->SetVector("texelSize", &texelsize);
 
 	convolution->Begin(NULL, 0);
 	convolution->BeginPass(0);

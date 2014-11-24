@@ -109,7 +109,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </None>
-    <None Include="..\media\shaders\pcfshadow5x5.fx" />
+    <None Include="..\media\shaders\pcfshadow5x5.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\varianceshadow.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc" />
@@ -123,6 +130,7 @@
     <ClCompile Include="..\19_ShadowMaps\exponential.cpp" />
     <ClCompile Include="..\19_ShadowMaps\main.cpp" />
     <ClCompile Include="..\19_ShadowMaps\pcf.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\variance.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
     <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
