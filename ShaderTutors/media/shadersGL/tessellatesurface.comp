@@ -205,8 +205,9 @@ void main()
 	float lastU			= knotsU[numControlPointsU];
 	float lastV			= knotsV[numControlPointsV];
 	float u, v, nom, denom, weight;
-	float dUnom, dVnom;
-	float dUdenom, dVdenom;
+	float c, cdU, cdV;
+	vec3 dUf, dVf;
+	float dUg, dVg;
 
 	for( int i = startU; i < endU; ++i )
 	{
@@ -236,33 +237,14 @@ void main()
 					break;
 			}
 
-			// calculate normalization factor
-			denom = 0.0;
-			dUdenom = 0.0;
-			dVdenom = 0.0;
-
-			for( int k = 0; k < orderU; ++k )
-			{
-				for( int l = 0; l < orderV; ++l )
-				{
-					index1 = spanU * MAX_ORDER + k;
-					index2 = spanV * MAX_ORDER + l;
-
-					cpU = (spanU - k) % numControlPointsU;
-					cpV = (spanV - l) % numControlPointsV;
-
-					weight = weightsU[cpU] * weightsV[cpV];
-
-					denom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					dUdenom += dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					dVdenom += dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
-				}
-			}
-
 			// sum contributions
 			pos = vec4(0.0);
-			tangent = vec3(0.0);
-			bitangent = vec3(0.0);
+			dUf = vec3(0.0);
+			dVf = vec3(0.0);
+
+			denom = 0.0;
+			dUg = 0.0;
+			dVg = 0.0;
 
 			for( int k = 0; k < orderU; ++k )
 			{
@@ -274,26 +256,27 @@ void main()
 					cpU = (spanU - k) % numControlPointsU;
 					cpV = (spanV - l) % numControlPointsV;
 
+					cf = controlPoints[cpU * numControlPointsV + cpV];
 					weight = weightsU[cpU] * weightsV[cpV];
 
-					nom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
-					dUnom = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
-					dVnom = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
+					c = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], polyV) * weight;
+					cdU = dot(CoeffsU[index1], dUpoly) * dot(CoeffsV[index2], polyV) * weight;
+					cdV = dot(CoeffsU[index1], polyU) * dot(CoeffsV[index2], dVpoly) * weight;
 
-					dUnom = dUnom * denom - nom * dUdenom;
-					dVnom = dVnom * denom - nom * dVdenom;
+					pos += cf * c;	// f
+					denom += c;		// g
 
-					cf = controlPoints[cpU * numControlPointsV + cpV];
+					dUg += cdU;
+					dVg += cdV;
 
-					pos += cf * nom;
-					tangent += cf.xyz * dUnom;
-					bitangent += cf.xyz * dVnom;
+					dUf += cf.xyz * cdU;
+					dVf += cf.xyz * cdV;
 				}
 			}
 
+			tangent = (dUf * denom - dUg * pos.xyz) / (denom * denom);
+			bitangent = (dVf * denom - dVg * pos.xyz) / (denom * denom);
 			pos /= denom;
-			tangent /= (denom * denom);
-			bitangent /= (denom * denom);
 
 			pos.w = 1.0;
 			index1 = i * numVerticesV + j;

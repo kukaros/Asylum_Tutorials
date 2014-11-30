@@ -19,6 +19,26 @@ struct DXCollisionVertex
 	float x, y, z;
 };
 
+class DXAABox
+{
+public:
+	D3DXVECTOR3 Min;
+	D3DXVECTOR3 Max;
+
+	DXAABox();
+
+	void Add(float x, float y, float z);
+	void Add(const D3DXVECTOR3& v);
+	void GetCenter(D3DXVECTOR3& out) const;
+	void GetHalfSize(D3DXVECTOR3& out) const;
+	void GetPlanes(D3DXPLANE outplanes[6]) const;
+	void TransformAxisAligned(const D3DXMATRIX& traf);
+
+	float Radius() const;
+	float Nearest(const D3DXPLANE& from) const;
+	float Farthest(const D3DXPLANE& from) const;
+};
+
 class DXObject
 {
 private:
@@ -178,6 +198,7 @@ HRESULT DXCreateCollisionSphere(LPDIRECT3DDEVICE9 d3ddevice, float radius, UINT 
 
 void DXRenderText(const std::string& str, LPDIRECT3DTEXTURE9 tex, DWORD width, DWORD height);
 void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye);
+void DXFitToBox(D3DXMATRIX& out, const D3DXMATRIX& view, const DXAABox& box);
 void DXKillAnyRogueObject();
 
 #endif
