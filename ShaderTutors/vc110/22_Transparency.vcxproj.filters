@@ -48,5 +48,8 @@
     <None Include="..\media\shadersGL\renderfragments.frag">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\media\shadersGL\collectfragments.vert">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

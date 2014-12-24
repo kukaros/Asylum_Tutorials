@@ -1,16 +1,43 @@
 
-sampler mytex0 : register(s0);
-sampler mytex1 : register(s1);
-sampler mytex2 : register(s2);
+#include "commonbrdf.fxh"
+
+sampler basetex : register(s0) = sampler_state
+{
+	MinFilter = linear;
+	MagFilter = linear;
+	MipFilter = linear;
+};
+
+sampler shadowtex : register(s1) = sampler_state
+{
+	MinFilter = point;
+	MagFilter = point;
+	MipFilter = none;
+
+	AddressU = clamp;
+	AddressV = clamp;
+};
+
+sampler noisetex : register(s2) = sampler_state
+{
+	MinFilter = point;
+	MagFilter = point;
+	MipFilter = none;
+};
 
 matrix	matWorld;
+matrix	matWorldInv;
 matrix	matViewProj;
-matrix	lightVP;
+matrix	lightView;
+matrix	lightProj;
 
-float4	lightPos;
-float2	noisesize;
-float2	texelsize;
-float	kernelradius = 2.0f;
+float4 matSpecular = { 1, 1, 1, 1 };
+float4 lightPos;
+float3 eyePos;
+float2 clipPlanes;
+float2 texelSize;
+float2 noiseSize;
+float2 uv = { 1, 1 };
 
 float4x4 matScale =
 {
@@ -32,38 +59,67 @@ static const float2 irreg_kernel[8] =
 	{ 0.529, 0.779 }
 };
 
-void vs_screen(
-	in out	float4 pos	: POSITION,
-	in out	float2 tex	: TEXCOORD0,
-	out		float4 ltov	: TEXCOORD1,
-	out		float3 wpos	: TEXCOORD2)
+static const float kernelradius = 2.0f;
+
+void vs_shadowmap(
+	in out	float4 pos		: POSITION,
+	out		float linearz	: TEXCOORD0)
 {
-	pos = mul(pos, matWorld);
-	wpos = pos.xyz;
+	float4 vpos = mul(mul(pos, matWorld), lightView);
 
-	ltov = mul(mul(pos, lightVP), matScale);
-	pos = mul(pos, matViewProj);
-
-	tex *= float2(2, 2);
+	pos = mul(vpos, lightProj);
+	linearz = (vpos.z - clipPlanes.x) / (clipPlanes.y - clipPlanes.x);
 }
 
-void ps_screen(
+void ps_shadowmap(
+	in	float linearz	: TEXCOORD0,
+	out	float4 color	: COLOR0)
+{
+	color = float4(linearz, 0, 0, 1);
+}
+
+void vs_irregular(
+	in out	float4 pos		: POSITION,
+	in		float3 norm		: NORMAL,
+	in out	float2 tex		: TEXCOORD0,
+	out		float4 ltov		: TEXCOORD1,
+	out		float3 wnorm	: TEXCOORD2,
+	out		float3 ldir		: TEXCOORD3,
+	out		float3 vdir		: TEXCOORD4)
+{
+	float4 wpos = mul(pos, matWorld);
+	float4 vpos = mul(wpos, lightView);
+
+	wnorm = mul(matWorldInv, float4(norm, 0)).xyz;
+	ldir = lightPos.xyz - wpos.xyz * lightPos.w;
+	vdir = eyePos.xyz - wpos.xyz;
+
+	ltov = mul(mul(vpos, lightProj), matScale);
+	ltov.z = (vpos.z - clipPlanes.x) / (clipPlanes.y - clipPlanes.x);
+
+	pos = mul(wpos, matViewProj);
+	tex *= uv;
+}
+
+void ps_irregular_screen(
 	in	float2 tex		: TEXCOORD0,
 	in	float4 ltov		: TEXCOORD1,
-	in	float3 wpos		: TEXCOORD2,
+	in	float3 wnorm	: TEXCOORD2,
+	in	float3 ldir		: TEXCOORD3,
+	in	float3 vdir		: TEXCOORD4,
 	in	float2 spos		: VPOS,		// fragment location (window space)
 	out	float4 color	: COLOR0)
 {
-	// TODO: distance is not really good for directional lights
-	float d = length(lightPos.xyz - wpos);
-	float sd, s = 0, t;
+	float2	ptex	= ltov.xy / ltov.w;
+	float2	stex	= spos.xy / noiseSize;
+	float	d		= ltov.z - 0.002f;
+	float	s		= 0;
+	float	z;
+	float2	irrad	= BRDF_BlinnPhong(wnorm, ldir, vdir, matSpecular.w);
+	float4	base	= tex2D(basetex, tex);
+	float2	noise	= tex2D(noisetex, stex).xy;
+	float2	rotated;
 
-	float2 ptex = ltov.xy / ltov.w;
-	float2 stex = spos.xy / noisesize;
-	float2 noise;
-	float2 rotated;
-
-	noise = tex2D(mytex2, stex);
 	noise = normalize(noise * 2.0f - 1.0f);
 
 	float2x2 rotmat = { noise.x, -noise.y, noise.y, noise.x };
@@ -73,33 +129,35 @@ void ps_screen(
 		rotated = irreg_kernel[i];
 		rotated = mul(rotated, rotmat) * kernelradius;
 
-		sd = tex2D(mytex1, ptex + rotated * texelsize).r;
-
-		t = (d <= sd);
-		s += ((sd < 0.01f) ? 1 : t);
+		z = tex2D(shadowtex, ptex + rotated * texelSize).r;
+		s += ((z < d) ? 0.0f : 1.0f);
 	}
 
-	s = saturate(s * 0.125f + 0.3f); // simulate ambient light here
+	s *= 0.125f;
+	base.rgb = pow(base.rgb, 2.2f);
 
-	color = tex2D(mytex0, tex) * s;
+	color = (base * irrad.x + irrad.y * matSpecular) * s;
 	color.a = 1;
 }
 
-void ps_light(
+void ps_irregular_light(
 	in	float2 tex		: TEXCOORD0,
 	in	float4 ltov		: TEXCOORD1,
-	in	float3 wpos		: TEXCOORD2,
+	in	float3 wnorm	: TEXCOORD2,
+	in	float3 ldir		: TEXCOORD3,
+	in	float3 vdir		: TEXCOORD4,
 	out	float4 color	: COLOR0)
 {
-	float d = length(lightPos.xyz - wpos);
-	float sd, s = 0, t;
+	float2	ptex	= ltov.xy / ltov.w;
+	float2	stex	= ptex * kernelradius * 15.0f;
+	float	d		= ltov.z - 0.002f;
+	float	s		= 0;
+	float	z;
+	float2	irrad	= BRDF_BlinnPhong(wnorm, ldir, vdir, matSpecular.w);
+	float4	base	= tex2D(basetex, tex);
+	float2	noise	= tex2D(noisetex, stex).xy;
+	float2	rotated;
 
-	float2 ptex = ltov.xy / ltov.w;
-	float2 stex = ptex * kernelradius * 15.0f;
-	float2 noise;
-	float2 rotated;
-
-	noise = tex2D(mytex2, stex);
 	noise = normalize(noise * 2.0f - 1.0f);
 
 	float2x2 rotmat = { noise.x, -noise.y, noise.y, noise.x };
@@ -109,24 +167,32 @@ void ps_light(
 		rotated = irreg_kernel[i];
 		rotated = mul(rotated, rotmat) * kernelradius;
 
-		sd = tex2D(mytex1, ptex + rotated * texelsize).r;
-
-		t = (d <= sd);
-		s += ((sd < 0.01f) ? 1 : t);
+		z = tex2D(shadowtex, ptex + rotated * texelSize).r;
+		s += ((z < d) ? 0.0f : 1.0f);
 	}
 
-	s = saturate(s * 0.125f + 0.3f); // simulate ambient light here
+	s *= 0.125f;
+	base.rgb = pow(base.rgb, 2.2f);
 
-	color = tex2D(mytex0, tex) * s;
+	color = (base * irrad.x + irrad.y * matSpecular) * s;
 	color.a = 1;
+}
+
+technique shadowmap
+{
+	pass p0
+	{
+		vertexshader = compile vs_3_0 vs_shadowmap();
+		pixelshader = compile ps_3_0 ps_shadowmap();
+	}
 }
 
 technique irregular_screen
 {
 	pass p0
 	{
-		vertexshader = compile vs_3_0 vs_screen();
-		pixelshader = compile ps_3_0 ps_screen();
+		vertexshader = compile vs_3_0 vs_irregular();
+		pixelshader = compile ps_3_0 ps_irregular_screen();
 	}
 }
 
@@ -134,7 +200,7 @@ technique irregular_light
 {
 	pass p0
 	{
-		vertexshader = compile vs_3_0 vs_screen();
-		pixelshader = compile ps_3_0 ps_light();
+		vertexshader = compile vs_3_0 vs_irregular();
+		pixelshader = compile ps_3_0 ps_irregular_light();
 	}
 }

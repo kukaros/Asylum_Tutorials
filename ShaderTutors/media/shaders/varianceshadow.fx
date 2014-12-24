@@ -99,6 +99,8 @@ void ps_variance(
 	float md = mean - d;
 	float pmax = variance / (variance + md * md);
 
+	pmax = smoothstep(0.1f, 1.0f, pmax);
+
 	s = max(d <= mean, pmax);
 	base.rgb = pow(base.rgb, 2.2f);
 

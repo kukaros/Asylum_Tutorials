@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{7CB83449-B22B-4193-9130-AD5784F4F9CD}</ProjectGuid>
-    <RootNamespace>My19_JitteredShadow</RootNamespace>
+    <ProjectGuid>{D894283E-A2A3-4DF1-869C-2E52F802AA46}</ProjectGuid>
+    <RootNamespace>My19_ShadowMaps</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -93,7 +93,27 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\media\directx.ico" />
-    <None Include="..\media\shaders\blinnphong.fx">
+    <None Include="..\media\shaders\boxblur5x5.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\commonbrdf.fxh">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\convolutionshadow.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\exponentialshadow.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\pcfshadow5x5.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\media\shaders\varianceshadow.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </None>
@@ -106,21 +126,29 @@
     <ClInclude Include="..\media\resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\19_JitteredShadow\main.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\convolution.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\exponential.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\expvariance.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\irregularpcf.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\main.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\pcf.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\variance.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
     <ClCompile Include="..\common\other.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\media\shaders\distance.fx">
+    <None Include="..\media\shaders\irregularpcf.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\media\shaders\irregularpcf.fx">
+    <None Include="..\media\shaders\expvarianceshadow.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </FxCompile>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,6 +1,9 @@
 
 #include "commonbrdf.fxh"
 
+#define POS_SCALE_FACTOR	80.0f
+#define NEG_SCALE_FACTOR	80.0f
+
 sampler basetex : register(s0) = sampler_state
 {
 	MinFilter = linear;
@@ -10,8 +13,8 @@ sampler basetex : register(s0) = sampler_state
 
 sampler shadowtex : register(s1) = sampler_state
 {
-	MinFilter = point;
-	MagFilter = point;
+	MinFilter = linear;
+	MagFilter = linear;
 	MipFilter = none;
 
 	AddressU = clamp;
@@ -28,7 +31,6 @@ float4 matSpecular = { 1, 1, 1, 1 };
 float4 lightPos;
 float3 eyePos;
 float2 clipPlanes;
-float2 texelSize;
 float2 uv = { 1, 1 };
 
 float4x4 matScale =
@@ -53,10 +55,13 @@ void ps_shadowmap(
 	in	float linearz	: TEXCOORD0,
 	out	float4 color	: COLOR0)
 {
-	color = float4(linearz, 0, 0, 1);
+	float poswarp = exp(POS_SCALE_FACTOR * linearz);
+	float negwarp = -1.0f / exp(NEG_SCALE_FACTOR * linearz);
+
+	color = float4(poswarp, poswarp * poswarp, negwarp, negwarp * negwarp);
 }
 
-void vs_pcf5x5(
+void vs_expvariance(
 	in out	float4 pos		: POSITION,
 	in		float3 norm		: NORMAL,
 	in out	float2 tex		: TEXCOORD0,
@@ -79,7 +84,19 @@ void vs_pcf5x5(
 	tex *= uv;
 }
 
-void ps_pcf5x5(
+float chebychev(float2 moments, float d)
+{
+	float mean = moments.x;
+	float variance = max(moments.y - moments.x * moments.x, 1e-5f);
+
+	float md = mean - d;
+	float pmax = variance / (variance + md * md);
+	float bound = max(d <= mean, pmax);
+
+	return bound;
+}
+
+void ps_expvariance(
 	in	float2 tex		: TEXCOORD0,
 	in	float4 ltov		: TEXCOORD1,
 	in	float3 wnorm	: TEXCOORD2,
@@ -88,33 +105,17 @@ void ps_pcf5x5(
 	out	float4 color	: COLOR0)
 {
 	float2	ptex	= ltov.xy / ltov.w;
-	float	d		= ltov.z - 0.002f;
-	float	s		= 0;
-	float	z;
+	float	posd	= exp(POS_SCALE_FACTOR * ltov.z);
+	float	negd	= -1.0f / exp(NEG_SCALE_FACTOR * ltov.z);
+	float	s;
+	float4	warps	= tex2D(shadowtex, ptex);
 	float2	irrad	= BRDF_BlinnPhong(wnorm, ldir, vdir, matSpecular.w);
 	float4	base	= tex2D(basetex, tex);
 
-	if( dot(texelSize, texelSize) > 0 )
-	{
-		// PCF 5x5
-		for( int i = -2; i < 3; ++i )
-		{
-			for( int j = -2; j < 3; ++j )
-			{
-				z = tex2D(shadowtex, ptex + float2(i, j) * texelSize).r;
-				s += ((z < d) ? 0.0f : 1.0f);
-			}
-		}
-
-		s /= 25.0f;
-	}
-	else
-	{
-		// unfiltered
-		z = tex2D(shadowtex, ptex).r;
-		s = ((z < d) ? 0.0f : 1.0f);
-	}
-
+	float posbound = chebychev(warps.xy, posd);
+	float negbound = chebychev(warps.zw, negd);
+	
+	s = min(posbound, negbound);
 	base.rgb = pow(base.rgb, 2.2f);
 
 	color = (base * irrad.x + irrad.y * matSpecular) * s;
@@ -130,11 +131,11 @@ technique shadowmap
 	}
 }
 
-technique pcf5x5
+technique expvariance
 {
 	pass p0
 	{
-		vertexshader = compile vs_3_0 vs_pcf5x5();
-		pixelshader = compile ps_3_0 ps_pcf5x5();
+		vertexshader = compile vs_3_0 vs_expvariance();
+		pixelshader = compile ps_3_0 ps_expvariance();
 	}
 }

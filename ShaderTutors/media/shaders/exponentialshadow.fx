@@ -101,8 +101,6 @@ void ps_exponential(
 
 	color = (base * irrad.x + irrad.y * matSpecular) * s;
 	color.a = 1;
-
-	//color = float4(s, s, s, 1);
 }
 
 technique shadowmap

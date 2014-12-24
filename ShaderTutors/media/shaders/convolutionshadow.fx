@@ -140,13 +140,13 @@ void ps_convolution(
 	float4 sincoeffs = tex2D(sinbasis, ptex) * 2 - 1;
 	float4 coscoeffs = tex2D(cosbasis, ptex) * 2 - 1;
 
-	// (2 / ck) * cos(ck * z) * B(z)
+	// (2 / ck) * cos(ck * d) * B(z)
 	s += 0.6366197f * cos(3.1415926f * d) * sincoeffs.x;
 	s += 0.2122065f * cos(9.4247779f * d) * sincoeffs.y;
 	s += 0.1273239f * cos(15.707963f * d) * sincoeffs.z;
 	s += 0.0909456f * cos(21.991148f * d) * sincoeffs.w;
 
-	// (-2 / ck) * sin(ck * z) * B(z)
+	// (-2 / ck) * sin(ck * d) * B(z)
 	s -= 0.6366197f * sin(3.1415926f * d) * coscoeffs.x;
 	s -= 0.2122065f * sin(9.4247779f * d) * coscoeffs.y;
 	s -= 0.1273239f * sin(15.707963f * d) * coscoeffs.z;
@@ -159,7 +159,7 @@ void ps_convolution(
 	float p = 8 + A * exp(B * (z - ltov.z));
 	*/
 
-	s = saturate((s - 0.06f) * 1.2f);
+	s = saturate((s - 0.055f) * 1.15f);
 	s = saturate(pow(s, 8.0f)); // p
 
 	base.rgb = pow(base.rgb, 2.2f);

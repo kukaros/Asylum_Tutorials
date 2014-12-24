@@ -25,6 +25,7 @@
     <None Include="..\media\shadersGL\ambient.vert" />
     <None Include="..\media\shadersGL\basic2D.vert" />
     <None Include="..\media\shadersGL\collectfragments.frag" />
+    <None Include="..\media\shadersGL\collectfragments.vert" />
     <None Include="..\media\shadersGL\initheadpointers.frag" />
     <None Include="..\media\shadersGL\renderfragments.frag" />
   </ItemGroup>
