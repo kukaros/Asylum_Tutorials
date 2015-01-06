@@ -166,9 +166,6 @@ void ps_convolution(
 
 	color = (base * irrad.x + irrad.y * matSpecular) * s;
 	color.a = 1;
-
-	//float test = ((z < ltov.z) ? 0.0f : 1.0f); //p / 70.0f;
-	//color = float4(test, test, test, 1);
 }
 
 technique shadowmap

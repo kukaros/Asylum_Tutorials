@@ -1462,7 +1462,7 @@ void DXGetCubemapViewMatrix(D3DXMATRIX& out, DWORD i, const D3DXVECTOR3& eye)
 	D3DXMatrixLookAtLH(&out, &eye, &look, &DXCubeUp[i]);
 }
 
-void DXFitToBox(D3DXMATRIX& out, const D3DXMATRIX& view, const DXAABox& box)
+void DXFitToBox(D3DXMATRIX& out, D3DXVECTOR4& clipout, const D3DXMATRIX& view, const DXAABox& box)
 {
 	D3DXMATRIX		transp;
 	D3DXVECTOR4		pleft(1, 0, 0, 0);
@@ -1479,10 +1479,13 @@ void DXFitToBox(D3DXMATRIX& out, const D3DXMATRIX& view, const DXAABox& box)
 	float right = box.Farthest((const D3DXPLANE&)pleft);
 	float bottom = box.Nearest((const D3DXPLANE&)pbottom);
 	float top = box.Farthest((const D3DXPLANE&)pbottom);
-	float zn = box.Nearest((const D3DXPLANE&)pnear);
-	float zf = box.Farthest((const D3DXPLANE&)pnear);
 
-	D3DXMatrixOrthoOffCenterLH(&out, left, right, bottom, top, zn, zf);
+	clipout.x = box.Nearest((const D3DXPLANE&)pnear);
+	clipout.y = box.Farthest((const D3DXPLANE&)pnear);
+	clipout.z = right - left;
+	clipout.w = top - bottom;
+
+	D3DXMatrixOrthoOffCenterLH(&out, left, right, bottom, top, clipout.x, clipout.y);
 }
 
 HRESULT DXCreateTexturedBox(LPDIRECT3DDEVICE9 d3ddevice, DWORD options, LPD3DXMESH* out)

@@ -1,8 +1,8 @@
 
 #include "commonbrdf.fxh"
 
-#define POS_SCALE_FACTOR	80.0f
-#define NEG_SCALE_FACTOR	80.0f
+#define POS_SCALE_FACTOR	40.0f
+#define NEG_SCALE_FACTOR	40.0f
 
 sampler basetex : register(s0) = sampler_state
 {

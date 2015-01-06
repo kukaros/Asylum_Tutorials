@@ -42,6 +42,9 @@
     <None Include="..\media\shaders\expvarianceshadow.fx">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\media\shaders\pcss.fx">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\media\common.rc">
@@ -78,6 +81,9 @@
       <Filter>techniques</Filter>
     </ClCompile>
     <ClCompile Include="..\19_ShadowMaps\expvariance.cpp">
+      <Filter>techniques</Filter>
+    </ClCompile>
+    <ClCompile Include="..\19_ShadowMaps\pcss.cpp">
       <Filter>techniques</Filter>
     </ClCompile>
   </ItemGroup>

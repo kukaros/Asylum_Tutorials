@@ -132,6 +132,7 @@
     <ClCompile Include="..\19_ShadowMaps\irregularpcf.cpp" />
     <ClCompile Include="..\19_ShadowMaps\main.cpp" />
     <ClCompile Include="..\19_ShadowMaps\pcf.cpp" />
+    <ClCompile Include="..\19_ShadowMaps\pcss.cpp" />
     <ClCompile Include="..\19_ShadowMaps\variance.cpp" />
     <ClCompile Include="..\common\dxext.cpp" />
     <ClCompile Include="..\common\other.cpp" />
@@ -145,6 +146,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\media\shaders\expvarianceshadow.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shaders\pcss.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>

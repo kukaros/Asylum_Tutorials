@@ -7,9 +7,6 @@
 #define SHADOWMAP_SIZE	512
 
 // TODO:
-// - exp variance
-// - PCSS
-// - deferred shadow
 // - kidobni a folosleges shadereket
 
 // object types
@@ -37,6 +34,7 @@ extern HWND hwnd;
 extern void RenderWithConvolution(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 extern void RenderWithExponential(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 extern void RenderWithPCF(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&, const D3DXVECTOR4&);
+extern void RenderWithPCSS(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 extern void RenderWithIrregularPCF(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 extern void RenderWithVariance(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
 extern void RenderWithExponentialVariance(const D3DXMATRIX&, const D3DXVECTOR3&, const D3DXMATRIX&, const D3DXMATRIX&, const D3DXVECTOR4&, const D3DXVECTOR4&);
@@ -61,6 +59,7 @@ LPD3DXEFFECT					variance	= NULL;
 LPD3DXEFFECT					expvariance	= NULL;
 LPD3DXEFFECT					boxblur5x5	= NULL;
 LPD3DXEFFECT					pcf5x5		= NULL;
+LPD3DXEFFECT					pcss		= NULL;
 LPD3DXEFFECT					pcfirreg	= NULL;
 LPDIRECT3DVERTEXDECLARATION9	vertexdecl	= NULL;
 LPDIRECT3DTEXTURE9				texture1	= NULL;
@@ -149,11 +148,12 @@ HRESULT InitScene()
 	MYVALID(DXCreateEffect("../media/shaders/expvarianceshadow.fx", device, &expvariance));
 	MYVALID(DXCreateEffect("../media/shaders/boxblur5x5.fx", device, &boxblur5x5));
 	MYVALID(DXCreateEffect("../media/shaders/pcfshadow5x5.fx", device, &pcf5x5));
+	MYVALID(DXCreateEffect("../media/shaders/pcss.fx", device, &pcss));
 	MYVALID(DXCreateEffect("../media/shaders/irregularpcf.fx", device, &pcfirreg));
 
 	DXRenderText(
 		"Use the mouse to rotate the camera and the light\n\n0 - Unfiltered\n1 - PCF (5x5)\n2 - Irregular PCF\n3 - Variance\n"
-		"4 - Convolution\n5 - Exponential\n6 - Exponential variance", text, 800, 512);
+		"4 - Convolution\n5 - Exponential\n6 - Exponential variance\n7 - PCSS", text, 800, 512);
 	
 	cameraangle = D3DXVECTOR2(0.78f, 0.78f);
 	lightangle = D3DXVECTOR2(3.2f, 0.85f);
@@ -205,6 +205,7 @@ void UninitScene()
 	SAFE_RELEASE(expvariance);
 	SAFE_RELEASE(boxblur5x5);
 	SAFE_RELEASE(pcf5x5);
+	SAFE_RELEASE(pcss);
 	SAFE_RELEASE(pcfirreg);
 	SAFE_RELEASE(vertexdecl);
 	SAFE_RELEASE(skull);
@@ -227,7 +228,7 @@ void KeyPress(WPARAM wparam)
 {
 	if( wparam >= 0x30 && wparam <= 0x39 )
 	{
-		if( (wparam - 0x30) >= 0 && (wparam - 0x30) < 7 )
+		if( (wparam - 0x30) >= 0 && (wparam - 0x30) < 8 )
 			shadowtech = (wparam - 0x30);
 	}
 }
@@ -371,7 +372,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXVECTOR4 lightpos(0, 0, -5, 0);
 	D3DXVECTOR3 look(0, 0.5f, 0), up(0, 1, 0);
 	D3DXVECTOR3 eye(0, 0, -5.2f);
-	D3DXVECTOR4 clipplanes(0.1f, 20, 0, 0);
+	D3DXVECTOR4 clipplanes(0, 0, 0, 0);
 	D3DXVECTOR4 texelsize(1.0f / SHADOWMAP_SIZE, 1.0f / SHADOWMAP_SIZE, 0, 0);
 
 	// setup camera
@@ -379,7 +380,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXVec3TransformCoord(&eye, &eye, &tmp);
 
 	D3DXMatrixLookAtLH(&view, &eye, &look, &up);
-	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, clipplanes.x, clipplanes.y);
+	D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI / 4, (float)screenwidth / (float)screenheight, 0.1f, 20);
 	D3DXMatrixMultiply(&vp, &view, &proj);
 
 	// setup light
@@ -390,7 +391,7 @@ void Render(float alpha, float elapsedtime)
 	D3DXVec4Transform(&lightpos, &lightpos, &tmp);
 
 	D3DXMatrixLookAtLH(&lightview, (D3DXVECTOR3*)&lightpos, &look, &up);
-	DXFitToBox(lightproj, lightview, scenebb);
+	DXFitToBox(lightproj, clipplanes, lightview, scenebb);
 	D3DXMatrixMultiply(&lightvp, &lightview, &lightproj);
 
 	if( SUCCEEDED(device->BeginScene()) )
@@ -423,6 +424,10 @@ void Render(float alpha, float elapsedtime)
 
 		case 6:
 			RenderWithExponentialVariance(vp, eye, lightview, lightproj, lightpos, clipplanes);
+			break;
+
+		case 7:
+			RenderWithPCSS(vp, eye, lightview, lightproj, lightpos, clipplanes, texelsize);
 			break;
 
 		default:
