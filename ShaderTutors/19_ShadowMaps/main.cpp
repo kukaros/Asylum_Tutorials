@@ -6,9 +6,6 @@
 
 #define SHADOWMAP_SIZE	512
 
-// TODO:
-// - kidobni a folosleges shadereket
-
 // object types
 #define FLOOR	1
 #define SKULL	2
