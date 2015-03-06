@@ -96,14 +96,30 @@ class Thread
 	{
 	private:
 		callable_type* obj;
-		void (callable_type::*memfunc)();
+		void (callable_type::*memfunc)();	// for classes
+		void (*simplefunc)();				// for C functions
 
 	public:
 		emitter(callable_type* _obj, void (callable_type::*_memfunc)())
-			: obj(_obj), memfunc(_memfunc) {}
+		{
+			obj = _obj;
+			memfunc = _memfunc;
+			simplefunc = 0;
+		}
 
-		inline void emit() {
-			(obj->*memfunc)();
+		emitter(void (*_simplefunc)())
+		{
+			obj = 0;
+			memfunc = 0;
+			simplefunc = _simplefunc;
+		}
+
+		void emit()
+		{
+			if( obj && memfunc )
+				(obj->*memfunc)();
+			else if( simplefunc )
+				simplefunc();
 		}
 	};
 
@@ -120,6 +136,7 @@ public:
 
 	template <typename callable_type>
 	bool Attach(callable_type* obj, void (callable_type::*memfunc)());
+	bool Attach(void (*func)());
 
 	void Start();
 	void Stop();

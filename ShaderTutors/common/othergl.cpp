@@ -98,135 +98,126 @@ bool InitGL(HWND hwnd)
 		return false;
 	}
 
-	typedef const char* (APIENTRY *WGLGETEXTENSIONSSTRINGARBPROC)(HDC hdc);
-	typedef HGLRC (APIENTRY *WGLCREATECONTEXTATTRIBSARBPROC)(HDC hDC, HGLRC hShareContext, const int *attribList);
-
-	WGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
-	WGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = (WGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
-
-	if( wglGetExtensionsStringARB )
+	if( Quadron::wIsSupported("WGL_ARB_pixel_format", hdc) )
 	{
-		if( Quadron::wIsSupported("WGL_ARB_pixel_format", hdc) )
+		std::cout << "WGL_ARB_pixel_format present, querying pixel formats...\n";
+
+		typedef HGLRC (APIENTRY *WGLCREATECONTEXTATTRIBSARBPROC)(HDC hDC, HGLRC hShareContext, const int *attribList);
+		typedef BOOL (APIENTRY *WGLGETPIXELFORMATATTRIBIVARBPROC)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
+		typedef BOOL (APIENTRY *WGLGETPIXELFORMATATTRIBFVARBPROC)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
+		typedef BOOL (APIENTRY *WGLCHOOSEPIXELFORMATARBPROC)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+
+		WGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribivARB = (WGLGETPIXELFORMATATTRIBIVARBPROC)wglGetProcAddress("wglGetPixelFormatAttribivARB");
+		WGLGETPIXELFORMATATTRIBFVARBPROC wglGetPixelFormatAttribfvARB = (WGLGETPIXELFORMATATTRIBFVARBPROC)wglGetProcAddress("wglGetPixelFormatAttribfvARB");
+		WGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = (WGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+		WGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
+
+		int attrib[128];
+		int i = 0;
+		UINT numformats;
+
+		memset(attrib, 0, sizeof(attrib));
+
+		attrib[i++] = 0x2001;		// WGL_DRAW_TO_WINDOW_ARB;
+		attrib[i++] = TRUE;
+		attrib[i++] = 0x2003;		// WGL_ACCELERATION_ARB;
+		attrib[i++] = 0x2027;		// WGL_FULL_ACCELERATION_ARB
+		attrib[i++] = 0x2010;		// WGL_SUPPORT_OPENGL_ARB
+		attrib[i++] = TRUE;
+		attrib[i++] = 0x2011;		// WGL_DOUBLE_BUFFER_ARB
+		attrib[i++] = TRUE;
+		attrib[i++] = 0x2013;		// WGL_PIXEL_TYPE_ARB
+		attrib[i++] = 0x202B;		// WGL_TYPE_RGBA_ARB
+		attrib[i++] = 0x2014;		// WGL_COLOR_BITS_ARB
+		attrib[i++] = pfd.cColorBits = 32;
+		attrib[i++] = 0x201B;		// WGL_ALPHA_BITS_ARB
+		attrib[i++] = pfd.cAlphaBits = 0;
+		attrib[i++] = 0x2022;		// WGL_DEPTH_BITS_ARB
+		attrib[i++] = pfd.cDepthBits = 24;
+		attrib[i++] = 0x2023;		// WGL_STENCIL_BITS_ARB
+		attrib[i++] = pfd.cStencilBits = 8;
+		attrib[i++] = 0;
+
+		if( attrib[1] )
+			pfd.dwFlags |= PFD_DRAW_TO_WINDOW;
+
+		if( attrib[5] )
+			pfd.dwFlags |= PFD_SUPPORT_OPENGL;
+
+		if( attrib[7] )
+			pfd.dwFlags |= PFD_DOUBLEBUFFER;
+
+		if( attrib[9] == 0x2029 )
+			pfd.dwFlags |= PFD_SWAP_COPY;
+
+		wglChoosePixelFormatARB(hdc, attrib, 0, 1, &pixelformat, &numformats);
+
+		if( numformats != 0 )
 		{
-			std::cout << "WGL_ARB_pixel_format present, querying pixel formats...\n";
+			std::cout << "Selected pixel format: " << pixelformat <<"\n";
 
-			typedef BOOL (APIENTRY *WGLGETPIXELFORMATATTRIBIVARBPROC)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
-			typedef BOOL (APIENTRY *WGLGETPIXELFORMATATTRIBFVARBPROC)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
-			typedef BOOL (APIENTRY *WGLCHOOSEPIXELFORMATARBPROC)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
-
-			WGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribivARB = (WGLGETPIXELFORMATATTRIBIVARBPROC)wglGetProcAddress("wglGetPixelFormatAttribivARB");
-			WGLGETPIXELFORMATATTRIBFVARBPROC wglGetPixelFormatAttribfvARB = (WGLGETPIXELFORMATATTRIBFVARBPROC)wglGetProcAddress("wglGetPixelFormatAttribfvARB");
-			WGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = (WGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
-
-			int attrib[128];
-			int i = 0;
-			UINT numformats;
-
-			memset(attrib, 0, sizeof(attrib));
-
-			attrib[i++] = 0x2001;		// WGL_DRAW_TO_WINDOW_ARB;
-			attrib[i++] = TRUE;
-			attrib[i++] = 0x2003;		// WGL_ACCELERATION_ARB;
-			attrib[i++] = 0x2027;		// WGL_FULL_ACCELERATION_ARB
-			attrib[i++] = 0x2010;		// WGL_SUPPORT_OPENGL_ARB
-			attrib[i++] = TRUE;
-			attrib[i++] = 0x2011;		// WGL_DOUBLE_BUFFER_ARB
-			attrib[i++] = TRUE;
-			attrib[i++] = 0x2013;		// WGL_PIXEL_TYPE_ARB
-			attrib[i++] = 0x202B;		// WGL_TYPE_RGBA_ARB
-			attrib[i++] = 0x2014;		// WGL_COLOR_BITS_ARB
-			attrib[i++] = pfd.cColorBits = 32;
-			attrib[i++] = 0x201B;		// WGL_ALPHA_BITS_ARB
-			attrib[i++] = pfd.cAlphaBits = 0;
-			attrib[i++] = 0x2022;		// WGL_DEPTH_BITS_ARB
-			attrib[i++] = pfd.cDepthBits = 24;
-			attrib[i++] = 0x2023;		// WGL_STENCIL_BITS_ARB
-			attrib[i++] = pfd.cStencilBits = 8;
-			attrib[i++] = 0;
-
-			if( attrib[1] )
-				pfd.dwFlags |= PFD_DRAW_TO_WINDOW;
-
-			if( attrib[5] )
-				pfd.dwFlags |= PFD_SUPPORT_OPENGL;
-
-			if( attrib[7] )
-				pfd.dwFlags |= PFD_DOUBLEBUFFER;
-
-			if( attrib[9] == 0x2029 )
-				pfd.dwFlags |= PFD_SWAP_COPY;
-
-			wglChoosePixelFormatARB(hdc, attrib, 0, 1, &pixelformat, &numformats);
-
-			if( numformats != 0 )
+			if( Quadron::wIsSupported("WGL_ARB_create_context", hdc) &&
+				Quadron::wIsSupported("WGL_ARB_create_context_profile", hdc) )
 			{
-				std::cout << "Selected pixel format: " << pixelformat <<"\n";
-
-				if( Quadron::wIsSupported("WGL_ARB_create_context", hdc) &&
-					Quadron::wIsSupported("WGL_ARB_create_context_profile", hdc) )
-				{
-					wglCreateContextAttribsARB = (WGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-				}
-
-				success = wglMakeCurrent(hdc, NULL);
-				V_RETURN(false, "InitGL(): Could not release dummy context", success);
-
-				success = wglDeleteContext(hrc);
-				V_RETURN(false, "InitGL(): Could not delete dummy context", success);
-
-				DestroyWindow(dummy);
-				dummy = 0;
-				hdc = GetDC(hwnd);
-				hrc = 0;
-
-				int success = SetPixelFormat(hdc, pixelformat, &pfd);
-				V_RETURN(false, "InitGL(): Could not setup pixel format", success);
-
-				if( wglCreateContextAttribsARB )
-				{
-					int contextattribs[] =
-					{
-						0x2091,		// WGL_CONTEXT_MAJOR_VERSION_ARB
-						major,
-						0x2092,		// WGL_CONTEXT_MINOR_VERSION_ARB
-						minor,
-						0x2094,		// WGL_CONTEXT_FLAGS_ARB
-#ifdef _DEBUG
-						//0x0001,	// WGL_CONTEXT_DEBUG_BIT
-#endif
-						0x0002,		// WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-						0x9126,		// WGL_CONTEXT_PROFILE_MASK_ARB
-						0x00000001,	// WGL_CONTEXT_CORE_PROFILE_BIT_ARB
-						0
-					};
-
-					hrc = wglCreateContextAttribsARB(hdc, NULL, contextattribs);
-					V_RETURN(false, "InitGL(): Context creation failed", hrc);
-
-					std::cout << "Created core profile context...\n";
-				}
-
-				if( !hrc )
-				{
-					hrc = wglCreateContext(hdc);
-					V_RETURN(false, "InitGL(): Context creation failed", hrc);
-
-					std::cout << "Created compatibility profile context...\n";
-				}
-
-				success = wglMakeCurrent(hdc, hrc);
-				V_RETURN(false, "InitGL(): Could not acquire context", success);
-
-				std::cout << std::endl;
+				wglCreateContextAttribsARB = (WGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 			}
-			else
-				std::cout << "wglChoosePixelFormat failed, using classic context...\n";
+
+			success = wglMakeCurrent(hdc, NULL);
+			V_RETURN(false, "InitGL(): Could not release dummy context", success);
+
+			success = wglDeleteContext(hrc);
+			V_RETURN(false, "InitGL(): Could not delete dummy context", success);
+
+			DestroyWindow(dummy);
+			dummy = 0;
+			hdc = GetDC(hwnd);
+			hrc = 0;
+
+			int success = SetPixelFormat(hdc, pixelformat, &pfd);
+			V_RETURN(false, "InitGL(): Could not setup pixel format", success);
+
+			if( wglCreateContextAttribsARB )
+			{
+				int contextattribs[] =
+				{
+					0x2091,		// WGL_CONTEXT_MAJOR_VERSION_ARB
+					major,
+					0x2092,		// WGL_CONTEXT_MINOR_VERSION_ARB
+					minor,
+					0x2094,		// WGL_CONTEXT_FLAGS_ARB
+#ifdef _DEBUG
+					//0x0001,	// WGL_CONTEXT_DEBUG_BIT
+#endif
+					0x0002,		// WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+					0x9126,		// WGL_CONTEXT_PROFILE_MASK_ARB
+					0x00000001,	// WGL_CONTEXT_CORE_PROFILE_BIT_ARB
+					0
+				};
+
+				hrc = wglCreateContextAttribsARB(hdc, NULL, contextattribs);
+				V_RETURN(false, "InitGL(): Context creation failed", hrc);
+
+				std::cout << "Created core profile context...\n";
+			}
+
+			if( !hrc )
+			{
+				hrc = wglCreateContext(hdc);
+				V_RETURN(false, "InitGL(): Context creation failed", hrc);
+
+				std::cout << "Created compatibility profile context...\n";
+			}
+
+			success = wglMakeCurrent(hdc, hrc);
+			V_RETURN(false, "InitGL(): Could not acquire context", success);
+
+			std::cout << std::endl;
 		}
 		else
-			std::cout << "WGL_ARB_pixel_format not supported\n";
+			std::cout << "wglChoosePixelFormat failed, using classic context...\n";
 	}
 	else
-		std::cout << "wglGetExtensionsStringARB not supported\n";
+		std::cout << "WGL_ARB_pixel_format not supported\n";
 
 	if( dummy )
 	{
@@ -400,7 +391,7 @@ int main(int argc, char* argv[])
 	WNDCLASSEX wc =
 	{
 		sizeof(WNDCLASSEX),
-		CS_CLASSDC,
+		CS_OWNDC,
 		(WNDPROC)WndProc,
 		0L,
 		0L,

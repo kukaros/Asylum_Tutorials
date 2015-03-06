@@ -671,7 +671,6 @@ void Render(float alpha, float elapsedtime)
 	GLMatrixMultiply(lightviewproj, lightview, lightproj);
 
 	// render shadow map
-	glViewport(0, 0, SHADOWMAP_SIZE, SHADOWMAP_SIZE);
 	glClearColor(0, 0, 0, 1);
 
 	varianceshadow->SetMatrix("matViewProj", lightviewproj);
@@ -710,7 +709,6 @@ void Render(float alpha, float elapsedtime)
 	}
 	blurredshadow->Unset();
 
-	glViewport(0, 0, screenwidth, screenheight);
 	glDepthMask(GL_TRUE);
 
 	// STEP 1: z pass

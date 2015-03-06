@@ -980,6 +980,8 @@ void OpenGLFramebuffer::Set()
 
 	if( count > 0 )
 		glDrawBuffers(count + 1, buffs);
+
+	glViewport(0, 0, sizex, sizey);
 }
 
 void OpenGLFramebuffer::Unset()
@@ -1191,23 +1193,25 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 
 	OpenGLVertexElement*	decl;
 	OpenGLAttributeRange*	table;
-	OpenGLColor			color;
-	FILE*				infile = 0;
-	float				bbmin[3];
-	float				bbmax[3];
-	unsigned int		unused;
-	unsigned int		version;
-	unsigned int		numindices;
-	unsigned int		numvertices;
-	unsigned int		vstride;
-	unsigned int		istride;
-	unsigned int		numsubsets;
-	unsigned int		numelems;
-	unsigned short		tmp16;
-	unsigned char		tmp8;
-	void*				data;
-	char				buff[256];
-	bool				success;
+	OpenGLMaterial			defmat;
+	OpenGLMaterial*			mat;
+	OpenGLColor				color;
+	FILE*					infile = 0;
+	float					bbmin[3];
+	float					bbmax[3];
+	unsigned int			unused;
+	unsigned int			version;
+	unsigned int			numindices;
+	unsigned int			numvertices;
+	unsigned int			vstride;
+	unsigned int			istride;
+	unsigned int			numsubsets;
+	unsigned int			numelems;
+	unsigned short			tmp16;
+	unsigned char			tmp8;
+	void*					data;
+	char					buff[256];
+	bool					success;
 
 #ifdef _MSC_VER
 	fopen_s(&infile, file, "rb");
@@ -1285,14 +1289,19 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 	}
 
 	// attribute table
-	(*materials) = new OpenGLMaterial[numsubsets];
+	if( materials )
+		(*materials) = new OpenGLMaterial[numsubsets];
 
 	for( unsigned int i = 0; i < numsubsets; ++i )
 	{
 		OpenGLAttributeRange& subset = table[i];
-		OpenGLMaterial& mat = (*materials)[i];
 
-		mat.TextureFile = 0;
+		if( materials )
+			mat = ((*materials) + i);
+		else
+			mat = &defmat;
+
+		mat->TextureFile = 0;
 
 		subset.AttribId = i;
 		subset.PrimitiveType = GLPT_TRIANGLELIST;
@@ -1316,19 +1325,19 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 		if( hasmaterial )
 		{
 			fread(&color, sizeof(OpenGLColor), 1, infile);
-			mat.Ambient = color;
+			mat->Ambient = color;
 
 			fread(&color, sizeof(OpenGLColor), 1, infile);
-			mat.Diffuse = color;
+			mat->Diffuse = color;
 
 			fread(&color, sizeof(OpenGLColor), 1, infile);
-			mat.Specular = color;
+			mat->Specular = color;
 
 			fread(&color, sizeof(OpenGLColor), 1, infile);
-			mat.Emissive = color;
+			mat->Emissive = color;
 
-			fread(&mat.Power, sizeof(float), 1, infile);
-			fread(&mat.Diffuse.a, sizeof(float), 1, infile);
+			fread(&mat->Power, sizeof(float), 1, infile);
+			fread(&mat->Diffuse.a, sizeof(float), 1, infile);
 
 			fread(&unused, 4, 1, infile);
 			GLReadString(infile, buff);
@@ -1337,9 +1346,9 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 			{
 				unused = strlen(buff);
 
-				mat.TextureFile = new char[unused + 1];
-				memcpy(mat.TextureFile, buff, unused);
-				mat.TextureFile[unused] = 0;
+				mat->TextureFile = new char[unused + 1];
+				memcpy(mat->TextureFile, buff, unused);
+				mat->TextureFile[unused] = 0;
 			}
 
 			GLReadString(infile, buff);
@@ -1354,25 +1363,25 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 		{
 			color = OpenGLColor(1, 1, 1, 1);
 
-			memcpy(&mat.Ambient, &color, 4 * sizeof(float));
-			memcpy(&mat.Diffuse, &color, 4 * sizeof(float));
-			memcpy(&mat.Specular, &color, 4 * sizeof(float));
+			memcpy(&mat->Ambient, &color, 4 * sizeof(float));
+			memcpy(&mat->Diffuse, &color, 4 * sizeof(float));
+			memcpy(&mat->Specular, &color, 4 * sizeof(float));
 
 			color = OpenGLColor(0, 0, 0, 1);
-			memcpy(&mat.Emissive, &color, 4 * sizeof(float));
+			memcpy(&mat->Emissive, &color, 4 * sizeof(float));
 
-			mat.Power = 80.0f;
+			mat->Power = 80.0f;
 		}
 
 		GLReadString(infile, buff);
 
-		if( buff[1] != ',' && mat.TextureFile == 0 )
+		if( buff[1] != ',' && mat->TextureFile == 0 )
 		{
 			unused = strlen(buff);
 
-			mat.TextureFile = new char[unused + 1];
-			memcpy(mat.TextureFile, buff, unused);
-			mat.TextureFile[unused] = 0;
+			mat->TextureFile = new char[unused + 1];
+			memcpy(mat->TextureFile, buff, unused);
+			mat->TextureFile[unused] = 0;
 		}
 
 		GLReadString(infile, buff);
@@ -1386,7 +1395,9 @@ bool GLCreateMeshFromQM(const char* file, OpenGLMaterial** materials, GLuint* nu
 
 	// attribute buffer
 	(*mesh)->SetAttributeTable(table, numsubsets);
-	*nummaterials = numsubsets;
+
+	if( nummaterials )
+		*nummaterials = numsubsets;
 
 _fail:
 	delete[] decl;

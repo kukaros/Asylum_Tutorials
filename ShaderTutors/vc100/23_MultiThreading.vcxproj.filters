@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\23_MultiThreading\main.cpp" />
+    <ClCompile Include="..\extern\qglextensions.cpp">
+      <Filter>extern</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\glext.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\thread.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\23_MultiThreading\renderingcore.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\23_MultiThreading\win32window.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\23_MultiThreading\drawingitem.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\23_MultiThreading\mainwindow.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="extern">
+      <UniqueIdentifier>{638c7da3-24dc-4d2f-b688-9283f29be83e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{ca697c53-88a7-4f0d-b3f4-529b3133419b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{a8723d36-334b-479d-915a-d7c8da542398}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="framework">
+      <UniqueIdentifier>{00be96eb-7e59-4073-8de4-76d00edc631f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\extern\qglextensions.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\glext.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\glcorearb.h">
+      <Filter>extern</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\thread.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\blockingqueue.hpp">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\23_MultiThreading\renderingcore.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="..\23_MultiThreading\win32window.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="..\23_MultiThreading\drawingitem.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\media\shadersGL\basic2D.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\basic2D.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\blinnphong.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\blinnphong.vert">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>

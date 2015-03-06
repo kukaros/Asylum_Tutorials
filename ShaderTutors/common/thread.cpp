@@ -21,8 +21,8 @@ void SignalCombo::WaitAll()
 unsigned long __stdcall Thread::Run(void* param)
 {
 	emitter_base* emi = reinterpret_cast<emitter_base*>(param);
-
 	emi->emit();
+
 	return 0;
 }
 
@@ -36,6 +36,20 @@ Thread::~Thread()
 {
 	if( handle != INVALID_HANDLE_VALUE )
 		Close();
+}
+
+bool Thread::Attach(void (*func)())
+{
+	if( emi )
+		delete emi;
+
+	// trick
+	emi = new emitter<Thread>(func);
+
+	handle = CreateThread(
+		NULL, 0, (LPTHREAD_START_ROUTINE)&Thread::Run, emi, CREATE_SUSPENDED, &id);
+
+	return (handle != INVALID_HANDLE_VALUE);
 }
 
 void Thread::Start()

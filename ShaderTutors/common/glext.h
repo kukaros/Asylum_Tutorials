@@ -130,6 +130,11 @@ struct OpenGLMaterial
 	float		Power;
 	char*		TextureFile;
 
+	OpenGLMaterial()
+	{
+		TextureFile = 0;
+	}
+
 	~OpenGLMaterial()
 	{
 		if( TextureFile )
@@ -325,6 +330,14 @@ public:
 	
 	inline GLuint GetDepthAttachment() {
 		return depthstencil.id;
+	}
+
+	inline GLuint GetWidth() const {
+		return sizex;
+	}
+
+	inline GLuint GetHeight() const {
+		return sizey;
 	}
 };
 

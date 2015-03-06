@@ -614,7 +614,7 @@ int main(int argc, char* argv[])
 	WNDCLASSEX wc =
 	{
 		sizeof(WNDCLASSEX),
-		CS_CLASSDC,
+		CS_OWNDC,
 		(WNDPROC)WndProc,
 		0L,
 		0L,
