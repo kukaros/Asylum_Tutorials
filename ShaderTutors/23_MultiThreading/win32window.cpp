@@ -1,4 +1,6 @@
 
+#include <dwmapi.h>
+
 #include "win32window.h"
 #include "drawingitem.h"
 #include "renderingcore.h"
@@ -108,15 +110,27 @@ Win32Window::Win32Window(long x, long y, long width, long height)
 	CloseCallback		= 0;
 	CreateCallback		= 0;
 
+	RECT realrect;
 	RECT rect = { x, y, width, height };
-	DWORD style = WS_CLIPCHILDREN|WS_CLIPSIBLINGS;
+	DWORD style = WS_CLIPCHILDREN|WS_CLIPSIBLINGS|WS_SYSMENU|WS_BORDER|WS_CAPTION|WS_MINIMIZEBOX;
 
-	style |= WS_SYSMENU|WS_BORDER|WS_CAPTION|WS_MINIMIZEBOX;
-	Adjust(rect, x, y, width, height, style, 0, false);
+	rect.left	= x;
+	rect.top	= y;
+	rect.right	= x + width;
+	rect.bottom	= y + height;
 
 	hwnd = CreateWindowA("TestClass", "Win32Window", style,
 		rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
 		NULL, NULL, wc.hInstance, NULL);
+
+	DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &realrect, sizeof(RECT));
+
+	rect.left	= rect.left + (rect.left - realrect.left);
+	rect.right	= rect.right - (realrect.right - rect.right);
+	rect.top	= rect.top + (rect.top - realrect.top);
+	rect.bottom	= rect.bottom - (realrect.bottom - rect.bottom);
+
+	MoveWindow(hwnd, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
 
 	hdc = GetDC(hwnd);
 	glcontextid	= -1;
@@ -150,28 +164,16 @@ Win32Window::~Win32Window()
 		UnregisterClass("TestClass", wc.hInstance);
 }
 
-void Win32Window::Adjust(tagRECT& out, long x, long y, long width, long height, DWORD style, DWORD exstyle, bool menu)
-{
-	out.left	= x;
-	out.top		= y;
-	out.right	= x + width;
-	out.bottom	= y + height;
-
-	AdjustWindowRectEx(&out, style, menu, exstyle);
-
-	out.right	= x + (out.right - out.left);
-	out.bottom	= y + (out.bottom - out.top);
-	out.left	= x;
-	out.top		= y;
-}
-
 void Win32Window::UninitOpenGL()
 {
 	if( drawingitem )
 		delete drawingitem;
 
 	if( glcontextid != -1 )
+	{
 		GetRenderingCore()->DeleteUniverse(glcontextid);
+		glcontextid = -1;
+	}
 }
 
 void Win32Window::Present()
@@ -182,7 +184,13 @@ void Win32Window::Present()
 void Win32Window::SetTitle(const char* title)
 {
 	if( hwnd )
-		SetWindowText(hwnd, title);
+		::SetWindowText(hwnd, title);
+}
+
+void Win32Window::SetFocus()
+{
+	if( hwnd )
+		::SetFocus(hwnd);
 }
 
 void Win32Window::Close()
@@ -238,6 +246,9 @@ void Win32Window::MessageHook()
 			{
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
+
+				if( msg.message == WM_QUIT )
+					break;
 			}
 
 			if( UpdateCallback )
@@ -246,7 +257,7 @@ void Win32Window::MessageHook()
 
 		if( msg.message != WM_QUIT )
 		{
-			if( RenderCallback ) // && glcontextid != -1 )
+			if( RenderCallback && glcontextid != -1 )
 				RenderCallback(this, (float)accum / 0.1f, (float)delta);
 		}
 	}

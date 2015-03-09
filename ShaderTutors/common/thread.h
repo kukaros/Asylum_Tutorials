@@ -142,6 +142,10 @@ public:
 	void Stop();
 	void Close();
 
+	inline void Wait() {
+		WaitForSingleObject(handle, INFINITE);
+	}
+
 	inline int GetID() const {
 		return id;
 	}

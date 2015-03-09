@@ -21,6 +21,7 @@
       <Filter>framework</Filter>
     </ClCompile>
     <ClCompile Include="..\23_MultiThreading\mainwindow.cpp" />
+    <ClCompile Include="..\23_MultiThreading\window1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="extern">
@@ -73,6 +74,15 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="..\media\shadersGL\blinnphong.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\renderlines.geom">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\color.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\media\shadersGL\color.vert">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

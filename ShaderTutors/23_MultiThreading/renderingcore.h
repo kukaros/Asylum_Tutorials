@@ -11,7 +11,7 @@
 /**
  * \brief This is what is visible to the public
  *
- * Can be used from the worker thread only.
+ * Can be used from the renderer thread only (a.k.a. tasks).
  */
 class IRenderingContext
 {
@@ -25,7 +25,7 @@ public:
 	virtual OpenGLMesh* CreateMesh(const char* file) = 0;
 
 	// rendering methods
-	virtual void Clear() = 0;
+	virtual void Clear(const OpenGLColor& color) = 0;
 };
 
 /**
@@ -42,19 +42,24 @@ public:
 	{
 		friend class RenderingCore;
 
+	private:
+		bool	disposing;
+
 	protected:
-		Signal finished;
-		int universeid;
+		Signal	finished;
+		int		universeid;
+
+		virtual ~IRenderingTask();
 
 	public:
 		IRenderingTask(int universe);
-		virtual ~IRenderingTask();
+		void Release();
 
 		virtual void Execute(IRenderingContext* context) = 0;
+		virtual void Dispose() = 0;
 
 		inline void Wait() {
 			finished.Wait();
-			finished.Halt();
 		}
 
 		inline int GetUniverseID() const {

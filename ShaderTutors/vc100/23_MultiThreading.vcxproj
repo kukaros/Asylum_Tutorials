@@ -15,6 +15,7 @@
     <ClCompile Include="..\23_MultiThreading\mainwindow.cpp" />
     <ClCompile Include="..\23_MultiThreading\renderingcore.cpp" />
     <ClCompile Include="..\23_MultiThreading\win32window.cpp" />
+    <ClCompile Include="..\23_MultiThreading\window1.cpp" />
     <ClCompile Include="..\common\glext.cpp" />
     <ClCompile Include="..\23_MultiThreading\main.cpp" />
     <ClCompile Include="..\common\thread.cpp" />
@@ -35,6 +36,9 @@
     <None Include="..\media\shadersGL\basic2D.vert" />
     <None Include="..\media\shadersGL\blinnphong.frag" />
     <None Include="..\media\shadersGL\blinnphong.vert" />
+    <None Include="..\media\shadersGL\color.frag" />
+    <None Include="..\media\shadersGL\color.vert" />
+    <None Include="..\media\shadersGL\renderlines.geom" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>

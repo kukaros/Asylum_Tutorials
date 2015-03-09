@@ -1,7 +1,10 @@
 
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
 #pragma comment(lib, "OpenGL32.lib")
 #pragma comment(lib, "GLU32.lib")
 #pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "GdiPlus.lib")
 
 #include <iostream>
@@ -18,25 +21,55 @@ extern void MainWindow_Closing(Win32Window*);
 extern void MainWindow_KeyPress(Win32Window*, WPARAM);
 extern void MainWindow_Render(Win32Window*, float, float);
 
+extern void Window1_Created(Win32Window*);
+extern void Window1_Closing(Win32Window*);
+extern void Window1_Render(Win32Window*, float, float);
+
+RECT			workarea;
+LONG			wawidth;
+LONG			waheight;
+Win32Window*	window1;
+
+void THREAD1_Run()
+{
+	CoInitializeEx(0, COINIT_MULTITHREADED);
+
+	window1 = new Win32Window(
+		workarea.left + wawidth / 2, workarea.top,
+		wawidth / 2, waheight / 2);
+
+	window1->CreateCallback	= &Window1_Created;
+	window1->CloseCallback	= &Window1_Closing;
+	window1->RenderCallback	= &Window1_Render;
+
+	window1->SetTitle("2D window 1");
+	window1->MessageHook();
+
+	delete window1;
+	window1 = 0;
+
+	CoUninitialize();
+}
+
 int main(int argc, char* argv[])
 {
-	RECT	workarea;
-	LONG	wawidth;
-	LONG	waheight;
-
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 	SystemParametersInfo(SPI_GETWORKAREA, 0, &workarea, 0);
-
-	workarea.left += 5;
-	workarea.top += 5;
-	workarea.right -= 10;
-	workarea.bottom -= 10;
 
 	wawidth = workarea.right - workarea.left;
 	waheight = workarea.bottom - workarea.top;
 
+	// other windows
+	Thread worker1;
+
+	worker1.Attach(&THREAD1_Run);
+	worker1.Start();
+
+	// main window
 	{
-		Win32Window mainwindow(workarea.left, workarea.top, wawidth / 2, waheight / 2);
+		Win32Window mainwindow(
+			workarea.left, workarea.top,
+			wawidth / 2, waheight / 2);
 
 		mainwindow.CreateCallback	= &MainWindow_Created;
 		mainwindow.CloseCallback	= &MainWindow_Closing;
@@ -47,7 +80,14 @@ int main(int argc, char* argv[])
 		mainwindow.MessageHook();
 	}
 
+	// close other windows
+	if( window1 )
+		window1->Close();
+
+	worker1.Wait();
+
 	GetRenderingCore()->Shutdown();
+	CoUninitialize();
 
 	_CrtDumpMemoryLeaks();
 

@@ -26,7 +26,6 @@ private:
 	short			mousedx, mousedy;
 	short			mousedown;
 
-	void Adjust(tagRECT& out, long x, long y, long width, long height, DWORD style, DWORD exstyle, bool menu = false);
 	void UninitOpenGL();
 
 public:
@@ -44,6 +43,7 @@ public:
 	void MessageHook();
 	void Present();
 	void SetTitle(const char* title);
+	void SetFocus();
 
 	inline DrawingItem* GetDrawingItem() {
 		return drawingitem;

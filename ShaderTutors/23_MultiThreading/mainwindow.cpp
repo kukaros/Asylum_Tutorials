@@ -8,8 +8,7 @@ class OpenGLAddonTask : public RenderingCore::IRenderingTask
 	enum AddonAction
 	{
 		AA_Setup = 0,
-		AA_Render = 1,
-		AA_Dispose = 2
+		AA_Render = 1
 	};
 
 private:
@@ -19,6 +18,7 @@ private:
 	float				rendertime;
 	int					action;
 
+	void Dispose();
 	void Execute(IRenderingContext* context);
 	void Internal_Render();
 
@@ -27,7 +27,6 @@ public:
 
 	void Setup();
 	void Render(float time);
-	void Dispose();
 };
 
 OpenGLAddonTask::OpenGLAddonTask(int universe, OpenGLFramebuffer* target)
@@ -40,17 +39,19 @@ OpenGLAddonTask::OpenGLAddonTask(int universe, OpenGLFramebuffer* target)
 	rendertime		= 0;
 }
 
+void OpenGLAddonTask::Dispose()
+{
+	// NOTE: runs on renderer thread
+	SAFE_DELETE(mesh);
+	SAFE_DELETE(effect);
+
+	rendertarget = 0;
+}
+
 void OpenGLAddonTask::Execute(IRenderingContext* context)
 {
 	// NOTE: runs on renderer thread
-	if( action == AA_Dispose )
-	{
-		SAFE_DELETE(mesh);
-		SAFE_DELETE(effect);
-
-		rendertarget = 0;
-	}
-	else if( action == AA_Setup )
+	if( action == AA_Setup )
 	{
 		if( !mesh )
 			mesh = context->CreateMesh("../media/meshes/teapot.qm");
@@ -152,15 +153,6 @@ void OpenGLAddonTask::Render(float time)
 	GetRenderingCore()->AddTask(this);
 }
 
-void OpenGLAddonTask::Dispose()
-{
-	// NOTE: runs on any other thread
-	action = AA_Dispose;
-	
-	GetRenderingCore()->AddTask(this);
-	Wait();
-}
-
 // *****************************************************************************************************************************
 //
 // Main window functions
@@ -185,10 +177,8 @@ void MainWindow_Closing(Win32Window*)
 {
 	if( addonrenderer )
 	{
-		addonrenderer->Wait();
-		addonrenderer->Dispose();
-
-		SAFE_DELETE(addonrenderer);
+		addonrenderer->Release();
+		addonrenderer = 0;
 	}
 }
 

@@ -2,42 +2,57 @@
 #ifndef _DRAWINGITEM_H_
 #define _DRAWINGITEM_H_
 
+#include "../common/thread.h"
+
 class DrawingItem;
 class DrawingLayer;
 class OpenGLFramebuffer;
 class OpenGLScreenQuad;
+class OpenGLColor;
 
 class NativeContext
 {
 	friend class DrawingLayer;
+	class FlushPrimitivesTask;
 
 private:
-	DrawingItem* owneritem;
-	const DrawingLayer* ownerlayer;
+	mutable DrawingItem*			owneritem;
+	mutable DrawingLayer*			ownerlayer;
+	mutable FlushPrimitivesTask*	flushtask;
 
-	NativeContext(DrawingItem* item, const DrawingLayer* layer);
+	NativeContext();
+	NativeContext(DrawingItem* item, DrawingLayer* layer);
+
+	void FlushPrimitives();
 
 public:
-	NativeContext();
+	NativeContext(const NativeContext& other);
+	~NativeContext();
 
+	void Clear(const OpenGLColor& color);
 	void MoveTo(float x, float y);
 	void LineTo(float x, float y);
+
+	NativeContext& operator =(const NativeContext& other);
 };
 
 class DrawingLayer
 {
 	friend class DrawingItem;
+	friend class NativeContext;
+
 	class DrawingLayerSetupTask;
 
 private:
 	DrawingItem*			owner;
 	DrawingLayerSetupTask*	setuptask;
+	Guard					contextguard;
 
 	DrawingLayer(int universe, unsigned int width, unsigned int height);
 	~DrawingLayer();
 
 public:
-	NativeContext GetContext() const;
+	NativeContext GetContext();
 	OpenGLFramebuffer* GetRenderTarget() const;
 };
 
@@ -57,11 +72,11 @@ public:
 
 	void RecomposeLayers();
 
-	inline const DrawingLayer& GetBottomLayer() const {
+	inline DrawingLayer& GetBottomLayer() {
 		return bottomlayer;
 	}
 
-	inline const DrawingLayer& GetFeedbackLayer() const {
+	inline DrawingLayer& GetFeedbackLayer() {
 		return feedbacklayer;
 	}
 

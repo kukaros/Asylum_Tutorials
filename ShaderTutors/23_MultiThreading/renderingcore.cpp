@@ -77,7 +77,7 @@ public:
 	OpenGLMesh* CreateMesh(const char* file);
 
 	// rendering methods
-	void Clear();
+	void Clear(const OpenGLColor& color);
 };
 
 int RenderingCore::PrivateInterface::CreateContext(HDC hdc)
@@ -208,9 +208,12 @@ bool RenderingCore::PrivateInterface::ActivateContext(int id)
 	return true;
 }
 
-void RenderingCore::PrivateInterface::Clear()
+void RenderingCore::PrivateInterface::Clear(const OpenGLColor& color)
 {
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(color.r, color.g, color.b, color.a);
+	glClearDepth(1.0f);
+
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 }
 
 OpenGLFramebuffer* RenderingCore::PrivateInterface::CreateFramebuffer(GLuint width, GLuint height)
@@ -282,6 +285,10 @@ public:
 		contextaction	= Delete;
 	}
 
+	void Dispose()
+	{
+	}
+
 	void Execute(IRenderingContext* context)
 	{
 		if( contextaction == Create )
@@ -304,11 +311,20 @@ public:
 RenderingCore::IRenderingTask::IRenderingTask(int universe)
 {
 	universeid = universe;
-	finished.Halt();
+	disposing = false;
 }
 
 RenderingCore::IRenderingTask::~IRenderingTask()
 {
+}
+
+void RenderingCore::IRenderingTask::Release()
+{
+	// NOTE: runs on any other thread
+	Wait();
+
+	disposing = true;
+	GetRenderingCore()->AddTask(this);
 }
 
 // *****************************************************************************************************************************
@@ -359,6 +375,7 @@ void RenderingCore::DeleteUniverse(int id)
 
 void RenderingCore::AddTask(IRenderingTask* task)
 {
+	task->finished.Halt();
 	tasks.push(task);
 }
 
@@ -465,8 +482,19 @@ void RenderingCore::THREAD_Run()
 			action->Execute(privinterf);
 		}
 		else if( privinterf->ActivateContext(action->GetUniverseID()) )
-			action->Execute(privinterf);
+		{
+			if( action->disposing )
+			{
+				action->Dispose();
 
-		action->finished.Fire();
+				delete action;
+				action = 0;
+			}
+			else
+				action->Execute(privinterf);
+		}
+
+		if( action )
+			action->finished.Fire();
 	}
 }
