@@ -57,27 +57,36 @@ class RenderingCore::PrivateInterface : public IRenderingContext
 	{
 		HDC hdc;
 		HGLRC hrc;
+
+		OpenGLContext()
+			: hdc(0), hrc(0)
+		{
+		}
 	};
 
 	typedef std::vector<OpenGLContext> contextlist;
 
 private:
-	contextlist contexts;
+	contextlist		contexts;
+	OpenGLContext	activecontext;
 
 	// internal methods
 	int CreateContext(HDC hdc);
 	void DeleteContext(int id);
 	bool ActivateContext(int id);
+	HDC GetDC(int id) const;
 
 public:
 	// factory methods
-	OpenGLFramebuffer* CreateFramebuffer(GLuint width, GLuint height);
-	OpenGLScreenQuad* CreateScreenQuad();
-	OpenGLEffect* CreateEffect(const char* vsfile, const char* gsfile, const char* fsfile);
-	OpenGLMesh* CreateMesh(const char* file);
+	OpenGLFramebuffer*	CreateFramebuffer(GLuint width, GLuint height);
+	OpenGLScreenQuad*	CreateScreenQuad();
+	OpenGLEffect*		CreateEffect(const char* vsfile, const char* gsfile, const char* fsfile);
+	OpenGLMesh*			CreateMesh(const char* file);
+	OpenGLMesh*			CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl);
 
 	// rendering methods
 	void Clear(const OpenGLColor& color);
+	void Present(int id);
 };
 
 int RenderingCore::PrivateInterface::CreateContext(HDC hdc)
@@ -181,7 +190,8 @@ void RenderingCore::PrivateInterface::DeleteContext(int id)
 
 	if( context.hrc )
 	{
-		// TODO: mi volt elotte bealliva? azt vissza kell
+		bool isthisactive = (context.hrc == activecontext.hrc);
+
 		if( !wglMakeCurrent(context.hdc, NULL) )
 			MYERROR("Could not release context");
 
@@ -192,6 +202,14 @@ void RenderingCore::PrivateInterface::DeleteContext(int id)
 
 		context.hdc = 0;
 		context.hrc = 0;
+
+		if( isthisactive )
+			activecontext = context;
+		else if( activecontext.hrc )
+		{
+			if( !wglMakeCurrent(activecontext.hdc, activecontext.hrc) )
+				MYERROR("Could not reactivate context");
+		}
 	}
 }
 
@@ -202,10 +220,25 @@ bool RenderingCore::PrivateInterface::ActivateContext(int id)
 
 	OpenGLContext& context = contexts[id];
 
-	if( context.hrc )
-		wglMakeCurrent(context.hdc, context.hrc);
+	if( activecontext.hrc != context.hrc )
+	{
+		if( context.hrc )
+		{
+			wglMakeCurrent(context.hdc, context.hrc);
+			activecontext = context;
+		}
+	}
 
 	return true;
+}
+
+HDC RenderingCore::PrivateInterface::GetDC(int id) const
+{
+	if( id < 0 || id >= (int)contexts.size() )
+		return 0;
+
+	const OpenGLContext& context = contexts[id];
+	return context.hdc;
 }
 
 void RenderingCore::PrivateInterface::Clear(const OpenGLColor& color)
@@ -214,6 +247,17 @@ void RenderingCore::PrivateInterface::Clear(const OpenGLColor& color)
 	glClearDepth(1.0f);
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+}
+
+void RenderingCore::PrivateInterface::Present(int id)
+{
+	if( id < 0 || id >= (int)contexts.size() )
+		return;
+
+	const OpenGLContext& context = contexts[id];
+
+	if( context.hdc )
+		SwapBuffers(context.hdc);
 }
 
 OpenGLFramebuffer* RenderingCore::PrivateInterface::CreateFramebuffer(GLuint width, GLuint height)
@@ -241,6 +285,16 @@ OpenGLMesh* RenderingCore::PrivateInterface::CreateMesh(const char* file)
 	OpenGLMesh* mesh = 0;
 
 	if( !GLCreateMeshFromQM(file, 0, 0, &mesh) )
+		mesh = 0;
+
+	return mesh;
+}
+
+OpenGLMesh* RenderingCore::PrivateInterface::CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl)
+{
+	OpenGLMesh* mesh = 0;
+
+	if( !GLCreateMesh(numvertices, numindices, flags, decl, &mesh) )
 		mesh = 0;
 
 	return mesh;

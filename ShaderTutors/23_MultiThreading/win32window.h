@@ -5,6 +5,8 @@
 #include <Windows.h>
 #include <map>
 
+#include "../common/thread.h"
+
 class DrawingItem;
 
 class Win32Window
@@ -13,8 +15,9 @@ class Win32Window
 
 	typedef std::map<HWND, Win32Window*> windowmap;
 
-	static WNDCLASSEX wc;
-	static windowmap handles;
+	static WNDCLASSEX	wc;
+	static windowmap	handles;
+	static Guard		handlesguard;
 
 private:
 	HWND			hwnd;
@@ -41,7 +44,6 @@ public:
 
 	void Close();
 	void MessageHook();
-	void Present();
 	void SetTitle(const char* title);
 	void SetFocus();
 

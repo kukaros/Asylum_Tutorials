@@ -10,15 +10,36 @@ class OpenGLFramebuffer;
 class OpenGLScreenQuad;
 class OpenGLColor;
 
+struct Point4
+{
+	float x, y, z, w;
+
+	Point4(float _x, float _y, float _z, float _w)
+		: x(_x), y(_y), z(_z), w(_w)
+	{
+	}
+};
+
+/**
+ * \brief Interface for 2D rendering
+ *
+ * Copy constructor and operator = assumes move semantic.
+ */
 class NativeContext
 {
 	friend class DrawingLayer;
 	class FlushPrimitivesTask;
 
+	typedef std::vector<Point4> vertexlist;
+	typedef std::vector<unsigned short> indexlist;
+
 private:
 	mutable DrawingItem*			owneritem;
 	mutable DrawingLayer*			ownerlayer;
 	mutable FlushPrimitivesTask*	flushtask;
+
+	vertexlist	vertices;
+	indexlist	indices;
 
 	NativeContext();
 	NativeContext(DrawingItem* item, DrawingLayer* layer);
@@ -32,10 +53,14 @@ public:
 	void Clear(const OpenGLColor& color);
 	void MoveTo(float x, float y);
 	void LineTo(float x, float y);
+	void SetWorldTransform(float transform[16]);
 
 	NativeContext& operator =(const NativeContext& other);
 };
 
+/**
+ * \brief One layer with attached rendertarget
+ */
 class DrawingLayer
 {
 	friend class DrawingItem;
@@ -56,6 +81,9 @@ public:
 	OpenGLFramebuffer* GetRenderTarget() const;
 };
 
+/**
+ * \brief Multilayered drawing sheet
+ */
 class DrawingItem
 {
 	class RecomposeLayersTask;
@@ -86,32 +114,3 @@ public:
 };
 
 #endif
-
-
-
-
-
-//#include "../common/glext.h"
-//#include <vector>
-
-/*
-class RenderingCore;
-
-class NativeContext
-{
-	class FlushPrimitivesTask;
-	typedef std::vector<FlushPrimitivesTask*> rendertasklist;
-
-	RenderingCore*			renderingcore;
-	int						universeid;
-	FlushPrimitivesTask*	flusher;
-	OpenGLFramebuffer*		layer;
-	rendertasklist			tasks;
-
-public:
-	NativeContext(RenderingCore* core, int universe);
-	~NativeContext();
-
-	void FlushPrimitives();
-};
-*/

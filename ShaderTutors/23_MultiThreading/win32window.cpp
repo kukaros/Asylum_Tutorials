@@ -5,15 +5,20 @@
 #include "drawingitem.h"
 #include "renderingcore.h"
 
-Win32Window::windowmap Win32Window::handles;
-WNDCLASSEX Win32Window::wc;
+Win32Window::windowmap	Win32Window::handles;
+WNDCLASSEX				Win32Window::wc;
+Guard					Win32Window::handlesguard;
 
 LRESULT WINAPI Win32Window::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	handlesguard.Lock();
 	Win32Window::windowmap::iterator it = Win32Window::handles.find(hWnd);
 
 	if( it == Win32Window::handles.end() )
+	{
+		handlesguard.Unlock();
 		return DefWindowProc(hWnd, msg, wParam, lParam);
+	}
 
 	switch( msg )
 	{
@@ -27,7 +32,9 @@ LRESULT WINAPI Win32Window::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 		break;
 
 	case WM_DESTROY:
+		handlesguard.Unlock();
 		PostQuitMessage(0);
+
 		return 0;
 	
 	case WM_KEYUP:
@@ -80,6 +87,7 @@ LRESULT WINAPI Win32Window::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 		break;
 	}
 
+	handlesguard.Unlock();
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
@@ -150,18 +158,24 @@ Win32Window::Win32Window(long x, long y, long width, long height)
 		}
 	}
 
+	handlesguard.Lock();
 	handles.insert(windowmap::value_type(hwnd, this));
+	handlesguard.Unlock();
 }
 
 Win32Window::~Win32Window()
 {
 	ReleaseDC(hwnd, hdc);
+
+	handlesguard.Lock();
 	handles.erase(hwnd);
 
 	hdc = 0;
 
 	if( handles.size() == 0 )
 		UnregisterClass("TestClass", wc.hInstance);
+
+	handlesguard.Unlock();
 }
 
 void Win32Window::UninitOpenGL()
@@ -174,11 +188,6 @@ void Win32Window::UninitOpenGL()
 		GetRenderingCore()->DeleteUniverse(glcontextid);
 		glcontextid = -1;
 	}
-}
-
-void Win32Window::Present()
-{
-	SwapBuffers(hdc);
 }
 
 void Win32Window::SetTitle(const char* title)

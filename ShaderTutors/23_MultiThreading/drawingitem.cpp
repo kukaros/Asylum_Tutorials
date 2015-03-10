@@ -10,21 +10,48 @@
 
 class NativeContext::FlushPrimitivesTask : public RenderingCore::IRenderingTask
 {
+	typedef std::vector<Point4> _vertexlist;
+	typedef std::vector<GLushort> _indexlist;
+
 private:
-	OpenGLFramebuffer*	rendertarget;
-	OpenGLColor			clearcolor;
+	float				world[16];
+	_vertexlist			vertices;
+	_indexlist			indices;
+	OpenGLFramebuffer*	rendertarget;	// external
+	OpenGLMesh*			mesh;
 	OpenGLEffect*		lineeffect;
+	OpenGLColor			clearcolor;
+	OpenGLColor			linecolor;
 	bool				needsclear;
 
 	void Dispose()
 	{
 		// NOTE: runs on renderer thread
 		SAFE_DELETE(lineeffect);
+		SAFE_DELETE(mesh);
 	}
 
 	void Execute(IRenderingContext* context)
 	{
 		// NOTE: runs on renderer thread
+		OpenGLVertexElement decl[] =
+		{
+			{ 0, 0, GLDECLTYPE_FLOAT4, GLDECLUSAGE_POSITION, 0 },
+			{ 0xff, 0, 0, 0, 0 }
+		};
+
+		OpenGLAttributeRange table[] =
+		{
+			{ GLPT_LINELIST, 0, 0, indices.size(), 0, vertices.size() }
+		};
+
+		float	width			= (float)rendertarget->GetWidth();
+		float	height			= (float)rendertarget->GetHeight();
+		float	proj[16];
+		float	thickness[2]	= { 3.0f / width, 3.0f / height };
+		void*	vdata			= 0;
+		void*	idata			= 0;
+
 		if( !lineeffect )
 		{
 			lineeffect = context->CreateEffect(
@@ -33,10 +60,36 @@ private:
 				"../media/shadersGL/color.frag");
 		}
 
+		if( !mesh )
+			mesh = context->CreateMesh(128, 256, GLMESH_DYNAMIC, decl);
+
+		mesh->LockVertexBuffer(0, 0, GLLOCK_DISCARD, (void**)&vdata);
+		mesh->LockIndexBuffer(0, 0, GLLOCK_DISCARD, &idata);
+
+		memcpy(vdata, vertices.data(), vertices.size() * sizeof(Point4));
+		memcpy(idata, indices.data(), indices.size() * sizeof(GLushort));
+
+		mesh->UnlockIndexBuffer();
+		mesh->UnlockVertexBuffer();
+		mesh->SetAttributeTable(table, 1);
+
+		GLMatrixOrthoRH(proj, width * -0.5f, width * 0.5f, height * -0.5f, height * 0.5f, -1, 1);
+
+		lineeffect->SetMatrix("matWorld", world);
+		lineeffect->SetMatrix("matViewProj", proj);
+		lineeffect->SetVector("color", &linecolor.r);
+		lineeffect->SetVector("lineThickness", thickness);
+
 		rendertarget->Set();
 		{
 			if( needsclear )
 				context->Clear(clearcolor);
+
+			lineeffect->Begin();
+			{
+				mesh->DrawSubset(0);
+			}
+			lineeffect->End();
 		}
 		rendertarget->Unset();
 
@@ -44,14 +97,22 @@ private:
 	}
 
 public:
+	typedef _vertexlist vertexlist;
+	typedef _indexlist indexlist;
+
 	FlushPrimitivesTask(int universe, OpenGLFramebuffer* framebuffer)
 		: IRenderingTask(universe)
 	{
 		// NOTE: runs on any other thread
 		rendertarget	= framebuffer;
 		lineeffect		= 0;
+		mesh			= 0;
+
 		clearcolor		= OpenGLColor(1, 1, 1, 1);
+		linecolor		= OpenGLColor(1, 1, 1, 1);
 		needsclear		= false;
+
+		GLMatrixIdentity(world);
 	}
 
 	void SetNeedsClear(const OpenGLColor& color)
@@ -59,6 +120,18 @@ public:
 		// NOTE: runs on any other thread
 		needsclear = true;
 		clearcolor = color;
+	}
+
+	void SetData(const vertexlist& verts, const indexlist& inds)
+	{
+		// NOTE: runs on any other thread
+		vertices = verts;
+		indices = inds;
+	}
+
+	void SetWorldMatrix(float matrix[16])
+	{
+		memcpy(world, matrix, 16 * sizeof(float));
 	}
 };
 
@@ -82,7 +155,11 @@ NativeContext::NativeContext(DrawingItem* item, DrawingLayer* layer)
 {
 	owneritem = item;
 	ownerlayer = layer;
+
 	flushtask = new FlushPrimitivesTask(item->GetOpenGLUniverseID(), layer->GetRenderTarget());
+
+	vertices.reserve(128);
+	indices.reserve(256);
 }
 
 NativeContext::~NativeContext()
@@ -101,7 +178,13 @@ NativeContext::~NativeContext()
 
 void NativeContext::FlushPrimitives()
 {
+	flushtask->SetData(vertices, indices);
+
 	GetRenderingCore()->AddTask(flushtask);
+	flushtask->Wait(); //
+
+	vertices.clear();
+	indices.clear();
 }
 
 void NativeContext::Clear(const OpenGLColor& color)
@@ -112,10 +195,31 @@ void NativeContext::Clear(const OpenGLColor& color)
 
 void NativeContext::MoveTo(float x, float y)
 {
+	if( (indices.size() > 0 && vertices.size() + 1 > indices.size()) ||
+		(indices.size() == 0 && vertices.size() == 1) )
+	{
+		// detected 2 MoveTo()s in a row
+		vertices.pop_back();
+	}
+
+	vertices.push_back(Point4(x, y, 0, 1));
 }
 
 void NativeContext::LineTo(float x, float y)
 {
+	if( vertices.size() == 0 )
+		vertices.push_back(Point4(0, 0, 0, 1));
+
+	indices.push_back((unsigned short)vertices.size() - 1);
+	indices.push_back((unsigned short)vertices.size());
+
+	vertices.push_back(Point4(x, y, 0, 1));
+}
+
+void NativeContext::SetWorldTransform(float transform[16])
+{
+	if( flushtask )
+		flushtask->SetWorldMatrix(transform);
 }
 
 NativeContext& NativeContext::operator =(const NativeContext& other)
@@ -268,6 +372,8 @@ private:
 			}
 			effect->End();
 		}
+
+		context->Present(universeid);
 	}
 
 public:

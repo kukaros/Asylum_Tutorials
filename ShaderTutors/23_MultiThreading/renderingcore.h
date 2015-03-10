@@ -19,13 +19,15 @@ public:
 	virtual ~IRenderingContext();
 
 	// factory methods
-	virtual OpenGLFramebuffer* CreateFramebuffer(GLuint width, GLuint height) = 0;
-	virtual OpenGLScreenQuad* CreateScreenQuad() = 0;
-	virtual OpenGLEffect* CreateEffect(const char* vsfile, const char* gsfile, const char* fsfile) = 0;
-	virtual OpenGLMesh* CreateMesh(const char* file) = 0;
+	virtual OpenGLFramebuffer*	CreateFramebuffer(GLuint width, GLuint height) = 0;
+	virtual OpenGLScreenQuad*	CreateScreenQuad() = 0;
+	virtual OpenGLEffect*		CreateEffect(const char* vsfile, const char* gsfile, const char* fsfile) = 0;
+	virtual OpenGLMesh*			CreateMesh(const char* file) = 0;
+	virtual OpenGLMesh*			CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl) = 0;
 
 	// rendering methods
 	virtual void Clear(const OpenGLColor& color) = 0;
+	virtual void Present(int id) = 0;
 };
 
 /**

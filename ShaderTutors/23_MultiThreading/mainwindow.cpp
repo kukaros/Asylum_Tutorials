@@ -65,6 +65,7 @@ void OpenGLAddonTask::Execute(IRenderingContext* context)
 
 void OpenGLAddonTask::Internal_Render()
 {
+	// NOTE: runs on renderer thread
 	if( !rendertarget )
 		return;
 
@@ -206,5 +207,4 @@ void MainWindow_Render(Win32Window* window, float alpha, float elapsedtime)
 		addonrenderer->Render(time);
 
 	drawingitem->RecomposeLayers();
-	window->Present();
 }
