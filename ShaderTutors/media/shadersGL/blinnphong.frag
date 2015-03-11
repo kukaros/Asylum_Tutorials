@@ -1,6 +1,8 @@
 
 #version 150
 
+uniform vec4 color;
+
 in vec3 wnorm;
 in vec3 vdir;
 in vec3 ldir;
@@ -19,6 +21,6 @@ void main()
 
 	s = pow(s, 80.0);
 
-	outColor.rgb = vec3(d, d, d) + vec3(s, s, s);
-	outColor.a = 1.0;
+	outColor.rgb = color.rgb * d + vec3(s);
+	outColor.a = color.a;
 }

@@ -16,6 +16,7 @@
     <ClCompile Include="..\23_MultiThreading\renderingcore.cpp" />
     <ClCompile Include="..\23_MultiThreading\win32window.cpp" />
     <ClCompile Include="..\23_MultiThreading\window1.cpp" />
+    <ClCompile Include="..\23_MultiThreading\window2.cpp" />
     <ClCompile Include="..\common\glext.cpp" />
     <ClCompile Include="..\23_MultiThreading\main.cpp" />
     <ClCompile Include="..\common\thread.cpp" />

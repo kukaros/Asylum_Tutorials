@@ -26,6 +26,7 @@ public:
 	virtual OpenGLMesh*			CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl) = 0;
 
 	// rendering methods
+	virtual void Blit(OpenGLFramebuffer* from, OpenGLFramebuffer* to, GLbitfield flags) = 0;
 	virtual void Clear(const OpenGLColor& color) = 0;
 	virtual void Present(int id) = 0;
 };

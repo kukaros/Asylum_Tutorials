@@ -25,10 +25,21 @@ extern void Window1_Created(Win32Window*);
 extern void Window1_Closing(Win32Window*);
 extern void Window1_Render(Win32Window*, float, float);
 
+extern void Window2_Created(Win32Window*);
+extern void Window2_Closing(Win32Window*);
+extern void Window2_Render(Win32Window*, float, float);
+
+// in mainwindow.cpp
+extern void Window3_Created(Win32Window*);
+extern void Window3_Closing(Win32Window*);
+extern void Window3_Render(Win32Window*, float, float);
+
 RECT			workarea;
 LONG			wawidth;
 LONG			waheight;
-Win32Window*	window1;
+Win32Window*	window1 = 0;
+Win32Window*	window2 = 0;
+Win32Window*	window3 = 0;
 
 void THREAD1_Run()
 {
@@ -42,11 +53,53 @@ void THREAD1_Run()
 	window1->CloseCallback	= &Window1_Closing;
 	window1->RenderCallback	= &Window1_Render;
 
-	window1->SetTitle("2D window 1");
+	window1->SetTitle("2D window with feedback (one thread)");
 	window1->MessageHook();
 
 	delete window1;
 	window1 = 0;
+
+	CoUninitialize();
+}
+
+void THREAD2_Run()
+{
+	CoInitializeEx(0, COINIT_MULTITHREADED);
+
+	window2 = new Win32Window(
+		workarea.left, workarea.top + waheight / 2,
+		wawidth / 2, waheight / 2);
+
+	window2->CreateCallback	= &Window2_Created;
+	window2->CloseCallback	= &Window2_Closing;
+	window2->RenderCallback	= &Window2_Render;
+
+	window2->SetTitle("2D window with feedback (two threads)");
+	window2->MessageHook();
+
+	delete window2;
+	window2 = 0;
+
+	CoUninitialize();
+}
+
+void THREAD3_Run()
+{
+	CoInitializeEx(0, COINIT_MULTITHREADED);
+
+	window3 = new Win32Window(
+		workarea.left + wawidth / 2, workarea.top + waheight / 2,
+		wawidth / 2, waheight / 2);
+
+	window3->CreateCallback	= &Window3_Created;
+	window3->CloseCallback	= &Window3_Closing;
+	window3->RenderCallback	= &Window3_Render;
+
+	window3->SetTitle("3D window with feedback");
+	window3->MessageHook();
+
+	delete window3;
+	window3 = 0;
 
 	CoUninitialize();
 }
@@ -61,9 +114,17 @@ int main(int argc, char* argv[])
 
 	// other windows
 	Thread worker1;
+	Thread worker2;
+	Thread worker3;
 
 	worker1.Attach(&THREAD1_Run);
 	worker1.Start();
+
+	worker2.Attach(&THREAD2_Run);
+	worker2.Start();
+
+	worker3.Attach(&THREAD3_Run);
+	worker3.Start();
 
 	// main window
 	{
@@ -84,7 +145,15 @@ int main(int argc, char* argv[])
 	if( window1 )
 		window1->Close();
 
+	if( window2 )
+		window2->Close();
+
+	if( window3 )
+		window3->Close();
+
 	worker1.Wait();
+	worker2.Wait();
+	worker3.Wait();
 
 	GetRenderingCore()->Shutdown();
 	CoUninitialize();

@@ -1,4 +1,4 @@
-#version 430
+#version 150
 
 uniform vec2 lineThickness; // screen space
 

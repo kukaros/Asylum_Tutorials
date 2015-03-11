@@ -129,8 +129,15 @@ public:
 		indices = inds;
 	}
 
+	void SetLineColor(const OpenGLColor& color)
+	{
+		// NOTE: runs on any other thread
+		linecolor = color;
+	}
+
 	void SetWorldMatrix(float matrix[16])
 	{
+		// NOTE: runs on any other thread
 		memcpy(world, matrix, 16 * sizeof(float));
 	}
 };
@@ -191,6 +198,12 @@ void NativeContext::Clear(const OpenGLColor& color)
 {
 	if( flushtask )
 		flushtask->SetNeedsClear(color);
+}
+
+void NativeContext::SetColor(const OpenGLColor& color)
+{
+	if( flushtask )
+		flushtask->SetLineColor(color);
 }
 
 void NativeContext::MoveTo(float x, float y)
@@ -355,10 +368,10 @@ private:
 		{
 			float texmat[16];
 			GLuint texid = item->GetBottomLayer().GetRenderTarget()->GetColorAttachment(0);
-				
+
 			GLMatrixIdentity(texmat);
 
-			glBindTexture(GL_TEXTURE_2D, texid); // TODO: vedeni
+			glBindTexture(GL_TEXTURE_2D, texid);
 			glDisable(GL_DEPTH_TEST);
 			glClear(GL_COLOR_BUFFER_BIT);
 
@@ -368,9 +381,19 @@ private:
 			{
 				screenquad->Draw();
 
-				// TODO: feedback
+				texid = item->GetFeedbackLayer().GetRenderTarget()->GetColorAttachment(0);
+				
+				glBindTexture(GL_TEXTURE_2D, texid);
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				screenquad->Draw();
+
+				glDisable(GL_BLEND);
 			}
 			effect->End();
+
+			glEnable(GL_DEPTH_TEST);
 		}
 
 		context->Present(universeid);

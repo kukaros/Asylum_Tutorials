@@ -54,6 +54,7 @@ public:
 	void MoveTo(float x, float y);
 	void LineTo(float x, float y);
 	void SetWorldTransform(float transform[16]);
+	void SetColor(const OpenGLColor& color);
 
 	NativeContext& operator =(const NativeContext& other);
 };

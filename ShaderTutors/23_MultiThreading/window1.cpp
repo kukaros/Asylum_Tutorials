@@ -20,13 +20,14 @@ void Window1_Closing(Win32Window*)
 void Window1_Render(Win32Window* window, float alpha, float elapsedtime)
 {
 	static float time = 0;
+	float world[16];
+
 	time += elapsedtime;
 
 	DrawingItem* drawingitem = window->GetDrawingItem();
 	DrawingLayer& bottomlayer = drawingitem->GetBottomLayer();
 	{
 		NativeContext	context		= bottomlayer.GetContext();
-		float			world[16];
 		float			bigradius	= 150;
 		float			smallradius	= 80;
 		float			m2pi		= 6.293185f;
@@ -53,6 +54,23 @@ void Window1_Render(Win32Window* window, float alpha, float elapsedtime)
 					cosf((m2pi / segments) * i) * bigradius);
 			}
 		}
+	}
+
+	DrawingLayer& feedbacklayer = drawingitem->GetFeedbackLayer();
+	{
+		NativeContext context = feedbacklayer.GetContext();
+
+		GLMatrixRotationAxis(world, -fmodf(time * 20.0f, 360.0f) * (3.14152f / 180.0f), 0, 0, 1);
+
+		context.Clear(OpenGLColor(0, 0, 0, 0));
+		context.SetWorldTransform(world);
+		context.SetColor(OpenGLColor(0, 1, 0, 1));
+
+		context.MoveTo(-120, 120);
+		context.LineTo(120, 120);
+		context.LineTo(120, -120);
+		context.LineTo(-120, -120);
+		context.LineTo(-120, 120);
 	}
 
 	drawingitem->RecomposeLayers();

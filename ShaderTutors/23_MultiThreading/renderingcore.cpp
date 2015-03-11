@@ -85,13 +85,15 @@ public:
 	OpenGLMesh*			CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl);
 
 	// rendering methods
+	void Blit(OpenGLFramebuffer* from, OpenGLFramebuffer* to, GLbitfield flags);
 	void Clear(const OpenGLColor& color);
 	void Present(int id);
 };
 
 int RenderingCore::PrivateInterface::CreateContext(HDC hdc)
 {
-	//if( !wglCreateContextAttribsARB )
+	if( !wglCreateContextAttribsARB )
+		return -1;
 	//	return CreateLegacyContext(hdc);
 
 	OpenGLContext	context;
@@ -239,6 +241,27 @@ HDC RenderingCore::PrivateInterface::GetDC(int id) const
 
 	const OpenGLContext& context = contexts[id];
 	return context.hdc;
+}
+
+void RenderingCore::PrivateInterface::Blit(OpenGLFramebuffer* from, OpenGLFramebuffer* to, GLbitfield flags)
+{
+	if( !from || !to || from == to || flags == 0 )
+		return;
+
+	GLenum filter = GL_LINEAR;
+
+	if( flags & GL_DEPTH_BUFFER_BIT )
+		filter = GL_NEAREST;
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, from->GetFramebuffer());
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, to->GetFramebuffer());
+
+	glBlitFramebuffer(
+		0, 0, from->GetWidth(), from->GetHeight(),
+		0, 0, to->GetWidth(), to->GetHeight(),
+		flags, filter);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void RenderingCore::PrivateInterface::Clear(const OpenGLColor& color)

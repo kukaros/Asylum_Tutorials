@@ -324,11 +324,15 @@ public:
 	void Set();
 	void Unset();
 
-	inline GLuint GetColorAttachment(int index) {
+	inline GLuint GetFramebuffer() const {
+		return fboid;
+	}
+
+	inline GLuint GetColorAttachment(int index) const {
 		return rendertargets[index].id;
 	}
 	
-	inline GLuint GetDepthAttachment() {
+	inline GLuint GetDepthAttachment() const {
 		return depthstencil.id;
 	}
 
