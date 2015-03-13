@@ -25,10 +25,18 @@ public:
 	virtual OpenGLMesh*			CreateMesh(const char* file) = 0;
 	virtual OpenGLMesh*			CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl) = 0;
 
+	// renderstate methods
+	virtual void SetCullMode(GLenum mode) = 0;
+	virtual void SetDepthTest(GLboolean enable) = 0;
+	virtual void SetDepthFunc(GLenum func) = 0;
+
 	// rendering methods
 	virtual void Blit(OpenGLFramebuffer* from, OpenGLFramebuffer* to, GLbitfield flags) = 0;
-	virtual void Clear(const OpenGLColor& color) = 0;
+	virtual void Clear(GLbitfield target, const OpenGLColor& color, float depth = 1.0f) = 0;
 	virtual void Present(int id) = 0;
+
+	// other
+	virtual void CheckError() = 0;
 };
 
 /**

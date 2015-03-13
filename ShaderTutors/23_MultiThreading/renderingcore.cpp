@@ -84,10 +84,18 @@ public:
 	OpenGLMesh*			CreateMesh(const char* file);
 	OpenGLMesh*			CreateMesh(GLuint numvertices, GLuint numindices, GLuint flags, OpenGLVertexElement* decl);
 
+	// renderstate methods
+	void SetCullMode(GLenum mode);
+	void SetDepthTest(GLboolean enable);
+	void SetDepthFunc(GLenum func);
+
 	// rendering methods
 	void Blit(OpenGLFramebuffer* from, OpenGLFramebuffer* to, GLbitfield flags);
-	void Clear(const OpenGLColor& color);
+	void Clear(GLbitfield target, const OpenGLColor& color, float depth);
 	void Present(int id);
+
+	// other
+	void CheckError();
 };
 
 int RenderingCore::PrivateInterface::CreateContext(HDC hdc)
@@ -243,6 +251,30 @@ HDC RenderingCore::PrivateInterface::GetDC(int id) const
 	return context.hdc;
 }
 
+void RenderingCore::PrivateInterface::SetCullMode(GLenum mode)
+{
+	if( mode == GL_NONE )
+		glDisable(GL_CULL_FACE);
+	else
+	{
+		glEnable(GL_CULL_FACE);
+		glCullFace(mode);
+	}
+}
+
+void RenderingCore::PrivateInterface::SetDepthTest(GLboolean enable)
+{
+	if( enable == GL_TRUE )
+		glEnable(GL_DEPTH_TEST);
+	else
+		glDisable(GL_DEPTH_TEST);
+}
+
+void RenderingCore::PrivateInterface::SetDepthFunc(GLenum func)
+{
+	glDepthFunc(func);
+}
+
 void RenderingCore::PrivateInterface::Blit(OpenGLFramebuffer* from, OpenGLFramebuffer* to, GLbitfield flags)
 {
 	if( !from || !to || from == to || flags == 0 )
@@ -264,12 +296,11 @@ void RenderingCore::PrivateInterface::Blit(OpenGLFramebuffer* from, OpenGLFrameb
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void RenderingCore::PrivateInterface::Clear(const OpenGLColor& color)
+void RenderingCore::PrivateInterface::Clear(GLbitfield target, const OpenGLColor& color, float depth)
 {
 	glClearColor(color.r, color.g, color.b, color.a);
-	glClearDepth(1.0f);
-
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glClearDepth(depth);
+	glClear(target);
 }
 
 void RenderingCore::PrivateInterface::Present(int id)
@@ -281,6 +312,37 @@ void RenderingCore::PrivateInterface::Present(int id)
 
 	if( context.hdc )
 		SwapBuffers(context.hdc);
+}
+
+void RenderingCore::PrivateInterface::CheckError()
+{
+	GLenum err = glGetError();
+
+	switch( err )
+	{
+	case GL_NO_ERROR:
+		break;
+
+	case GL_INVALID_OPERATION:
+		std::cout << "RenderingCore::PrivateInterface::CheckError(): GL_INVALID_OPERATION\n";
+		break;
+
+	case GL_INVALID_ENUM:
+		std::cout << "RenderingCore::PrivateInterface::CheckError(): GL_INVALID_ENUM\n";
+		break;
+
+	case GL_INVALID_VALUE:
+		std::cout << "RenderingCore::PrivateInterface::CheckError(): GL_INVALID_VALUE\n";
+		break;
+
+	case GL_OUT_OF_MEMORY:
+		std::cout << "RenderingCore::PrivateInterface::CheckError(): GL_OUT_OF_MEMORY\n";
+		break;
+
+	default:
+		std::cout << "RenderingCore::PrivateInterface::CheckError(): Other error\n";
+		break;
+	}
 }
 
 OpenGLFramebuffer* RenderingCore::PrivateInterface::CreateFramebuffer(GLuint width, GLuint height)
@@ -345,7 +407,7 @@ private:
 
 public:
 	UniverseCreatorTask(RenderingCore::PrivateInterface* interf, HDC dc)
-		: RenderingCore::IRenderingTask(-1)
+		: RenderingCore::IRenderingTask(-2)
 	{
 		privinterf		= interf;
 		hdc				= dc;
@@ -546,13 +608,11 @@ bool RenderingCore::SetupCoreProfile()
 
 void RenderingCore::THREAD_Run()
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED);
-
 	while( true )
 	{
 		IRenderingTask* action = tasks.pop();
 
-		if( action->GetUniverseID() == -1 )
+		if( action->GetUniverseID() == -2 )
 		{
 			// this is a context creator action
 			// NOTE: unsafe...

@@ -24,7 +24,7 @@ private:
 
 	void Dispose();
 	void Execute(IRenderingContext* context);
-	void Internal_Render();
+	void Internal_Render(IRenderingContext* context);
 
 public:
 	OpenGLAddonTask(int universe, OpenGLFramebuffer* target);
@@ -124,10 +124,10 @@ void OpenGLAddonTask::Execute(IRenderingContext* context)
 			effect = context->CreateEffect("../media/shadersGL/blinnphong.vert", 0, "../media/shadersGL/blinnphong.frag");
 	}
 	else if( action == AA_Render )
-		Internal_Render();
+		Internal_Render(context);
 }
 
-void OpenGLAddonTask::Internal_Render()
+void OpenGLAddonTask::Internal_Render(IRenderingContext* context)
 {
 	// NOTE: runs on renderer thread
 	if( !rendertarget )
@@ -169,12 +169,9 @@ void OpenGLAddonTask::Internal_Render()
 	world[14] += meshoffset[2];
 
 	// setup states (TODO:)
-	glClearColor(clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a);
-	glClearDepth(1.0f);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glDepthFunc(GL_LEQUAL);
-	glEnable(GL_DEPTH_TEST);
+	context->SetCullMode(GL_BACK);
+	context->SetDepthTest(true);
+	context->SetDepthFunc(GL_LEQUAL);
 
 	// render
 	effect->SetMatrix("matWorld", world);
@@ -187,9 +184,9 @@ void OpenGLAddonTask::Internal_Render()
 	rendertarget->Set();
 	{
 		if( cleardepth )
-			glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+			context->Clear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT, clearcolor);
 		else
-			glClear(GL_COLOR_BUFFER_BIT);
+			context->Clear(GL_COLOR_BUFFER_BIT, clearcolor);
 
 		effect->Begin();
 		{
@@ -199,11 +196,7 @@ void OpenGLAddonTask::Internal_Render()
 	}
 	rendertarget->Unset();
 
-	// check errors
-	GLenum err = glGetError();
-
-	if( err != GL_NO_ERROR )
-		std::cout << "GL error\n";
+	context->CheckError();
 }
 
 void OpenGLAddonTask::Setup()

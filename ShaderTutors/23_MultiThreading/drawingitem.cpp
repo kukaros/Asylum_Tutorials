@@ -56,7 +56,7 @@ private:
 		{
 			lineeffect = context->CreateEffect(
 				"../media/shadersGL/color.vert",
-				"../media/shadersGL/renderlines.geom",
+				"../media/shadersGL/renderlines.geom",	// NOTE: causes driver crash on Intel
 				"../media/shadersGL/color.frag");
 		}
 
@@ -83,7 +83,7 @@ private:
 		rendertarget->Set();
 		{
 			if( needsclear )
-				context->Clear(clearcolor);
+				context->Clear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT, clearcolor);
 
 			lineeffect->Begin();
 			{
@@ -373,7 +373,8 @@ private:
 
 			glBindTexture(GL_TEXTURE_2D, texid);
 			glDisable(GL_DEPTH_TEST);
-			glClear(GL_COLOR_BUFFER_BIT);
+			
+			context->Clear(GL_COLOR_BUFFER_BIT, OpenGLColor(0, 0, 0, 1));
 
 			effect->SetInt("sampler0", 0);
 			effect->SetMatrix("matTexture", texmat);

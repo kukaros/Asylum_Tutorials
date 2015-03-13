@@ -43,8 +43,6 @@ Win32Window*	window3 = 0;
 
 void THREAD1_Run()
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED);
-
 	window1 = new Win32Window(
 		workarea.left + wawidth / 2, workarea.top,
 		wawidth / 2, waheight / 2);
@@ -58,14 +56,10 @@ void THREAD1_Run()
 
 	delete window1;
 	window1 = 0;
-
-	CoUninitialize();
 }
 
 void THREAD2_Run()
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED);
-
 	window2 = new Win32Window(
 		workarea.left, workarea.top + waheight / 2,
 		wawidth / 2, waheight / 2);
@@ -79,14 +73,10 @@ void THREAD2_Run()
 
 	delete window2;
 	window2 = 0;
-
-	CoUninitialize();
 }
 
 void THREAD3_Run()
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED);
-
 	window3 = new Win32Window(
 		workarea.left + wawidth / 2, workarea.top + waheight / 2,
 		wawidth / 2, waheight / 2);
@@ -100,13 +90,10 @@ void THREAD3_Run()
 
 	delete window3;
 	window3 = 0;
-
-	CoUninitialize();
 }
 
 int main(int argc, char* argv[])
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED);
 	SystemParametersInfo(SPI_GETWORKAREA, 0, &workarea, 0);
 
 	wawidth = workarea.right - workarea.left;
@@ -156,8 +143,6 @@ int main(int argc, char* argv[])
 	worker3.Wait();
 
 	GetRenderingCore()->Shutdown();
-	CoUninitialize();
-
 	_CrtDumpMemoryLeaks();
 
 #ifdef _DEBUG
